@@ -5,6 +5,31 @@ char *append_string(char *destination, const char *source)
   return destination + length;
 }
 
+typedef struct xcode_uuid
+{
+  unsigned int uuid[3];
+} xcode_uuid;
+
+static_assert(sizeof(xcode_uuid) == 12, "Incorrect size of UUID");
+
+xcode_uuid xCodeGenerateUUID()
+{
+  static size_t count = 0;
+
+  xcode_uuid out = {0};
+  out.uuid[0] = count++;
+  return out;
+}
+const char *xCodeUUID2String(xcode_uuid uuid)
+{
+  static char out[25] = {0};
+
+  // Incorrect byte order, but don't care for now
+  sprintf(out, "%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
+
+  return out;
+}
+
 void xCodeCreateProjectFile(const TProject *in_project)
 {
 #if 0
@@ -180,7 +205,21 @@ void xCodeCreateProjectFile(const TProject *in_project)
   </ImportGroup>
 </Project>)lit" << std::endl;
 #endif
-  const char *projectContents = R"lit(// !$*UTF8*$!
+
+  const TProject *p = (TProject *)in_project;
+  std::vector<xcode_uuid> fileReferenceUUID(p->files.size());
+  std::vector<xcode_uuid> fileUUID(p->files.size());
+  for (unsigned fi = 0; fi < p->files.size(); ++fi)
+  {
+    fileReferenceUUID[fi] = xCodeGenerateUUID();
+    fileUUID[fi] = xCodeGenerateUUID();
+    const char *filename = p->files[fi].c_str();
+  }
+
+  std::vector<char> buffer(1024 * 1024 * 10);
+  char *appendBuffer = buffer.data();
+
+  appendBuffer = append_string(appendBuffer, R"lit(// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -189,7 +228,23 @@ void xCodeCreateProjectFile(const TProject *in_project)
 	objects = {
 
 /* Begin PBXBuildFile section */
-		40151AD123EB48D600D4236A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 40151AD023EB48D600D4236A /* main.cpp */; };
+)lit");
+
+  for (unsigned fi = 0; fi < p->files.size(); ++fi)
+  {
+    const char *filename = p->files[fi].c_str();
+    appendBuffer = append_string(appendBuffer, "		");
+    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
+    appendBuffer = append_string(appendBuffer, " /* ");
+    appendBuffer = append_string(appendBuffer, strip_path(filename));
+    appendBuffer = append_string(appendBuffer, " in some folder */ = {isa = PBXBuildFile; fileRef = ");
+    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+    appendBuffer = append_string(appendBuffer, " /* ");
+    appendBuffer = append_string(appendBuffer, strip_path(filename));
+    appendBuffer = append_string(appendBuffer, " */; };\n");
+  }
+
+  appendBuffer = append_string(appendBuffer, R"lit(
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -205,25 +260,24 @@ void xCodeCreateProjectFile(const TProject *in_project)
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-)lit";
+)lit");
 
-  FILE *f = fopen("hello_world.xcodeproj/project.pbxproj", "wb");
-  fwrite(projectContents, 1, strlen(projectContents), f);
-
-  std::vector<char> buffer(1024 * 1024 * 10);
-  char *appendBuffer = buffer.data();
-
-  const TProject *p = (TProject *)in_project;
   for (unsigned fi = 0; fi < p->files.size(); ++fi)
   {
     const char *filename = p->files[fi].c_str();
-    appendBuffer = append_string(appendBuffer, "		40151AD023EB48D600D4236A /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ");
+    appendBuffer = append_string(appendBuffer, "		");
+    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+    appendBuffer = append_string(appendBuffer, " /* ");
+    appendBuffer = append_string(appendBuffer, strip_path(filename));
+    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ");
+    appendBuffer = append_string(appendBuffer, strip_path(filename));
+    appendBuffer = append_string(appendBuffer, "; path = ");
     appendBuffer = append_string(appendBuffer, filename);
     appendBuffer = append_string(appendBuffer, "; sourceTree = SOURCE_ROOT; };\n");
-    fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
+    printf("Adding file %s\n", filename);
   }
 
-  const char *projectContentsAfterFiles = R"lit(
+  appendBuffer = append_string(appendBuffer, R"lit(
 		403CC53B23EB479400558E07 /* hello_world */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = hello_world; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -265,8 +319,17 @@ void xCodeCreateProjectFile(const TProject *in_project)
 		403CC54523EB480800558E07 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				40151AD023EB48D600D4236A /* main.cpp */,
-			);
+)lit");
+  for (unsigned fi = 0; fi < p->files.size(); ++fi)
+  {
+    const char *filename = p->files[fi].c_str();
+    appendBuffer = append_string(appendBuffer, "			    ");
+    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+    appendBuffer = append_string(appendBuffer, " /* ");
+    appendBuffer = append_string(appendBuffer, filename);
+    appendBuffer = append_string(appendBuffer, " */,\n");
+  }
+  appendBuffer = append_string(appendBuffer, R"lit(			);
 			name = src;
 			path = ../../src;
 			sourceTree = "<group>";
@@ -328,7 +391,19 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				40151AD123EB48D600D4236A /* main.cpp in Sources */,
+)lit");
+
+  for (unsigned fi = 0; fi < p->files.size(); ++fi)
+  {
+    const char *filename = p->files[fi].c_str();
+    appendBuffer = append_string(appendBuffer, "\t\t\t\t");
+    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
+    appendBuffer = append_string(appendBuffer, " /* ");
+    appendBuffer = append_string(appendBuffer, strip_path(filename));
+    appendBuffer = append_string(appendBuffer, " in some folder */,\n");
+  }
+
+  appendBuffer = append_string(appendBuffer, R"lit(
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -485,9 +560,10 @@ void xCodeCreateProjectFile(const TProject *in_project)
 	};
 	rootObject = 403CC53323EB479400558E07 /* Project object */;
 }
-)lit";
+)lit");
 
-  fwrite(projectContentsAfterFiles, 1, strlen(projectContentsAfterFiles), f);
+  FILE *f = fopen("hello_world.xcodeproj/project.pbxproj", "wb");
+  fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
   fclose(f);
 }
 
