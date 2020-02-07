@@ -1,3 +1,5 @@
+#include <sys/stat.h>
+
 char *append_string(char *destination, const char *source)
 {
   size_t length = strlen(source);
@@ -32,180 +34,6 @@ const char *xCodeUUID2String(xcode_uuid uuid)
 
 void xCodeCreateProjectFile(const TProject *in_project)
 {
-#if 0
-  std::ofstream vcxproj_file("test/builder.vcxproj");
-  vcxproj_file << R"lit(<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-)lit";
-  vcxproj_file << "  <ItemGroup Label=\"ProjectConfigurations\">" << std::endl;
-
-  const char *platform_types[] = {"Win32", "x64", "ARM"};
-  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci)
-  {
-    auto c = privateData.configurations[ci];
-    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi)
-    {
-      auto platform = privateData.platform_names[pi];
-      vcxproj_file << "    <ProjectConfiguration Include=\"" << c << "|" << platform << "\">" << std::endl
-                   << "      <Configuration>" << c << "</Configuration>" << std::endl
-                   << "      <Platform>" << platform_types[privateData.platforms[pi]] << "</Platform>" << std::endl
-                   << "    </ProjectConfiguration>" << std::endl;
-    }
-  }
-  vcxproj_file << "  </ItemGroup>" << std::endl;
-  vcxproj_file << R"lit(  <PropertyGroup Label="Globals">
-    <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{4470604D-2B04-466E-A39B-9E49BA6DA261}</ProjectGuid>
-    <Keyword>Win32Proj</Keyword>
-    <RootNamespace>builder</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-  </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />)lit"
-               << std::endl;
-  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci)
-  {
-    auto c = privateData.configurations[ci];
-    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi)
-    {
-      auto platform = privateData.platform_names[pi];
-      vcxproj_file << "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='" << c << "|" << platform
-                   << "'\" Label=\"Configuration\">" << std::endl
-                   << "    <ConfigurationType>Application</ConfigurationType>" << std::endl
-                   << "    <UseDebugLibraries>true</UseDebugLibraries>" << std::endl
-                   << "    <PlatformToolset>v141</PlatformToolset>" << std::endl
-                   << "    <CharacterSet>Unicode</CharacterSet>" << std::endl
-                   << "  </PropertyGroup>" << std::endl;
-    }
-  }
-  vcxproj_file << R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="Shared">
-  </ImportGroup>)lit"
-               << std::endl;
-  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci)
-  {
-    auto c = privateData.configurations[ci];
-    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi)
-    {
-      auto platform = privateData.platform_names[pi];
-      vcxproj_file << "  <ImportGroup Label=\"PropertySheets\" Condition=\"'$(Configuration)|$(Platform)'=='" << c
-                   << "|" << platform << "'\">" << std::endl
-                   << "    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" "
-                      "Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" "
-                      "Label=\"LocalAppDataPlatform\" />"
-                   << std::endl
-                   << "  </ImportGroup>" << std::endl;
-    }
-  }
-
-  vcxproj_file << R"lit(  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>)lit"
-               << std::endl;
-
-  vcxproj_file << R"lit(  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeaderFile />
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeaderFile />
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-)lit";
-
-  const TProject *p = (TProject *)in_project;
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    vcxproj_file << "  <ItemGroup>" << std::endl;
-    auto f = p->files[fi];
-    if (f.find(".h") != std::string::npos)
-    {
-      vcxproj_file << "    <ClInclude Include=\"" << f << "\" />" << std::endl;
-    }
-    else
-    {
-      vcxproj_file << "    <ClCompile Include=\"" << f << "\" />" << std::endl;
-    }
-    vcxproj_file << "  </ItemGroup>" << std::endl;
-  }
-
-  vcxproj_file << R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
-</Project>)lit" << std::endl;
-#endif
-
   const TProject *p = (TProject *)in_project;
   std::vector<xcode_uuid> fileReferenceUUID(p->files.size());
   std::vector<xcode_uuid> fileUUID(p->files.size());
@@ -214,6 +42,15 @@ void xCodeCreateProjectFile(const TProject *in_project)
     fileReferenceUUID[fi] = xCodeGenerateUUID();
     fileUUID[fi] = xCodeGenerateUUID();
     const char *filename = p->files[fi].c_str();
+  }
+
+  xcode_uuid outputFileReferenceUIID = xCodeGenerateUUID();
+  xcode_uuid outputTargetUIID = xCodeGenerateUUID();
+
+  std::string outputName = p->name;
+  if (p->type == CCProjectTypeStaticLibrary)
+  {
+    outputName = "lib" + outputName + ".a";
   }
 
   std::vector<char> buffer(1024 * 1024 * 10);
@@ -243,11 +80,15 @@ void xCodeCreateProjectFile(const TProject *in_project)
     appendBuffer = append_string(appendBuffer, strip_path(filename));
     appendBuffer = append_string(appendBuffer, " */; };\n");
   }
+  if (p->type == CCProjectTypeConsoleApplication)
+  {
+    appendBuffer = append_string(appendBuffer, "4008B26123EDACFC00FCB192 /* libmy_library.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4008B26023EDACFC00FCB192 /* libmy_library.a */; };");
+  }
+  appendBuffer = append_string(appendBuffer, "/* End PBXBuildFile section */\n\n");
 
-  appendBuffer = append_string(appendBuffer, R"lit(
-/* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
+  if (p->type == CCProjectTypeConsoleApplication)
+  {
+    appendBuffer = append_string(appendBuffer, R"lit(/* Begin PBXCopyFilesBuildPhase section */
 		403CC53923EB479400558E07 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -258,10 +99,10 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			runOnlyForDeploymentPostprocessing = 1;
 		};
 /* End PBXCopyFilesBuildPhase section */
-
-/* Begin PBXFileReference section */
 )lit");
+  }
 
+  appendBuffer = append_string(appendBuffer, "/* Begin PBXFileReference section */\n");
   for (unsigned fi = 0; fi < p->files.size(); ++fi)
   {
     const char *filename = p->files[fi].c_str();
@@ -277,8 +118,23 @@ void xCodeCreateProjectFile(const TProject *in_project)
     printf("Adding file %s\n", filename);
   }
 
+  appendBuffer = append_string(appendBuffer, "		");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+  appendBuffer = append_string(appendBuffer, " /* ");
+  appendBuffer = append_string(appendBuffer, outputName.c_str());
+  if (p->type == CCProjectTypeConsoleApplication)
+  {
+    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"compiled.mach-o.executable\"; includeInIndex = 0; path = ");
+  }
+  else
+  {
+    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"archive.ar\"; includeInIndex = 0; path = ");
+  }
+  appendBuffer = append_string(appendBuffer, outputName.c_str());
+  appendBuffer = append_string(appendBuffer, "; sourceTree = BUILT_PRODUCTS_DIR; };\n");
+
   appendBuffer = append_string(appendBuffer, R"lit(
-		403CC53B23EB479400558E07 /* hello_world */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = hello_world; sourceTree = BUILT_PRODUCTS_DIR; };
+		4008B26023EDACFC00FCB192 /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libmy_library.a; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -286,34 +142,55 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4008B26123EDACFC00FCB192 /* libmy_library.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4008B25F23EDACFC00FCB192 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4008B26023EDACFC00FCB192 /* libmy_library.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		403CC53223EB479400558E07 = {
 			isa = PBXGroup;
 			children = (
-				403CC53D23EB479400558E07 /* hello_world */,
+				403CC53D23EB479400558E07 /* )lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit( */,
 				403CC53C23EB479400558E07 /* Products */,
+				4008B25F23EDACFC00FCB192 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
 		403CC53C23EB479400558E07 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				403CC53B23EB479400558E07 /* hello_world */,
+				)lit");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+  appendBuffer = append_string(appendBuffer, " /* ");
+  appendBuffer = append_string(appendBuffer, outputName.c_str());
+  appendBuffer = append_string(appendBuffer, " */\n");
+  appendBuffer = append_string(appendBuffer, R"lit(,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		403CC53D23EB479400558E07 /* hello_world */ = {
+		403CC53D23EB479400558E07 /* )lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit( */ = {
 			isa = PBXGroup;
 			children = (
 				403CC54523EB480800558E07 /* src */,
 			);
-			path = hello_world;
+			path = )lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit(;
 			sourceTree = "<group>";
 		};
 		403CC54523EB480800558E07 /* src */ = {
@@ -337,9 +214,16 @@ void xCodeCreateProjectFile(const TProject *in_project)
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		403CC53A23EB479400558E07 /* hello_world */ = {
+)lit");
+  appendBuffer = append_string(appendBuffer, "		");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+  appendBuffer = append_string(appendBuffer, " /* ");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit( */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget "hello_world" */;
+			buildConfigurationList = 403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit(" */;
 			buildPhases = (
 				403CC53723EB479400558E07 /* Sources */,
 				403CC53823EB479400558E07 /* Frameworks */,
@@ -349,10 +233,29 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			);
 			dependencies = (
 			);
-			name = hello_world;
-			productName = hello_world;
-			productReference = 403CC53B23EB479400558E07 /* hello_world */;
-			productType = "com.apple.product-type.tool";
+)lit");
+
+  appendBuffer = append_string(appendBuffer, "			name = ");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, ";\n");
+  appendBuffer = append_string(appendBuffer, "			productName = ");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, ";\n");
+  appendBuffer = append_string(appendBuffer, "			productReference = ");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+  appendBuffer = append_string(appendBuffer, " /* ");
+  appendBuffer = append_string(appendBuffer, outputName.c_str());
+  appendBuffer = append_string(appendBuffer, " */;\n");
+  appendBuffer = append_string(appendBuffer, "			productType = ");
+  if (p->type == CCProjectTypeConsoleApplication)
+  {
+    appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.tool\"");
+  }
+  else
+  {
+    appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.library.static\"");
+  }
+  appendBuffer = append_string(appendBuffer, R"lit(;
 		};
 /* End PBXNativeTarget section */
 
@@ -363,12 +266,16 @@ void xCodeCreateProjectFile(const TProject *in_project)
 				LastUpgradeCheck = 1130;
 				ORGANIZATIONNAME = "Daedalus Development";
 				TargetAttributes = {
-					403CC53A23EB479400558E07 = {
+					)lit");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+  appendBuffer = append_string(appendBuffer, R"lit( = {
 						CreatedOnToolsVersion = 11.3;
 					};
 				};
 			};
-			buildConfigurationList = 403CC53623EB479400558E07 /* Build configuration list for PBXProject "hello_world" */;
+			buildConfigurationList = 403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit(" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -381,7 +288,11 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				403CC53A23EB479400558E07 /* hello_world */,
+				)lit");
+  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+  appendBuffer = append_string(appendBuffer, R"lit( /* )lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit( */,
 			);
 		};
 /* End PBXProject section */
@@ -538,7 +449,9 @@ void xCodeCreateProjectFile(const TProject *in_project)
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		403CC53623EB479400558E07 /* Build configuration list for PBXProject "hello_world" */ = {
+		403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				403CC54023EB479400558E07 /* Debug */,
@@ -547,7 +460,9 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget "hello_world" */ = {
+		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
+  appendBuffer = append_string(appendBuffer, p->name.c_str());
+  appendBuffer = append_string(appendBuffer, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				403CC54323EB479400558E07 /* Debug */,
@@ -562,7 +477,43 @@ void xCodeCreateProjectFile(const TProject *in_project)
 }
 )lit");
 
-  FILE *f = fopen("hello_world.xcodeproj/project.pbxproj", "wb");
+  std::string projectFilePath = p->name;
+  projectFilePath += ".xcodeproj";
+  int result = mkdir(projectFilePath.c_str(), 0777);
+
+  projectFilePath += "/project.pbxproj";
+
+  FILE *f = fopen(projectFilePath.c_str(), "wb");
+  fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
+  fclose(f);
+}
+
+void xCodeCreateWorkspaceFile()
+{
+  std::vector<char> buffer(1024 * 1024 * 10);
+  char *appendBuffer = buffer.data();
+
+  appendBuffer = append_string(appendBuffer,
+                               R"lit(<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">)lit");
+
+  for (unsigned i = 0; i < privateData.projects.size(); ++i)
+  {
+    auto p = privateData.projects[i];
+    appendBuffer = append_string(appendBuffer, "  <FileRef");
+    appendBuffer = append_string(appendBuffer, "    location = \"group:");
+    appendBuffer = append_string(appendBuffer, p->name.c_str());
+    appendBuffer = append_string(appendBuffer, ".xcodeproj\">");
+    appendBuffer = append_string(appendBuffer, "  </FileRef>");
+  }
+  appendBuffer = append_string(appendBuffer, "</Workspace>");
+
+  std::string workspaceFilePath = privateData.workspaceLabel;
+  workspaceFilePath += ".xcworkspace";
+  int result = mkdir(workspaceFilePath.c_str(), 0777);
+  workspaceFilePath += "/contents.xcworkspacedata";
+  FILE *f = fopen(workspaceFilePath.c_str(), "wb");
   fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
   fclose(f);
 }
@@ -574,17 +525,20 @@ void xcode_generate()
     auto p = privateData.projects[i];
     xCodeCreateProjectFile(p);
   }
+
+  xCodeCreateWorkspaceFile();
 }
 
 TBuilder cc_xcode_builder = {
     {
-        ::createProject,
-        ::addFileToProject,
+        createProject,
+        addFileToProject,
     },
     {
-        ::setOutputFolder,
-        ::addProject,
-        ::addConfiguration,
-        ::addPlatform,
+        setWorkspaceLabel,
+        setOutputFolder,
+        addProject,
+        addConfiguration,
+        addPlatform,
     },
     xcode_generate};

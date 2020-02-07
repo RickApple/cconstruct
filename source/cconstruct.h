@@ -8,7 +8,8 @@
 
 enum EProjectType
 {
-  CONSOLE_APPLICATION = 0
+  CCProjectTypeConsoleApplication = 0,
+  CCProjectTypeStaticLibrary
 };
 enum EPlatformType
 {
@@ -40,6 +41,7 @@ typedef struct TBuilder_
 
   const struct
   {
+    void (*setLabel)(const char *label);
     void (*setOutputFolder)(const char *in_output_folder);
     void (*addProject)(const void *in_project);
     void (*addConfiguration)(const char *in_configuration_name);

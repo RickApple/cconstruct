@@ -13,7 +13,7 @@ int main()
   builder.workspace.addConfiguration("Debug");
   builder.workspace.addConfiguration("Release");
 
-  auto p = builder.project.create("hello_world", CONSOLE_APPLICATION);
+  auto p = builder.project.create("hello_world", CCProjectTypeConsoleApplication);
   const char *srcFiles[] = {"src/main.c", "src/function.c", NULL};
   for (auto f : srcFiles)
   {

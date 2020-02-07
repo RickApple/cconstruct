@@ -114,6 +114,7 @@ TBuilder cc_vs2017_builder = {
         addFileToProject,
     },
     {
+        setWorkspaceLabel,
         setOutputFolder,
         addProject,
         addConfiguration,

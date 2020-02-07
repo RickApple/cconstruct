@@ -9,6 +9,7 @@ typedef struct TProject_
 struct
 {
   const char *outputFolder;
+  const char *workspaceLabel;
   std::vector<TProject *> projects;
   std::vector<std::string> configurations;
   std::vector<std::string> platform_names;
@@ -40,5 +41,6 @@ void addPlatform(const char *in_platform_name, EPlatformType in_type)
 }
 
 void setOutputFolder(const char *of) { privateData.outputFolder = of; }
+void setWorkspaceLabel(const char *label) { privateData.workspaceLabel = label; }
 
 void addProject(const void *in_project) { privateData.projects.push_back((TProject *)in_project); }
