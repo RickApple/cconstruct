@@ -1,9 +1,12 @@
-typedef struct TProject_
+typedef struct TProject TProject;
+
+typedef struct TProject
 {
   EProjectType type;
   std::string name;
   std::vector<std::string> files;
   std::vector<std::string> groups;
+  std::vector<TProject*> dependantOn;
 } TProject;
 
 struct
@@ -28,6 +31,9 @@ void addFileToProject(void *in_project, const char *in_file_name, const char *in
 {
   ((TProject *)in_project)->files.push_back(in_file_name);
   ((TProject *)in_project)->groups.push_back(in_group_name ? in_group_name : "");
+}
+void addInputProject(const void *target_project, const void* on_project) {
+    ((TProject *)target_project)->dependantOn.push_back((TProject *)on_project);
 }
 
 void addConfiguration(const char *in_configuration_name)

@@ -108,10 +108,11 @@ EndGlobal
     return exit(1);
   }
 }
-TBuilder cc_vs2017_builder = {
+CConstruct cc_vs2017_builder = {
     {
         createProject,
         addFileToProject,
+        addInputProject
     },
     {
         setWorkspaceLabel,

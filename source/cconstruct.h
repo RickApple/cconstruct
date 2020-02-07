@@ -21,6 +21,7 @@ enum EPlatformType
 // Project functions
 void *createProject(const char *in_project_name, EProjectType in_project_type);
 void addFileToProject(void *in_project, const char *in_file_name, const char *in_group_name);
+void addInputProject(const void *target_project, const void* on_project);
 
 // Workspace functions
 void setOutputFolder(const char *of);
@@ -29,7 +30,7 @@ void addProject(const void *in_project);
 void addConfiguration(const char *in_configuration_name);
 void addPlatform(const char *in_platform_name, EPlatformType in_type);
 
-typedef struct TBuilder_
+typedef struct CConstruct
 {
 
   const struct
@@ -37,6 +38,7 @@ typedef struct TBuilder_
 
     void *(*create)(const char *in_project_name, EProjectType in_project_type);
     void (*addFile)(void *in_project, const char *in_file_name, const char *in_group_name);
+    void (*addInputProject)(const void *target_project, const void* on_project);
   } project;
 
   const struct
@@ -50,9 +52,9 @@ typedef struct TBuilder_
 
   void (*generate)();
 
-} TBuilder;
+} CConstruct;
 
-extern TBuilder builder;
+extern CConstruct builder;
 
 void writeToFile(FILE *f, const char *s) { fwrite(s, 1, strlen(s), f); }
 

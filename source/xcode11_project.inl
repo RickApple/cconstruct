@@ -2,61 +2,78 @@
 
 char *append_string(char *destination, const char *source)
 {
-  size_t length = strlen(source);
-  strcpy(destination, source);
-  return destination + length;
+	size_t length = strlen(source);
+	strcpy(destination, source);
+	return destination + length;
 }
 
 typedef struct xcode_uuid
 {
-  unsigned int uuid[3];
+	unsigned int uuid[3];
 } xcode_uuid;
 
 static_assert(sizeof(xcode_uuid) == 12, "Incorrect size of UUID");
 
 xcode_uuid xCodeGenerateUUID()
 {
-  static size_t count = 0;
+	static size_t count = 0;
 
-  xcode_uuid out = {0};
-  out.uuid[0] = count++;
-  return out;
+	xcode_uuid out = {0};
+	out.uuid[0] = ++count;
+	return out;
 }
 const char *xCodeUUID2String(xcode_uuid uuid)
 {
-  static char out[25] = {0};
+	static char out[25] = {0};
 
-  // Incorrect byte order, but don't care for now
-  sprintf(out, "%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
+	// Incorrect byte order, but don't care for now
+	sprintf(out, "%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
 
-  return out;
+	return out;
 }
 
-void xCodeCreateProjectFile(const TProject *in_project)
+xcode_uuid findUUIDForProject(const std::vector<xcode_uuid> &uuids, const TProject *project)
 {
-  const TProject *p = (TProject *)in_project;
-  std::vector<xcode_uuid> fileReferenceUUID(p->files.size());
-  std::vector<xcode_uuid> fileUUID(p->files.size());
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    fileReferenceUUID[fi] = xCodeGenerateUUID();
-    fileUUID[fi] = xCodeGenerateUUID();
-    const char *filename = p->files[fi].c_str();
-  }
+	for (unsigned i = 0; i < uuids.size(); ++i)
+	{
+		if (privateData.projects[i] == project)
+			return uuids[i];
+	}
+	return {};
+}
 
-  xcode_uuid outputFileReferenceUIID = xCodeGenerateUUID();
-  xcode_uuid outputTargetUIID = xCodeGenerateUUID();
+void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_uuid> &projectFileReferenceUUIDs)
+{
+	const TProject *p = (TProject *)in_project;
+	std::vector<xcode_uuid> fileReferenceUUID(p->files.size());
+	std::vector<xcode_uuid> fileUUID(p->files.size());
+	for (unsigned fi = 0; fi < p->files.size(); ++fi)
+	{
+		fileReferenceUUID[fi] = xCodeGenerateUUID();
+		fileUUID[fi] = xCodeGenerateUUID();
+	}
 
-  std::string outputName = p->name;
-  if (p->type == CCProjectTypeStaticLibrary)
-  {
-    outputName = "lib" + outputName + ".a";
-  }
+	std::vector<xcode_uuid> dependencyFileReferenceUUID(p->dependantOn.size());
+	std::vector<xcode_uuid> dependencyBuildUUID(p->dependantOn.size());
+	for (unsigned fi = 0; fi < p->dependantOn.size(); ++fi)
+	{
+		dependencyFileReferenceUUID[fi] = xCodeGenerateUUID();
+		dependencyBuildUUID[fi] = xCodeGenerateUUID();
+	}
 
-  std::vector<char> buffer(1024 * 1024 * 10);
-  char *appendBuffer = buffer.data();
+	xcode_uuid outputFileReferenceUIID = findUUIDForProject(projectFileReferenceUUIDs, p);
+	xcode_uuid outputTargetUIID = xCodeGenerateUUID();
 
-  appendBuffer = append_string(appendBuffer, R"lit(// !$*UTF8*$!
+	std::string outputName = p->name;
+	if (p->type == CCProjectTypeStaticLibrary)
+	{
+		outputName = "lib" + outputName + ".a";
+	}
+
+	std::vector<char> buffer(1024 * 1024 * 10);
+	char *appendBuffer = buffer.data();
+
+	appendBuffer = append_string(appendBuffer, R"lit(// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -67,28 +84,39 @@ void xCodeCreateProjectFile(const TProject *in_project)
 /* Begin PBXBuildFile section */
 )lit");
 
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    const char *filename = p->files[fi].c_str();
-    appendBuffer = append_string(appendBuffer, "		");
-    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
-    appendBuffer = append_string(appendBuffer, " /* ");
-    appendBuffer = append_string(appendBuffer, strip_path(filename));
-    appendBuffer = append_string(appendBuffer, " in some folder */ = {isa = PBXBuildFile; fileRef = ");
-    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
-    appendBuffer = append_string(appendBuffer, " /* ");
-    appendBuffer = append_string(appendBuffer, strip_path(filename));
-    appendBuffer = append_string(appendBuffer, " */; };\n");
-  }
-  if (p->type == CCProjectTypeConsoleApplication)
-  {
-    appendBuffer = append_string(appendBuffer, "4008B26123EDACFC00FCB192 /* libmy_library.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4008B26023EDACFC00FCB192 /* libmy_library.a */; };");
-  }
-  appendBuffer = append_string(appendBuffer, "/* End PBXBuildFile section */\n\n");
+	for (unsigned fi = 0; fi < p->files.size(); ++fi)
+	{
+		const char *filename = p->files[fi].c_str();
+		appendBuffer = append_string(appendBuffer, "		");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, " in Sources */ = {isa = PBXBuildFile; fileRef = ");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, " */; };\n");
+	}
+	for (size_t i = 0; i < p->dependantOn.size(); ++i)
+	{
+		xcode_uuid id = dependencyFileReferenceUUID[i];
+		xcode_uuid buildID = dependencyBuildUUID[i];
+		std::string dependantName = "lib" + p->dependantOn[i]->name + ".a";
+		appendBuffer = append_string(appendBuffer, "		");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(buildID));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, dependantName.c_str());
+		appendBuffer = append_string(appendBuffer, " in Frameworks */ = {isa = PBXBuildFile; fileRef = ");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(id));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, dependantName.c_str());
+		appendBuffer = append_string(appendBuffer, " */; };\n");
+	}
+	appendBuffer = append_string(appendBuffer, "/* End PBXBuildFile section */\n\n");
 
-  if (p->type == CCProjectTypeConsoleApplication)
-  {
-    appendBuffer = append_string(appendBuffer, R"lit(/* Begin PBXCopyFilesBuildPhase section */
+	if (p->type == CCProjectTypeConsoleApplication)
+	{
+		appendBuffer = append_string(appendBuffer, R"lit(/* Begin PBXCopyFilesBuildPhase section */
 		403CC53923EB479400558E07 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -99,51 +127,66 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			runOnlyForDeploymentPostprocessing = 1;
 		};
 /* End PBXCopyFilesBuildPhase section */
+
 )lit");
-  }
+	}
 
-  appendBuffer = append_string(appendBuffer, "/* Begin PBXFileReference section */\n");
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    const char *filename = p->files[fi].c_str();
-    appendBuffer = append_string(appendBuffer, "		");
-    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
-    appendBuffer = append_string(appendBuffer, " /* ");
-    appendBuffer = append_string(appendBuffer, strip_path(filename));
-    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ");
-    appendBuffer = append_string(appendBuffer, strip_path(filename));
-    appendBuffer = append_string(appendBuffer, "; path = ");
-    appendBuffer = append_string(appendBuffer, filename);
-    appendBuffer = append_string(appendBuffer, "; sourceTree = SOURCE_ROOT; };\n");
-    printf("Adding file %s\n", filename);
-  }
+	appendBuffer = append_string(appendBuffer, "/* Begin PBXFileReference section */\n");
+	for (unsigned fi = 0; fi < p->files.size(); ++fi)
+	{
+		const char *filename = p->files[fi].c_str();
+		appendBuffer = append_string(appendBuffer, "		");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, "; path = ");
+		appendBuffer = append_string(appendBuffer, filename);
+		appendBuffer = append_string(appendBuffer, "; sourceTree = SOURCE_ROOT; };\n");
+		printf("Adding file %s\n", filename);
+	}
 
-  appendBuffer = append_string(appendBuffer, "		");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
-  appendBuffer = append_string(appendBuffer, " /* ");
-  appendBuffer = append_string(appendBuffer, outputName.c_str());
-  if (p->type == CCProjectTypeConsoleApplication)
-  {
-    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"compiled.mach-o.executable\"; includeInIndex = 0; path = ");
-  }
-  else
-  {
-    appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"archive.ar\"; includeInIndex = 0; path = ");
-  }
-  appendBuffer = append_string(appendBuffer, outputName.c_str());
-  appendBuffer = append_string(appendBuffer, "; sourceTree = BUILT_PRODUCTS_DIR; };\n");
+	appendBuffer = append_string(appendBuffer, "		");
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+	appendBuffer = append_string(appendBuffer, " /* ");
+	appendBuffer = append_string(appendBuffer, outputName.c_str());
+	if (p->type == CCProjectTypeConsoleApplication)
+	{
+		appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"compiled.mach-o.executable\"; includeInIndex = 0; path = ");
+	}
+	else
+	{
+		appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; explicitFileType = \"archive.ar\"; includeInIndex = 0; path = ");
+	}
+	appendBuffer = append_string(appendBuffer, outputName.c_str());
+	appendBuffer = append_string(appendBuffer, "; sourceTree = BUILT_PRODUCTS_DIR; };\n");
 
-  appendBuffer = append_string(appendBuffer, R"lit(
-		4008B26023EDACFC00FCB192 /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libmy_library.a; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
+	for (size_t i = 0; i < p->dependantOn.size(); ++i)
+	{
+		xcode_uuid id = dependencyFileReferenceUUID[i];
+		appendBuffer = append_string(appendBuffer, "		");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(id));
+		appendBuffer = append_string(appendBuffer, " /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libmy_library.a; sourceTree = BUILT_PRODUCTS_DIR; };\n");
+	}
+	appendBuffer = append_string(appendBuffer, "/* End PBXFileReference section */\n\n");
 
-/* Begin PBXFrameworksBuildPhase section */
+	appendBuffer = append_string(appendBuffer, R"lit(/* Begin PBXFrameworksBuildPhase section */
 		403CC53823EB479400558E07 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4008B26123EDACFC00FCB192 /* libmy_library.a in Frameworks */,
-			);
+)lit");
+	for (size_t i = 0; i < p->dependantOn.size(); ++i)
+	{
+		xcode_uuid buildID = dependencyBuildUUID[i];
+		appendBuffer = append_string(appendBuffer, "				");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(buildID));
+		appendBuffer = append_string(appendBuffer, " /* lib");
+		appendBuffer = append_string(appendBuffer, p->dependantOn[i]->name.c_str());
+		appendBuffer = append_string(appendBuffer, ".a in Frameworks */,\n");
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -152,8 +195,12 @@ void xCodeCreateProjectFile(const TProject *in_project)
 		4008B25F23EDACFC00FCB192 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				4008B26023EDACFC00FCB192 /* libmy_library.a */,
-			);
+)lit");
+	for (size_t i = 0; i < p->dependantOn.size(); ++i)
+	{
+		xcode_uuid id = dependencyFileReferenceUUID[i];
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
@@ -161,8 +208,8 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			isa = PBXGroup;
 			children = (
 				403CC53D23EB479400558E07 /* )lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit( */,
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit( */,
 				403CC53C23EB479400558E07 /* Products */,
 				4008B25F23EDACFC00FCB192 /* Frameworks */,
 			);
@@ -172,41 +219,40 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			isa = PBXGroup;
 			children = (
 				)lit");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
-  appendBuffer = append_string(appendBuffer, " /* ");
-  appendBuffer = append_string(appendBuffer, outputName.c_str());
-  appendBuffer = append_string(appendBuffer, " */\n");
-  appendBuffer = append_string(appendBuffer, R"lit(,
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+	appendBuffer = append_string(appendBuffer, " /* ");
+	appendBuffer = append_string(appendBuffer, outputName.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit( */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 		403CC53D23EB479400558E07 /* )lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit( */ = {
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit( */ = {
 			isa = PBXGroup;
 			children = (
 				403CC54523EB480800558E07 /* src */,
 			);
 			path = )lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit(;
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit(;
 			sourceTree = "<group>";
 		};
 		403CC54523EB480800558E07 /* src */ = {
 			isa = PBXGroup;
 			children = (
 )lit");
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    const char *filename = p->files[fi].c_str();
-    appendBuffer = append_string(appendBuffer, "			    ");
-    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
-    appendBuffer = append_string(appendBuffer, " /* ");
-    appendBuffer = append_string(appendBuffer, filename);
-    appendBuffer = append_string(appendBuffer, " */,\n");
-  }
-  appendBuffer = append_string(appendBuffer, R"lit(			);
+	for (unsigned fi = 0; fi < p->files.size(); ++fi)
+	{
+		const char *filename = p->files[fi].c_str();
+		appendBuffer = append_string(appendBuffer, "			    ");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileReferenceUUID[fi]));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, " */,\n");
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(			);
 			name = src;
 			path = ../../src;
 			sourceTree = "<group>";
@@ -215,15 +261,15 @@ void xCodeCreateProjectFile(const TProject *in_project)
 
 /* Begin PBXNativeTarget section */
 )lit");
-  appendBuffer = append_string(appendBuffer, "		");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
-  appendBuffer = append_string(appendBuffer, " /* ");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit( */ = {
+	appendBuffer = append_string(appendBuffer, "		");
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+	appendBuffer = append_string(appendBuffer, " /* ");
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit( */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit(" */;
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit(" */;
 			buildPhases = (
 				403CC53723EB479400558E07 /* Sources */,
 				403CC53823EB479400558E07 /* Frameworks */,
@@ -235,27 +281,27 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			);
 )lit");
 
-  appendBuffer = append_string(appendBuffer, "			name = ");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, ";\n");
-  appendBuffer = append_string(appendBuffer, "			productName = ");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, ";\n");
-  appendBuffer = append_string(appendBuffer, "			productReference = ");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
-  appendBuffer = append_string(appendBuffer, " /* ");
-  appendBuffer = append_string(appendBuffer, outputName.c_str());
-  appendBuffer = append_string(appendBuffer, " */;\n");
-  appendBuffer = append_string(appendBuffer, "			productType = ");
-  if (p->type == CCProjectTypeConsoleApplication)
-  {
-    appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.tool\"");
-  }
-  else
-  {
-    appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.library.static\"");
-  }
-  appendBuffer = append_string(appendBuffer, R"lit(;
+	appendBuffer = append_string(appendBuffer, "			name = ");
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, ";\n");
+	appendBuffer = append_string(appendBuffer, "			productName = ");
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, ";\n");
+	appendBuffer = append_string(appendBuffer, "			productReference = ");
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputFileReferenceUIID));
+	appendBuffer = append_string(appendBuffer, " /* ");
+	appendBuffer = append_string(appendBuffer, outputName.c_str());
+	appendBuffer = append_string(appendBuffer, " */;\n");
+	appendBuffer = append_string(appendBuffer, "			productType = ");
+	if (p->type == CCProjectTypeConsoleApplication)
+	{
+		appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.tool\"");
+	}
+	else
+	{
+		appendBuffer = append_string(appendBuffer, "\"com.apple.product-type.library.static\"");
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(;
 		};
 /* End PBXNativeTarget section */
 
@@ -267,15 +313,15 @@ void xCodeCreateProjectFile(const TProject *in_project)
 				ORGANIZATIONNAME = "Daedalus Development";
 				TargetAttributes = {
 					)lit");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
-  appendBuffer = append_string(appendBuffer, R"lit( = {
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+	appendBuffer = append_string(appendBuffer, R"lit( = {
 						CreatedOnToolsVersion = 11.3;
 					};
 				};
 			};
 			buildConfigurationList = 403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit(" */;
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit(" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -289,10 +335,10 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			projectRoot = "";
 			targets = (
 				)lit");
-  appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
-  appendBuffer = append_string(appendBuffer, R"lit( /* )lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit( */,
+	appendBuffer = append_string(appendBuffer, xCodeUUID2String(outputTargetUIID));
+	appendBuffer = append_string(appendBuffer, R"lit( /* )lit");
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit( */,
 			);
 		};
 /* End PBXProject section */
@@ -304,18 +350,17 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			files = (
 )lit");
 
-  for (unsigned fi = 0; fi < p->files.size(); ++fi)
-  {
-    const char *filename = p->files[fi].c_str();
-    appendBuffer = append_string(appendBuffer, "\t\t\t\t");
-    appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
-    appendBuffer = append_string(appendBuffer, " /* ");
-    appendBuffer = append_string(appendBuffer, strip_path(filename));
-    appendBuffer = append_string(appendBuffer, " in some folder */,\n");
-  }
+	for (unsigned fi = 0; fi < p->files.size(); ++fi)
+	{
+		const char *filename = p->files[fi].c_str();
+		appendBuffer = append_string(appendBuffer, "\t\t\t\t");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(fileUUID[fi]));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, strip_path(filename));
+		appendBuffer = append_string(appendBuffer, " in Sources */,\n");
+	}
 
-  appendBuffer = append_string(appendBuffer, R"lit(
-			);
+	appendBuffer = append_string(appendBuffer, R"lit(			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
@@ -450,8 +495,8 @@ void xCodeCreateProjectFile(const TProject *in_project)
 
 /* Begin XCConfigurationList section */
 		403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit(" */ = {
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				403CC54023EB479400558E07 /* Debug */,
@@ -461,8 +506,8 @@ void xCodeCreateProjectFile(const TProject *in_project)
 			defaultConfigurationName = Release;
 		};
 		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
-  appendBuffer = append_string(appendBuffer, p->name.c_str());
-  appendBuffer = append_string(appendBuffer, R"lit(" */ = {
+	appendBuffer = append_string(appendBuffer, p->name.c_str());
+	appendBuffer = append_string(appendBuffer, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				403CC54323EB479400558E07 /* Debug */,
@@ -477,68 +522,74 @@ void xCodeCreateProjectFile(const TProject *in_project)
 }
 )lit");
 
-  std::string projectFilePath = p->name;
-  projectFilePath += ".xcodeproj";
-  int result = mkdir(projectFilePath.c_str(), 0777);
+	std::string projectFilePath = p->name;
+	projectFilePath += ".xcodeproj";
+	int result = mkdir(projectFilePath.c_str(), 0777);
 
-  projectFilePath += "/project.pbxproj";
+	projectFilePath += "/project.pbxproj";
 
-  FILE *f = fopen(projectFilePath.c_str(), "wb");
-  fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
-  fclose(f);
+	FILE *f = fopen(projectFilePath.c_str(), "wb");
+	fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
+	fclose(f);
 }
 
 void xCodeCreateWorkspaceFile()
 {
-  std::vector<char> buffer(1024 * 1024 * 10);
-  char *appendBuffer = buffer.data();
+	std::vector<char> buffer(1024 * 1024 * 10);
+	char *appendBuffer = buffer.data();
 
-  appendBuffer = append_string(appendBuffer,
-                               R"lit(<?xml version="1.0" encoding="UTF-8"?>
+	appendBuffer = append_string(appendBuffer,
+								 R"lit(<?xml version="1.0" encoding="UTF-8"?>
 <Workspace
    version = "1.0">)lit");
 
-  for (unsigned i = 0; i < privateData.projects.size(); ++i)
-  {
-    auto p = privateData.projects[i];
-    appendBuffer = append_string(appendBuffer, "  <FileRef");
-    appendBuffer = append_string(appendBuffer, "    location = \"group:");
-    appendBuffer = append_string(appendBuffer, p->name.c_str());
-    appendBuffer = append_string(appendBuffer, ".xcodeproj\">");
-    appendBuffer = append_string(appendBuffer, "  </FileRef>");
-  }
-  appendBuffer = append_string(appendBuffer, "</Workspace>");
+	for (unsigned i = 0; i < privateData.projects.size(); ++i)
+	{
+		auto p = privateData.projects[i];
+		appendBuffer = append_string(appendBuffer, "  <FileRef");
+		appendBuffer = append_string(appendBuffer, "    location = \"group:");
+		appendBuffer = append_string(appendBuffer, p->name.c_str());
+		appendBuffer = append_string(appendBuffer, ".xcodeproj\">");
+		appendBuffer = append_string(appendBuffer, "  </FileRef>");
+	}
+	appendBuffer = append_string(appendBuffer, "</Workspace>");
 
-  std::string workspaceFilePath = privateData.workspaceLabel;
-  workspaceFilePath += ".xcworkspace";
-  int result = mkdir(workspaceFilePath.c_str(), 0777);
-  workspaceFilePath += "/contents.xcworkspacedata";
-  FILE *f = fopen(workspaceFilePath.c_str(), "wb");
-  fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
-  fclose(f);
+	std::string workspaceFilePath = privateData.workspaceLabel;
+	workspaceFilePath += ".xcworkspace";
+	int result = mkdir(workspaceFilePath.c_str(), 0777);
+	workspaceFilePath += "/contents.xcworkspacedata";
+	FILE *f = fopen(workspaceFilePath.c_str(), "wb");
+	fwrite(buffer.data(), 1, appendBuffer - buffer.data(), f);
+	fclose(f);
 }
 
 void xcode_generate()
 {
-  for (unsigned i = 0; i < privateData.projects.size(); ++i)
-  {
-    auto p = privateData.projects[i];
-    xCodeCreateProjectFile(p);
-  }
+	// Before doing anything, generate a UUID for each projects output file
+	std::vector<xcode_uuid> projectFileReferenceUUIDs(privateData.projects.size());
+	for (unsigned i = 0; i < privateData.projects.size(); ++i)
+	{
+		projectFileReferenceUUIDs[i] = xCodeGenerateUUID();
+	}
 
-  xCodeCreateWorkspaceFile();
+	for (unsigned i = 0; i < privateData.projects.size(); ++i)
+	{
+		auto p = privateData.projects[i];
+		xCodeCreateProjectFile(p, projectFileReferenceUUIDs);
+	}
+
+	xCodeCreateWorkspaceFile();
 }
 
-TBuilder cc_xcode_builder = {
-    {
-        createProject,
-        addFileToProject,
-    },
-    {
-        setWorkspaceLabel,
-        setOutputFolder,
-        addProject,
-        addConfiguration,
-        addPlatform,
-    },
-    xcode_generate};
+CConstruct cc_xcode_builder = {
+	{createProject,
+	 addFileToProject,
+	 addInputProject},
+	{
+		setWorkspaceLabel,
+		setOutputFolder,
+		addProject,
+		addConfiguration,
+		addPlatform,
+	},
+	xcode_generate};

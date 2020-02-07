@@ -19,6 +19,7 @@ int main()
 
   auto b = builder.project.create("my_binary", CCProjectTypeConsoleApplication);
   builder.project.addFile(b, "src/main.c", "Source Files");
+  builder.project.addInputProject(b, l);
 
   builder.workspace.addProject(l);
   builder.workspace.addProject(b);
