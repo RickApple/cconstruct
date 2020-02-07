@@ -1,0 +1,37 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558 
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build",
+            "command": "/usr/bin/clang++",
+            "args": [
+                "-g",
+                "-std=c++11",
+                "test/hello_world/config.cpp",
+                "-o",
+                "${workspaceFolder}/test/hello_world/cconstruct"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
