@@ -369,6 +369,9 @@ void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_
 		403CC54023EB479400558E07 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CONFIGURATION_BUILD_DIR = ")lit");
+	appendBuffer = append_string(appendBuffer, privateData.outputFolder);
+	appendBuffer = append_string(appendBuffer, R"lit(";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -427,6 +430,9 @@ void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_
 		403CC54123EB479400558E07 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CONFIGURATION_BUILD_DIR = ")lit");
+	appendBuffer = append_string(appendBuffer, privateData.outputFolder);
+	appendBuffer = append_string(appendBuffer, R"lit(";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;

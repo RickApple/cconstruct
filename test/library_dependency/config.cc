@@ -3,7 +3,7 @@
 int main()
 {
   auto cc = cc_xcode_builder;
-  cc.workspace.setOutputFolder("test");
+  cc.workspace.setOutputFolder("build/bin/x64");
   cc.workspace.setLabel("library_dependency");
 
   cc.workspace.addPlatform("Win32", EPlatformTypeX86);
