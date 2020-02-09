@@ -1,7 +1,6 @@
 #include "../../source/cconstruct.h"
 
-int main()
-{
+int main() {
   auto cc = cc_xcode_builder;
   cc.workspace.setOutputFolder("bin/x64");
   cc.workspace.setLabel("library_dependency");

@@ -4,7 +4,9 @@ struct xcode_compiler_setting {
   const char* value;
 };
 
-typedef struct xcode_uuid { unsigned int uuid[3]; } xcode_uuid;
+typedef struct xcode_uuid {
+  unsigned int uuid[3];
+} xcode_uuid;
 
 static_assert(sizeof(xcode_uuid) == 12, "Incorrect size of UUID");
 
@@ -472,9 +474,12 @@ void xcode_generateInFolder(const char* workspace_path) {
   }
 }
 
-CConstruct cc_xcode_builder = {
-    {createProject, addFileToProject, addInputProject},
-    {
-        setWorkspaceLabel, setOutputFolder, addProject, addConfiguration, addPlatform,
-    },
-    xcode_generateInFolder};
+CConstruct cc_xcode_builder = {{createProject, addFileToProject, addInputProject},
+                               {
+                                   setWorkspaceLabel,
+                                   setOutputFolder,
+                                   addProject,
+                                   addConfiguration,
+                                   addPlatform,
+                               },
+                               xcode_generateInFolder};

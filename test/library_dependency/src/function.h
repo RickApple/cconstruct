@@ -1,1 +1,1 @@
-void outputSomething( void );
+void outputSomething(void);

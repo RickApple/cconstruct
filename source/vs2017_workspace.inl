@@ -1,14 +1,11 @@
-void vs2017_generateInFolder(const char *workspace_folder)
-{
+void vs2017_generateInFolder(const char* workspace_folder) {
   std::string workspace_file_path = workspace_folder;
 
   workspace_file_path += "/";
   workspace_file_path += "workspace.sln";
-  FILE *workspace = fopen(workspace_file_path.c_str(), "wb");
-  if (workspace)
-  {
-
-    const char *sln = R"lit(Microsoft Visual Studio Solution File, Format Version 12.00
+  FILE* workspace = fopen(workspace_file_path.c_str(), "wb");
+  if (workspace) {
+    const char* sln = R"lit(Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27428.2015
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -16,10 +13,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
     fwrite(sln, 1, strlen(sln), workspace);
 
     const std::string projectId = "{4470604D-2B04-466E-A39B-9E49BA6DA261}";
-    for (auto p : privateData.projects)
-    {
-      std::string pt = "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"" + p->name + "\", \"" +
-                       replaceSpacesWithUnderscores(p->name) +
+    for (auto p : privateData.projects) {
+      std::string pt = "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"" + p->name +
+                       "\", \"" + replaceSpacesWithUnderscores(p->name) +
                        ".vcxproj\", "
                        "\"" +
                        projectId + "\"";
@@ -30,12 +26,10 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 )lit");
-    for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci)
-    {
+    for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
       auto c = privateData.configurations[ci];
-      for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi)
-      {
-        auto p = privateData.platforms[pi];
+      for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+        auto p        = privateData.platforms[pi];
         std::string s = "\t\t";
         s += c;
         s += "|";
@@ -51,12 +45,10 @@ Global
     writeToFile(workspace, R"lit(	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 )lit");
-    for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci)
-    {
+    for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
       auto c = privateData.configurations[ci];
-      for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi)
-      {
-        auto p = privateData.platforms[pi];
+      for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+        auto p        = privateData.platforms[pi];
         std::string s = "\t\t";
         s += projectId;
         s += ".";
@@ -97,26 +89,20 @@ EndGlobal
     fclose(workspace);
     printf("Created workspace at '%s'\n", privateData.outputFolder);
 
-    for (unsigned i = 0; i < privateData.projects.size(); ++i)
-    {
+    for (unsigned i = 0; i < privateData.projects.size(); ++i) {
       auto p = privateData.projects[i];
       createProjectFile(p);
     }
-  }
-  else
-  {
+  } else {
     return exit(1);
   }
 }
-CConstruct cc_vs2017_builder = {
-    {createProject,
-     addFileToProject,
-     addInputProject},
-    {
-        setWorkspaceLabel,
-        setOutputFolder,
-        addProject,
-        addConfiguration,
-        addPlatform,
-    },
-    vs2017_generateInFolder};
+CConstruct cc_vs2017_builder = {{createProject, addFileToProject, addInputProject},
+                                {
+                                    setWorkspaceLabel,
+                                    setOutputFolder,
+                                    addProject,
+                                    addConfiguration,
+                                    addPlatform,
+                                },
+                                vs2017_generateInFolder};

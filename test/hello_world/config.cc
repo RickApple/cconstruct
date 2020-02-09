@@ -1,7 +1,6 @@
 #include "../../source/cconstruct.h"
 
-int main()
-{
+int main() {
   auto cc = cc_xcode_builder;
   cc.workspace.setOutputFolder("test");
 
@@ -10,12 +9,10 @@ int main()
   cc.workspace.addConfiguration("Debug");
   cc.workspace.addConfiguration("Release");
 
-  auto p = cc.project.create("hello_world", CCProjectTypeConsoleApplication);
-  const char *srcFiles[] = {"src/main.c", "src/function.c", NULL};
-  for (auto f : srcFiles)
-  {
-    if (f)
-      cc.project.addFile(p, f, "Source Files");
+  auto p                 = cc.project.create("hello_world", CCProjectTypeConsoleApplication);
+  const char* srcFiles[] = {"src/main.c", "src/function.c", NULL};
+  for (auto f : srcFiles) {
+    if (f) cc.project.addFile(p, f, "Source Files");
   }
   cc.workspace.addProject(p);
 

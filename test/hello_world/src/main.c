@@ -8,8 +8,7 @@
 
 #include "function.h"
 
-int main(int argc, const char *argv[])
-{
+int main(int argc, const char* argv[]) {
   outputSomething();
   return 0;
 }
