@@ -31,7 +31,26 @@ char *append_printf(char *destination, const char *fmt, ...)
 }
 
 #if defined(_MSC_VER)
-int make_folder(const char* folder_path) {}
+#include <direct.h>
+
+int make_folder(const char* folder_path) {
+  char buffer[1024] = {0};
+
+  const char* next_sep = folder_path;
+  while ((next_sep = strchr(next_sep, '/')) != NULL) {
+    strncpy(buffer, folder_path, next_sep - folder_path);
+    int result = _mkdir(buffer);
+    if (result != 0) {
+      if (errno != EEXIST) return errno;
+    }
+    next_sep += 1;
+  }
+  int result = _mkdir(folder_path);
+  if (result != 0) {
+    if (errno != EEXIST) return errno;
+  }
+  return 0;
+}
 #else
 int make_folder(const char* folder_path) {
   char buffer[1024] = {0};

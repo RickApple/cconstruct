@@ -1,5 +1,5 @@
 void createFilters(const TProject* in_project) {
-  std::ofstream vcxproj_filters_file("test/builder.vcxproj.filters");
+  std::ofstream vcxproj_filters_file(in_project->name + std::string(".vcxproj.filters"));
 
   vcxproj_filters_file
       << R"lit(<?xml version="1.0" encoding="utf-8"?>)lit" << std::endl
@@ -44,8 +44,13 @@ void createFilters(const TProject* in_project) {
 
   vcxproj_filters_file << "</Project>" << std::endl;
 }
-void createProjectFile(const TProject* in_project) {
-  std::ofstream vcxproj_file("test/builder.vcxproj");
+void createProjectFile(const TProject* in_project, int folder_depth) {
+  std::string prepend_path = "";
+  for (int i = 0; i < folder_depth; ++i) {
+    prepend_path += "../";
+  }
+
+  std::ofstream vcxproj_file(in_project->name + std::string(".vcxproj"));
   vcxproj_file << R"lit(<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 )lit";
@@ -198,7 +203,7 @@ void createProjectFile(const TProject* in_project) {
   const TProject* p = (TProject*)in_project;
   for (unsigned fi = 0; fi < p->files.size(); ++fi) {
     vcxproj_file << "  <ItemGroup>" << std::endl;
-    auto f = p->files[fi];
+    auto f = prepend_path + p->files[fi];
     if (f.find(".h") != std::string::npos) {
       vcxproj_file << "    <ClInclude Include=\"" << f << "\" />" << std::endl;
     } else {
