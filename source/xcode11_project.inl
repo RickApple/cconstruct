@@ -1,4 +1,3 @@
-#include <sys/stat.h>
 
 char *append_string(char *destination, const char *source)
 {
@@ -42,9 +41,21 @@ xcode_uuid findUUIDForProject(const std::vector<xcode_uuid> &uuids, const TProje
 	return {};
 }
 
-void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_uuid> &projectFileReferenceUUIDs)
+void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_uuid> &projectFileReferenceUUIDs, int folder_depth)
 {
 	const TProject *p = (TProject *)in_project;
+
+	std::string prepend_path = "";
+	for (int i = 0; i < folder_depth; ++i)
+	{
+		prepend_path += "../";
+	}
+
+	std::vector<std::string> file_ref_paths(p->files.size());
+	std::transform(p->files.begin(), p->files.end(), file_ref_paths.begin(), [&](const std::string &f) {
+		return prepend_path + f;
+	});
+
 	std::vector<xcode_uuid> fileReferenceUUID(p->files.size());
 	std::vector<xcode_uuid> fileUUID(p->files.size());
 	for (unsigned fi = 0; fi < p->files.size(); ++fi)
@@ -142,9 +153,9 @@ void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_
 		appendBuffer = append_string(appendBuffer, " */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ");
 		appendBuffer = append_string(appendBuffer, strip_path(filename));
 		appendBuffer = append_string(appendBuffer, "; path = ");
-		appendBuffer = append_string(appendBuffer, filename);
+		appendBuffer = append_string(appendBuffer, file_ref_paths[fi].c_str());
 		appendBuffer = append_string(appendBuffer, "; sourceTree = SOURCE_ROOT; };\n");
-		printf("Adding file %s\n", filename);
+		printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi].c_str());
 	}
 
 	appendBuffer = append_string(appendBuffer, "		");
@@ -569,8 +580,28 @@ void xCodeCreateWorkspaceFile()
 	fclose(f);
 }
 
-void xcode_generate()
+void xcode_generateInFolder(const char *workspace_path)
 {
+	int count_folder_depth = 1;
+	{
+		const char *c = workspace_path;
+		while (*c)
+		{
+			if (*c == '/')
+				count_folder_depth += 1;
+			++c;
+		}
+		if (*(c - 1) == '/')
+			count_folder_depth -= 1;
+	}
+
+	int result = make_folder(workspace_path);
+	if (result != 0)
+	{
+		fprintf(stderr, "Error %i creating path '%s'\n", result, workspace_path);
+	}
+	(void)chdir(workspace_path);
+
 	// Before doing anything, generate a UUID for each projects output file
 	std::vector<xcode_uuid> projectFileReferenceUUIDs(privateData.projects.size());
 	for (unsigned i = 0; i < privateData.projects.size(); ++i)
@@ -581,7 +612,7 @@ void xcode_generate()
 	for (unsigned i = 0; i < privateData.projects.size(); ++i)
 	{
 		auto p = privateData.projects[i];
-		xCodeCreateProjectFile(p, projectFileReferenceUUIDs);
+		xCodeCreateProjectFile(p, projectFileReferenceUUIDs, count_folder_depth);
 	}
 
 	xCodeCreateWorkspaceFile();
@@ -598,4 +629,4 @@ CConstruct cc_xcode_builder = {
 		addConfiguration,
 		addPlatform,
 	},
-	xcode_generate};
+	xcode_generateInFolder};

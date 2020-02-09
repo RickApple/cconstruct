@@ -1,6 +1,6 @@
-void vs2017_generate()
+void vs2017_generateInFolder(const char *workspace_folder)
 {
-  std::string workspace_file_path = privateData.outputFolder;
+  std::string workspace_file_path = workspace_folder;
 
   workspace_file_path += "/";
   workspace_file_path += "workspace.sln";
@@ -109,11 +109,9 @@ EndGlobal
   }
 }
 CConstruct cc_vs2017_builder = {
-    {
-        createProject,
-        addFileToProject,
-        addInputProject
-    },
+    {createProject,
+     addFileToProject,
+     addInputProject},
     {
         setWorkspaceLabel,
         setOutputFolder,
@@ -121,4 +119,4 @@ CConstruct cc_vs2017_builder = {
         addConfiguration,
         addPlatform,
     },
-    vs2017_generate};
+    vs2017_generateInFolder};

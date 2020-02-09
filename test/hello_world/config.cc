@@ -19,7 +19,7 @@ int main()
   }
   cc.workspace.addProject(p);
 
-  cc.generate();
+  cc.generateInFolder("build");
 
   return 0;
 }
