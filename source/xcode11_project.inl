@@ -1,4 +1,10 @@
 
+struct xcode_compiler_setting
+{
+	const char *key;
+	const char *value;
+};
+
 char *append_string(char *destination, const char *source)
 {
 	size_t length = strlen(source);
@@ -376,40 +382,53 @@ void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin XCBuildConfiguration section */
-		403CC54023EB479400558E07 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CONFIGURATION_BUILD_DIR = ")lit");
-	appendBuffer = append_string(appendBuffer, privateData.outputFolder);
-	appendBuffer = append_string(appendBuffer, R"lit(";
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_TESTABILITY = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
+)lit");
+
+	std::vector<xcode_uuid> configuration_ids(privateData.configurations.size());
+	for (size_t i = 0; i < privateData.configurations.size(); ++i)
+	{
+		configuration_ids[i] = xCodeGenerateUUID();
+	}
+	std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
+	std::vector<struct xcode_compiler_setting> debug_config_data = {{"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()}, {"DEBUG_INFORMATION_FORMAT", "dwarf"}, {"ENABLE_TESTABILITY", "YES"}, {"GCC_OPTIMIZATION_LEVEL", "0"}, {"GCC_PREPROCESSOR_DEFINITIONS", R"lit((
 					"DEBUG=1",
 					"$(inherited)",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx;
-			};
-			name = Debug;
-		};
-		403CC54123EB479400558E07 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CONFIGURATION_BUILD_DIR = ")lit");
-	appendBuffer = append_string(appendBuffer, privateData.outputFolder);
-	appendBuffer = append_string(appendBuffer, R"lit(";
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				SDKROOT = macosx;
-			};
-			name = Release;
-		};
-		403CC54323EB479400558E07 /* Debug */ = {
+				))lit"},
+																	{"MACOSX_DEPLOYMENT_TARGET", "10.14"},
+																	{"ONLY_ACTIVE_ARCH", "YES"},
+																	{"SDKROOT", "macosx"}};
+	std::vector<struct xcode_compiler_setting> release_config_data = {{"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()}, {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""}, {"ENABLE_NS_ASSERTIONS", "NO"}, {"MACOSX_DEPLOYMENT_TARGET", "10.14"}, {"ONLY_ACTIVE_ARCH", "YES"}, {"SDKROOT", "macosx"}};
+
+	std::vector<std::vector<struct xcode_compiler_setting>> config_data = {debug_config_data, release_config_data};
+	appendBuffer = append_string(appendBuffer, "/* Begin XCBuildConfiguration section */\n");
+	for (size_t i = 0; i < privateData.configurations.size(); ++i)
+	{
+		const char *config_name = privateData.configurations[i].c_str();
+		xcode_uuid config_id = configuration_ids[i];
+
+		appendBuffer = append_string(appendBuffer, "		");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(config_id));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, config_name);
+		appendBuffer = append_string(appendBuffer, " */ = {\n");
+		appendBuffer = append_string(appendBuffer, "			isa = XCBuildConfiguration;\n");
+		appendBuffer = append_string(appendBuffer, "			buildSettings = {\n");
+		auto config = config_data[i];
+		for (size_t ic = 0; ic < config.size(); ++ic)
+		{
+			appendBuffer = append_string(appendBuffer, "				");
+			appendBuffer = append_string(appendBuffer, config[ic].key);
+			appendBuffer = append_string(appendBuffer, " = ");
+			appendBuffer = append_string(appendBuffer, config[ic].value);
+			appendBuffer = append_string(appendBuffer, ";\n");
+		}
+		appendBuffer = append_string(appendBuffer, "			};\n");
+		appendBuffer = append_string(appendBuffer, "			name = ");
+		appendBuffer = append_string(appendBuffer, config_name);
+		appendBuffer = append_string(appendBuffer, ";\n");
+		appendBuffer = append_string(appendBuffer, "		};\n");
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(		403CC54323EB479400558E07 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -427,15 +446,26 @@ void xCodeCreateProjectFile(const TProject *in_project, const std::vector<xcode_
 		};
 /* End XCBuildConfiguration section */
 
-/* Begin XCConfigurationList section */
+)lit");
+
+	appendBuffer = append_string(appendBuffer, R"lit(/* Begin XCConfigurationList section */
 		403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
 	appendBuffer = append_string(appendBuffer, p->name.c_str());
 	appendBuffer = append_string(appendBuffer, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				403CC54023EB479400558E07 /* Debug */,
-				403CC54123EB479400558E07 /* Release */,
-			);
+)lit");
+	for (size_t i = 0; i < privateData.configurations.size(); ++i)
+	{
+		const char *config_name = privateData.configurations[i].c_str();
+		xcode_uuid config_id = configuration_ids[i];
+		appendBuffer = append_string(appendBuffer, "				");
+		appendBuffer = append_string(appendBuffer, xCodeUUID2String(config_id));
+		appendBuffer = append_string(appendBuffer, " /* ");
+		appendBuffer = append_string(appendBuffer, config_name);
+		appendBuffer = append_string(appendBuffer, " */,\n");
+	}
+	appendBuffer = append_string(appendBuffer, R"lit(			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
