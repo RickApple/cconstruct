@@ -449,7 +449,7 @@ void xcode_generateInFolder(const char* workspace_path) {
 
     std::string projectFilePath = p->name;
     projectFilePath += ".xcodeproj";
-    int result = mkdir(projectFilePath.c_str(), 0777);
+    int result = make_folder(projectFilePath.c_str());
 
     projectFilePath += "/project.pbxproj";
 
@@ -464,7 +464,7 @@ void xcode_generateInFolder(const char* workspace_path) {
   {
     std::string workspaceFilePath = privateData.workspaceLabel;
     workspaceFilePath += ".xcworkspace";
-    int result = mkdir(workspaceFilePath.c_str(), 0777);
+    int result = make_folder(workspaceFilePath.c_str());
     workspaceFilePath += "/contents.xcworkspacedata";
     FILE* f = fopen(workspaceFilePath.c_str(), "wb");
     if (f) {
