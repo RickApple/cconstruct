@@ -1,3 +1,11 @@
+
+const char* vs_findUUIDForProject(const std::vector<std::string>& uuids, const TProject* project) {
+  for (unsigned i = 0; i < uuids.size(); ++i) {
+    if (privateData.projects[i] == project) return uuids[i].c_str();
+  }
+  return "";
+}
+
 void createFilters(const TProject* in_project) {
   std::ofstream vcxproj_filters_file(in_project->name + std::string(".vcxproj.filters"));
 
@@ -44,13 +52,14 @@ void createFilters(const TProject* in_project) {
 
   vcxproj_filters_file << "</Project>" << std::endl;
 }
-void createProjectFile(const TProject* in_project, int folder_depth) {
+void vs2019_createProjectFile(const TProject* p, const char* project_id,
+                              const std::vector<std::string>& project_ids, int folder_depth) {
   std::string prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
     prepend_path += "../";
   }
 
-  std::ofstream vcxproj_file(in_project->name + std::string(".vcxproj"));
+  std::ofstream vcxproj_file(p->name + std::string(".vcxproj"));
   vcxproj_file << R"lit(<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 )lit";
@@ -72,7 +81,9 @@ void createProjectFile(const TProject* in_project, int folder_depth) {
   vcxproj_file << "  </ItemGroup>" << std::endl;
   vcxproj_file << R"lit(  <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{4470604D-2B04-466E-A39B-9E49BA6DA261}</ProjectGuid>
+    <ProjectGuid>{)lit";
+  vcxproj_file << project_id;
+  vcxproj_file << R"lit(}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>builder</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
@@ -84,10 +95,13 @@ void createProjectFile(const TProject* in_project, int folder_depth) {
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto platform = privateData.platform_names[pi];
       vcxproj_file << "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='" << c << "|"
-                   << platform << "'\" Label=\"Configuration\">" << std::endl
-                   << "    <ConfigurationType>Application</ConfigurationType>" << std::endl
-                   << "    <UseDebugLibraries>true</UseDebugLibraries>" << std::endl
-                   << "    <PlatformToolset>v141</PlatformToolset>" << std::endl
+                   << platform << "'\" Label=\"Configuration\">" << std::endl;
+      vcxproj_file << "    <ConfigurationType>"
+                   << ((p->type == CCProjectTypeConsoleApplication) ? "Application"
+                                                                    : "StaticLibrary")
+                   << "</ConfigurationType>" << std::endl;
+      vcxproj_file << "    <UseDebugLibraries>true</UseDebugLibraries>" << std::endl
+                   << "    <PlatformToolset>v142</PlatformToolset>" << std::endl
                    << "    <CharacterSet>Unicode</CharacterSet>" << std::endl
                    << "  </PropertyGroup>" << std::endl;
     }
@@ -200,7 +214,6 @@ void createProjectFile(const TProject* in_project, int folder_depth) {
   </ItemDefinitionGroup>
 )lit";
 
-  const TProject* p = (TProject*)in_project;
   for (unsigned fi = 0; fi < p->files.size(); ++fi) {
     vcxproj_file << "  <ItemGroup>" << std::endl;
     auto f = prepend_path + p->files[fi];
@@ -212,10 +225,20 @@ void createProjectFile(const TProject* in_project, int folder_depth) {
     vcxproj_file << "  </ItemGroup>" << std::endl;
   }
 
+  for (size_t i = 0; i < p->dependantOn.size(); ++i) {
+    const char* id = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
+    vcxproj_file << R"lit(<ItemGroup>
+    <ProjectReference Include="my_library.vcxproj">
+      <Project>{)lit"
+                 << id << R"lit(}</Project>
+    </ProjectReference>
+  </ItemGroup>)lit";
+  }
+
   vcxproj_file << R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-</Project>)lit" << std::endl;
+</Project>)lit";
 
-  createFilters(in_project);
+  createFilters(p);
 }

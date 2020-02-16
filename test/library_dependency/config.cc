@@ -2,7 +2,7 @@
 
 int main() {
 #if defined(_MSC_VER)
-  auto cc = cc_vs2017_builder;
+  auto cc = cc_vs2019_builder;
 #else
   auto cc = cc_xcode_builder;
 #endif
@@ -24,7 +24,11 @@ int main() {
   cc.workspace.addProject(l);
   cc.workspace.addProject(b);
 
+#if defined(_MSC_VER)
+  cc.generateInFolder("build/msvc");
+#else
   cc.generateInFolder("build/xcode");
+#endif
 
   return 0;
 }

@@ -11,23 +11,11 @@ std::string replaceSpacesWithUnderscores(std::string in) {
 
 const char* strip_path(const char* path) { return strrchr(path, '/') + 1; }
 
-char *append_string(char *destination, const char *source)
-{
-    //TODO: add safety
-    size_t length = strlen(source);
-    strcpy(destination, source);
-    return destination + length;
-}
-
-char *append_printf(char *destination, const char *fmt, ...)
-{
-    //TODO: add safety
-    va_list args;
-    va_start(args, fmt);
-    int length = vsprintf(destination, fmt, args);
-    va_end(args);
-
-    return destination + length;
+char* append_string(char* destination, const char* source) {
+  // TODO: add safety
+  size_t length = strlen(source);
+  strcpy(destination, source);
+  return destination + length;
 }
 
 #if defined(_MSC_VER)

@@ -42,10 +42,8 @@ typedef struct CConstruct {
 
 extern CConstruct builder;
 
-void writeToFile(FILE* f, const char* s) { fwrite(s, 1, strlen(s), f); }
-
 #include "tools.inl"
 #include "types.inl"
-#include "vs2017_project.inl"
-#include "vs2017_workspace.inl"
+#include "vs2019_project.inl"
+#include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
