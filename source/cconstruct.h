@@ -1,4 +1,5 @@
 #pragma warning(disable : 4996)
+#include <stdbool.h>
 #include <algorithm>
 #include <set>
 #include <string>

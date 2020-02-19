@@ -17,6 +17,11 @@ std::string platform2String(EPlatformType platform) {
   }
 }
 
+struct vs_compiler_setting {
+  const char* key;
+  const char* value;
+};
+
 void vs2019_createFilters(const TProject* in_project) {
   FILE* filter_file = fopen((in_project->name + std::string(".vcxproj.filters")).c_str(), "wb");
 
@@ -151,91 +156,80 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
     }
   }
 
-  fprintf(project_file, R"lit(  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
-    <LinkIncremental>true</LinkIncremental>
-    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <LinkIncremental>false</LinkIncremental>
-    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
-)lit");
+  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
+    auto c = privateData.configurations[ci];
+    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+      auto platform = privateData.platform_names[pi];
 
-  fprintf(project_file,
-          R"lit(  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeaderFile />
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
-    <ClCompile>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeaderFile />
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-)lit");
+      fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
+      fprintf(project_file,
+              "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
+              c.c_str(), platform.c_str());
+      bool is_debug_build = (stricmp(c.c_str(), "debug") == 0);
+      if (is_debug_build) {
+        fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
+      } else {
+        fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
+      }
+      fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
+      fprintf(project_file, "  </PropertyGroup>\n");
+    }
+  }
+
+  std::vector<vs_compiler_setting> general_compiler_flags = {{"PrecompiledHeader", "NotUsing"},
+                                                             {"WarningLevel", "Level3"},
+                                                             {"SDLCheck", "true"},
+                                                             {"ConformanceMode", "true"}};
+
+  std::vector<vs_compiler_setting> general_linker_flags = {{"SubSystem", "Console"},
+                                                           {"GenerateDebugInformation", "true"}};
+
+  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
+    auto c                    = privateData.configurations[ci];
+    const bool is_debug_build = (stricmp(c.c_str(), "debug") == 0);
+    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+      auto compiler_flags = general_compiler_flags;  // Make copy
+      if (is_debug_build) {
+        compiler_flags.push_back({"Optimization", "Disabled"});
+      } else {
+        compiler_flags.push_back({"Optimization", "MaxSpeed"});
+      }
+
+      std::string preprocessor_defines = "_CONSOLE;%(PreprocessorDefinitions)";
+      if (is_debug_build) {
+        preprocessor_defines = "_DEBUG;" + preprocessor_defines;
+      } else {
+        preprocessor_defines = "NDEBUG;" + preprocessor_defines;
+      }
+      const bool is_win32 = (privateData.platforms[pi] == EPlatformTypeX86);
+      if (is_win32) {
+        preprocessor_defines = "WIN32;" + preprocessor_defines;
+      }
+      compiler_flags.push_back({"PreprocessorDefinitions", preprocessor_defines.c_str()});
+
+      auto platform = privateData.platform_names[pi];
+      fprintf(project_file,
+              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
+              c.c_str(), platform.c_str());
+      fprintf(project_file, "    <ClCompile>\n");
+
+      for (size_t cfi = 0; cfi < compiler_flags.size(); ++cfi) {
+        const char* key   = compiler_flags[cfi].key;
+        const char* value = compiler_flags[cfi].value;
+        fprintf(project_file, "      <%s>%s</%s>\n", key, value, key);
+      }
+
+      fprintf(project_file, "    </ClCompile>\n");
+      fprintf(project_file, "    <Link>\n");
+      for (size_t cfi = 0; cfi < general_linker_flags.size(); ++cfi) {
+        const char* key   = general_linker_flags[cfi].key;
+        const char* value = general_linker_flags[cfi].value;
+        fprintf(project_file, "      <%s>%s</%s>\n", key, value, key);
+      }
+      fprintf(project_file, "    </Link>\n");
+      fprintf(project_file, "  </ItemDefinitionGroup>\n");
+    }
+  }
 
   for (unsigned fi = 0; fi < p->files.size(); ++fi) {
     fprintf(project_file, "  <ItemGroup>\n");
