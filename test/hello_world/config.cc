@@ -2,13 +2,13 @@
 
 int main() {
 #if defined(_MSC_VER)
-  auto cc = cc_vs2017_builder;
+  auto cc = cc_vs2019_builder;
 #else
   auto cc = cc_xcode_builder;
 #endif
   cc.workspace.setOutputFolder("test");
 
-  cc.workspace.addPlatform("Win32", EPlatformTypeX86);
+  cc.workspace.addPlatform("x86", EPlatformTypeX86);
   cc.workspace.addPlatform("x64", EPlatformTypeX64);
   cc.workspace.addConfiguration("Debug");
   cc.workspace.addConfiguration("Release");

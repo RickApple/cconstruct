@@ -7,17 +7,6 @@ std::string vs_generateUUID() {
   return buffer;
 };
 
-std::string platform2String(EPlatformType platform) {
-  switch (platform) {
-    case EPlatformTypeX86:
-      return "Win32";
-    case EPlatformTypeX64:
-      return "x64";
-    case EPlatformTypeARM:
-      return "ARM";
-  }
-}
-
 void vs2019_generateInFolder(const char* workspace_path) {
   int count_folder_depth = 1;
   {
@@ -80,11 +69,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
     for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
       auto c = privateData.configurations[ci];
       for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-        auto p = privateData.platforms[pi];
+        auto p             = privateData.platforms[pi];
+        auto platform_name = privateData.platform_names[pi];
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId.c_str(), c.c_str(),
-                platform2String(p).c_str(), c.c_str(), platform2String(p).c_str());
+                platform2String(p).c_str(), c.c_str(), platform_name.c_str());
         fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId.c_str(), c.c_str(),
-                platform2String(p).c_str(), c.c_str(), platform2String(p).c_str());
+                platform2String(p).c_str(), c.c_str(), platform_name.c_str());
       }
     }
   }
@@ -106,6 +96,9 @@ EndGlobal
     auto p          = privateData.projects[i];
     auto project_id = project_ids[i];
     vs2019_createProjectFile(p, project_id.c_str(), project_ids, count_folder_depth);
+    vs2019_createFilters(p);
+
+    printf("Created project '%s' at '%s'\n", p->name.c_str(), privateData.outputFolder);
   }
 }
 CConstruct cc_vs2019_builder = {{createProject, addFileToProject, addInputProject},
