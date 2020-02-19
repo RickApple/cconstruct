@@ -474,7 +474,7 @@ void xcode_generateInFolder(const char* workspace_path) {
   }
 }
 
-CConstruct cc_xcode_builder = {{createProject, addFileToProject, addInputProject},
+CConstruct cc_xcode_builder = {{createProject, addFilesToProject, addInputProject},
                                {
                                    setWorkspaceLabel,
                                    setOutputFolder,

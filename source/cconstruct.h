@@ -23,7 +23,7 @@ void addPlatform(const char* in_platform_name, EPlatformType in_type);
 typedef struct CConstruct {
   const struct {
     void* (*create)(const char* in_project_name, EProjectType in_project_type);
-    void (*addFile)(void* in_project, const char* in_file_name, const char* in_group_name);
+    void (*addFiles)(void* in_project, const char* in_group_name, const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
   } project;
 
@@ -46,3 +46,9 @@ extern CConstruct builder;
 #include "vs2019_project.inl"
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
+
+#if defined(_MSC_VER)
+auto cc_default = cc_vs2019_builder;
+#else
+auto cc_default = cc_xcode_builder;
+#endif

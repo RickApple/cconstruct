@@ -24,10 +24,17 @@ void* createProject(const char* in_project_name, EProjectType in_project_type) {
   return p;
 }
 
-void addFileToProject(void* in_project, const char* in_file_name, const char* in_group_name) {
-  ((TProject*)in_project)->files.push_back(in_file_name);
-  ((TProject*)in_project)->groups.push_back(in_group_name ? in_group_name : "");
+/**
+ * Add multiple files to a project, from a NULL-terminated array
+ */
+void addFilesToProject(void* in_project, const char* in_group_name, const char* in_file_names[]) {
+  while (*in_file_names) {
+    ((TProject*)in_project)->files.push_back(*in_file_names);
+    ((TProject*)in_project)->groups.push_back(in_group_name ? in_group_name : "");
+    ++in_file_names;
+  }
 }
+
 void addInputProject(const void* target_project, const void* on_project) {
   ((TProject*)target_project)->dependantOn.push_back((TProject*)on_project);
 }

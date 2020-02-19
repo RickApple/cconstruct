@@ -13,11 +13,10 @@ int main() {
   cc.workspace.addConfiguration("Debug");
   cc.workspace.addConfiguration("Release");
 
-  auto p                 = cc.project.create("hello_world", CCProjectTypeConsoleApplication);
-  const char* srcFiles[] = {"src/main.c", "src/function.c", NULL};
-  for (auto f : srcFiles) {
-    if (f) cc.project.addFile(p, f, "Source Files");
-  }
+  auto p              = cc.project.create("hello_world", CCProjectTypeConsoleApplication);
+  const char* files[] = {"src/main.c", "src/function.c", NULL};
+  cc.project.addFiles(p, "Source Files", files);
+
   cc.workspace.addProject(p);
 
   cc.generateInFolder("build");

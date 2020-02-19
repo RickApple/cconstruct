@@ -15,11 +15,17 @@ int main() {
   cc.workspace.addConfiguration("Release");
 
   auto l = cc.project.create("my_library", CCProjectTypeStaticLibrary);
-  cc.project.addFile(l, "src/library.c", "Source Files");
+  {
+    const char* files[] = {"src/library.c", NULL};
+    cc.project.addFiles(l, "Source Files", files);
+  }
 
   auto b = cc.project.create("my_binary", CCProjectTypeConsoleApplication);
-  cc.project.addFile(b, "src/main.c", "Source Files");
-  cc.project.addInputProject(b, l);
+  {
+    const char* files[] = {"src/main.c", NULL};
+    cc.project.addFiles(b, "Source Files", files);
+    cc.project.addInputProject(b, l);
+  }
 
   cc.workspace.addProject(l);
   cc.workspace.addProject(b);

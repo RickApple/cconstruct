@@ -101,7 +101,7 @@ EndGlobal
     printf("Created project '%s' at '%s'\n", p->name.c_str(), privateData.outputFolder);
   }
 }
-CConstruct cc_vs2019_builder = {{createProject, addFileToProject, addInputProject},
+CConstruct cc_vs2019_builder = {{createProject, addFilesToProject, addInputProject},
                                 {
                                     setWorkspaceLabel,
                                     setOutputFolder,
