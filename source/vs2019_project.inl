@@ -97,7 +97,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
     <ProjectGuid>{%s}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>builder</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
 )lit",
           project_id);
@@ -133,7 +133,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
-  </ImportGroup>)lit");
+  </ImportGroup>
+)lit");
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
