@@ -12,7 +12,6 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 msbuild build\workspace.sln
 if %errorlevel% neq 0 exit /b %errorlevel%
-
 build\Debug\preprocessor.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
@@ -32,7 +31,6 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 msbuild build\workspace.sln
 if %errorlevel% neq 0 exit /b %errorlevel%
-
 build\Debug\hello_world.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 

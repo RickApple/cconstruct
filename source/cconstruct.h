@@ -17,18 +17,20 @@ void addInputProject(const void* target_project, const void* on_project);
 void setOutputFolder(const char* of);
 void create();
 void addProject(const void* in_project);
-void addConfiguration(const char* in_configuration_name);
 
 typedef struct cc_flags {
   std::vector<std::string> defines;
 } cc_flags;
 
-typedef void* CCPlatformHandle;
+// Opaque handles at this point
+typedef struct TPlatform* CCPlatformHandle;
+typedef struct TConfiguration* CCConfigurationHandle;
 
 typedef struct CConstruct {
   const struct {
     CCPlatformHandle (*create)(const char* in_label, EPlatformType in_type);
   } platform;
+  const struct { CCConfigurationHandle (*create)(const char* in_label); } configuration;
 
   const struct {
     void (*reset)(cc_flags* out_flags);
@@ -46,7 +48,7 @@ typedef struct CConstruct {
     void (*setLabel)(const char* label);
     void (*setOutputFolder)(const char* in_output_folder);
     void (*addProject)(const void* in_project);
-    void (*addConfiguration)(const char* in_configuration_name);
+    void (*addConfiguration)(const CCConfigurationHandle in_configuration);
     void (*addPlatform)(const CCPlatformHandle in_platform);
   } workspace;
 

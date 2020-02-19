@@ -336,7 +336,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                                                                          release_config_data};
   fprintf(f, "/* Begin XCBuildConfiguration section */\n");
   for (size_t i = 0; i < privateData.configurations.size(); ++i) {
-    const char* config_name = privateData.configurations[i].c_str();
+    const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
 
     fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(config_id), config_name);
@@ -378,7 +378,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			buildConfigurations = (
 )lit");
   for (size_t i = 0; i < privateData.configurations.size(); ++i) {
-    const char* config_name = privateData.configurations[i].c_str();
+    const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
     fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
             config_name);
@@ -476,6 +476,7 @@ void xcode_generateInFolder(const char* workspace_path) {
 
 CConstruct cc_xcode_builder = {
     {cc_platform_create},
+    {cc_configuration_create},
     {cc_state_reset, cc_state_addPreprocessorDefine},
     {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
     {

@@ -5,10 +5,11 @@ int main() {
 
   cc.workspace.setOutputFolder("test");
 
-  auto platform = cc.platform.create("Win32", EPlatformTypeX86);
+  auto platform      = cc.platform.create("Win32", EPlatformTypeX86);
+  auto configuration = cc.configuration.create("Debug");
 
   cc.workspace.addPlatform(platform);
-  cc.workspace.addConfiguration("Debug");
+  cc.workspace.addConfiguration(configuration);
 
   cc_flags flags = {};
   cc.state.reset(&flags);

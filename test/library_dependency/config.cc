@@ -11,8 +11,10 @@ int main() {
   cc.workspace.addPlatform(platform_x86);
   cc.workspace.addPlatform(platform_x64);
 
-  cc.workspace.addConfiguration("Debug");
-  cc.workspace.addConfiguration("Release");
+  auto configuration_debug   = cc.configuration.create("Debug");
+  auto configuration_release = cc.configuration.create("Release");
+  cc.workspace.addConfiguration(configuration_debug);
+  cc.workspace.addConfiguration(configuration_release);
 
   auto l = cc.project.create("my_library", CCProjectTypeStaticLibrary);
   {

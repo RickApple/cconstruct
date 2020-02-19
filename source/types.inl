@@ -4,6 +4,9 @@ typedef struct TPlatform {
   EPlatformType type;
   const char label[];
 } TPlatform;
+typedef struct TConfiguration {
+  const char label[];
+} TConfiguration;
 
 typedef struct TProject {
   EProjectType type;
@@ -18,7 +21,7 @@ struct {
   const char* outputFolder;
   const char* workspaceLabel;
   std::vector<TProject*> projects;
-  std::vector<std::string> configurations;
+  std::vector<const TConfiguration*> configurations;
   std::vector<const TPlatform*> platforms;
 } privateData;
 
@@ -44,8 +47,8 @@ void addInputProject(const void* target_project, const void* on_project) {
   ((TProject*)target_project)->dependantOn.push_back((TProject*)on_project);
 }
 
-void addConfiguration(const char* in_configuration_name) {
-  privateData.configurations.push_back(in_configuration_name);
+void addConfiguration(const CCConfigurationHandle in_configuration) {
+  privateData.configurations.push_back((const TConfiguration*)in_configuration);
 }
 void addPlatform(const CCPlatformHandle in_platform) {
   privateData.platforms.push_back((const TPlatform*)in_platform);
@@ -71,4 +74,10 @@ CCPlatformHandle cc_platform_create(const char* in_label, EPlatformType in_type)
   p->type           = in_type;
   strcpy((char*)p->label, in_label);
   return p;
+}
+CCConfigurationHandle cc_configuration_create(const char* in_label) {
+  size_t byte_count = strlen(in_label) + 1 + sizeof(TConfiguration);
+  TConfiguration* c = (TConfiguration*)cc_alloc_(byte_count);
+  strcpy((char*)c->label, in_label);
+  return c;
 }

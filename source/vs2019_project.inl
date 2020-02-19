@@ -85,12 +85,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
 
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c = privateData.configurations[ci];
+    auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto platform_label = privateData.platforms[pi]->label;
-      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c.c_str(),
-              platform_label);
-      fprintf(project_file, "      <Configuration>%s</Configuration>\n", c.c_str());
+      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
+      fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n",
               platform2String(privateData.platforms[pi]->type).c_str());
       fprintf(project_file, "    </ProjectConfiguration>\n");
@@ -113,13 +112,13 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
 )lit");
 
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c = privateData.configurations[ci];
+    auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
-              c.c_str(), platform_label);
+              c, platform_label);
       fprintf(project_file, "    <ConfigurationType>");
       if (p->type == CCProjectTypeConsoleApplication) {
         fprintf(project_file, "Application");
@@ -142,13 +141,13 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   </ImportGroup>
 )lit");
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c = privateData.configurations[ci];
+    auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform_label);
+              c, platform_label);
       fprintf(project_file,
               "    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" "
               "Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" "
@@ -158,15 +157,15 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   }
 
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c = privateData.configurations[ci];
+    auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto platform_label = privateData.platforms[pi]->label;
 
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
-              "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform_label);
-      bool is_debug_build = (stricmp(c.c_str(), "debug") == 0);
+              "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
+              platform_label);
+      bool is_debug_build = (stricmp(c, "debug") == 0);
       if (is_debug_build) {
         fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
       } else {
@@ -186,14 +185,15 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
                                                            {"GenerateDebugInformation", "true"}};
 
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c                    = privateData.configurations[ci];
-    const bool is_debug_build = (stricmp(c.c_str(), "debug") == 0);
+    auto c                    = privateData.configurations[ci]->label;
+    const bool is_debug_build = (stricmp(c, "debug") == 0);
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto compiler_flags = general_compiler_flags;  // Make copy
       if (is_debug_build) {
         compiler_flags.push_back({"Optimization", "Disabled"});
       } else {
         compiler_flags.push_back({"Optimization", "MaxSpeed"});
+        compiler_flags.push_back({"BasicRuntimeChecks", "Default"});
       }
 
       std::string preprocessor_defines = "_CONSOLE;%(PreprocessorDefinitions)";
@@ -214,8 +214,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
 
       auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
-              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform_label);
+              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
+              platform_label);
       fprintf(project_file, "    <ClCompile>\n");
 
       for (size_t cfi = 0; cfi < compiler_flags.size(); ++cfi) {
