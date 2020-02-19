@@ -56,7 +56,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto p = privateData.platforms[pi];
+      auto p = privateData.platforms[pi]->type;
       fprintf(workspace, "\t\t%s|%s = %s|%s\n", c.c_str(), platform2String(p).c_str(), c.c_str(),
               platform2String(p).c_str());
     }
@@ -69,12 +69,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
     for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
       auto c = privateData.configurations[ci];
       for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-        auto p             = privateData.platforms[pi];
-        auto platform_name = privateData.platform_names[pi];
+        auto p             = privateData.platforms[pi]->type;
+        auto platform_name = privateData.platforms[pi]->label;
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId.c_str(), c.c_str(),
-                platform2String(p).c_str(), c.c_str(), platform_name.c_str());
+                platform2String(p).c_str(), c.c_str(), platform_name);
         fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId.c_str(), c.c_str(),
-                platform2String(p).c_str(), c.c_str(), platform_name.c_str());
+                platform2String(p).c_str(), c.c_str(), platform_name);
       }
     }
   }
@@ -102,6 +102,7 @@ EndGlobal
   }
 }
 CConstruct cc_vs2019_builder = {
+    {cc_platform_create},
     {cc_state_reset, cc_state_addPreprocessorDefine},
     {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
     {

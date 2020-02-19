@@ -6,8 +6,11 @@ int main() {
   cc.workspace.setOutputFolder("bin/x64");
   cc.workspace.setLabel("library_dependency");
 
-  cc.workspace.addPlatform("Win32", EPlatformTypeX86);
-  cc.workspace.addPlatform("x64", EPlatformTypeX64);
+  auto platform_x86 = cc.platform.create("Win32", EPlatformTypeX86);
+  auto platform_x64 = cc.platform.create("x64", EPlatformTypeX64);
+  cc.workspace.addPlatform(platform_x86);
+  cc.workspace.addPlatform(platform_x64);
+
   cc.workspace.addConfiguration("Debug");
   cc.workspace.addConfiguration("Release");
 

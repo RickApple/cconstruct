@@ -5,12 +5,14 @@ int main() {
 
   cc.workspace.setOutputFolder("test");
 
-  cc.workspace.addPlatform("Win32", EPlatformTypeX86);
+  auto platform = cc.platform.create("Win32", EPlatformTypeX86);
+
+  cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration("Debug");
 
   cc_flags flags = {};
   cc.state.reset(&flags);
-  cc.state.addPreprocessorDefine(&flags, "TEST_VALUE=4");
+  cc.state.addPreprocessorDefine(&flags, "TEST_VALUE=5");
 
   auto p              = cc.project.create("preprocessor", CCProjectTypeConsoleApplication);
   const char* files[] = {"src/main.c", nullptr};

@@ -475,6 +475,7 @@ void xcode_generateInFolder(const char* workspace_path) {
 }
 
 CConstruct cc_xcode_builder = {
+    {cc_platform_create},
     {cc_state_reset, cc_state_addPreprocessorDefine},
     {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
     {

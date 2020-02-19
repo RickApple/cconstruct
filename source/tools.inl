@@ -59,3 +59,20 @@ int make_folder(const char* folder_path) {
   return 0;
 }
 #endif
+
+void* cc_alloc_(size_t size) {
+  static uintptr_t next_free     = NULL;
+  static uintptr_t end_next_free = next_free;
+
+  if ((end_next_free - next_free) < size) {
+    // Doesn't fit, allocate a new block
+    size_t byte_count = 1024 * 1024;
+    if (size > byte_count) byte_count = size;
+    next_free     = (uintptr_t)malloc(byte_count);
+    end_next_free = next_free + byte_count;
+  }
+
+  void* out = (void*)next_free;
+  next_free += size;
+  return out;
+}

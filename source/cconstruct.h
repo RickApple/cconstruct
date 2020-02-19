@@ -18,13 +18,18 @@ void setOutputFolder(const char* of);
 void create();
 void addProject(const void* in_project);
 void addConfiguration(const char* in_configuration_name);
-void addPlatform(const char* in_platform_name, EPlatformType in_type);
 
 typedef struct cc_flags {
   std::vector<std::string> defines;
 } cc_flags;
 
+typedef void* CCPlatformHandle;
+
 typedef struct CConstruct {
+  const struct {
+    CCPlatformHandle (*create)(const char* in_label, EPlatformType in_type);
+  } platform;
+
   const struct {
     void (*reset)(cc_flags* out_flags);
     void (*addPreprocessorDefine)(cc_flags* in_flags, const char* in_define);
@@ -42,7 +47,7 @@ typedef struct CConstruct {
     void (*setOutputFolder)(const char* in_output_folder);
     void (*addProject)(const void* in_project);
     void (*addConfiguration)(const char* in_configuration_name);
-    void (*addPlatform)(const char* in_platform_name, EPlatformType in_type);
+    void (*addPlatform)(const CCPlatformHandle in_platform);
   } workspace;
 
   void (*generateInFolder)(const char* workspace_folder);

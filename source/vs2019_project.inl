@@ -87,12 +87,12 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform = privateData.platform_names[pi];
+      auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c.c_str(),
-              platform.c_str());
+              platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c.c_str());
       fprintf(project_file, "      <Platform>%s</Platform>\n",
-              platform2String(privateData.platforms[pi]).c_str());
+              platform2String(privateData.platforms[pi]->type).c_str());
       fprintf(project_file, "    </ProjectConfiguration>\n");
     }
   }
@@ -115,11 +115,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform = privateData.platform_names[pi];
+      auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
-              c.c_str(), platform.c_str());
+              c.c_str(), platform_label);
       fprintf(project_file, "    <ConfigurationType>");
       if (p->type == CCProjectTypeConsoleApplication) {
         fprintf(project_file, "Application");
@@ -144,11 +144,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform = privateData.platform_names[pi];
+      auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform.c_str());
+              c.c_str(), platform_label);
       fprintf(project_file,
               "    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" "
               "Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" "
@@ -160,12 +160,12 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci];
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform = privateData.platform_names[pi];
+      auto platform_label = privateData.platforms[pi]->label;
 
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform.c_str());
+              c.c_str(), platform_label);
       bool is_debug_build = (stricmp(c.c_str(), "debug") == 0);
       if (is_debug_build) {
         fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
@@ -206,16 +206,16 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       } else {
         preprocessor_defines = "NDEBUG;" + preprocessor_defines;
       }
-      const bool is_win32 = (privateData.platforms[pi] == EPlatformTypeX86);
+      const bool is_win32 = (privateData.platforms[pi]->type == EPlatformTypeX86);
       if (is_win32) {
         preprocessor_defines = "WIN32;" + preprocessor_defines;
       }
       compiler_flags.push_back({"PreprocessorDefinitions", preprocessor_defines.c_str()});
 
-      auto platform = privateData.platform_names[pi];
+      auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c.c_str(), platform.c_str());
+              c.c_str(), platform_label);
       fprintf(project_file, "    <ClCompile>\n");
 
       for (size_t cfi = 0; cfi < compiler_flags.size(); ++cfi) {

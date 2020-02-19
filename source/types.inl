@@ -1,5 +1,10 @@
 typedef struct TProject TProject;
 
+typedef struct TPlatform {
+  EPlatformType type;
+  const char label[];
+} TPlatform;
+
 typedef struct TProject {
   EProjectType type;
   std::string name;
@@ -14,8 +19,7 @@ struct {
   const char* workspaceLabel;
   std::vector<TProject*> projects;
   std::vector<std::string> configurations;
-  std::vector<std::string> platform_names;
-  std::vector<EPlatformType> platforms;
+  std::vector<const TPlatform*> platforms;
 } privateData;
 
 void* createProject(const char* in_project_name, EProjectType in_project_type) {
@@ -43,9 +47,8 @@ void addInputProject(const void* target_project, const void* on_project) {
 void addConfiguration(const char* in_configuration_name) {
   privateData.configurations.push_back(in_configuration_name);
 }
-void addPlatform(const char* in_platform_name, EPlatformType in_type) {
-  privateData.platform_names.push_back(in_platform_name);
-  privateData.platforms.push_back(in_type);
+void addPlatform(const CCPlatformHandle in_platform) {
+  privateData.platforms.push_back((const TPlatform*)in_platform);
 }
 
 void setOutputFolder(const char* of) { privateData.outputFolder = of; }
@@ -60,4 +63,12 @@ void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_st
 
 void cc_project_setFlags(const void* in_project, const cc_flags* in_flags) {
   ((TProject*)in_project)->flags = *in_flags;
+}
+
+CCPlatformHandle cc_platform_create(const char* in_label, EPlatformType in_type) {
+  size_t byte_count = strlen(in_label) + 1 + sizeof(TPlatform);
+  TPlatform* p      = (TPlatform*)cc_alloc_(byte_count);
+  p->type           = in_type;
+  strcpy((char*)p->label, in_label);
+  return p;
 }
