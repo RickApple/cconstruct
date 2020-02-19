@@ -9,6 +9,6 @@
 #include "function.h"
 
 int main(int argc, const char* argv[]) {
-  outputSomething();
-  return 0;
+  const char* lib_string = getLibraryString();
+  return strcmp(lib_string, "Hello from library");
 }

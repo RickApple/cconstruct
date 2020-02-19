@@ -1,3 +1,1 @@
-#include <stdio.h>
-
-void outputSomething() { printf("Hello from library\n"); }
+const char* getLibraryString() { return "Hello from library"; }

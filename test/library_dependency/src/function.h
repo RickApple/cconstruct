@@ -1,1 +1,1 @@
-void outputSomething(void);
+const char* getLibraryString();

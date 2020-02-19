@@ -8,7 +8,7 @@ int main() {
 #endif
   cc.workspace.setOutputFolder("test");
 
-  cc.workspace.addPlatform("x86", EPlatformTypeX86);
+  cc.workspace.addPlatform("Win32", EPlatformTypeX86);
   cc.workspace.addPlatform("x64", EPlatformTypeX64);
   cc.workspace.addConfiguration("Debug");
   cc.workspace.addConfiguration("Release");
