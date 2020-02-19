@@ -20,11 +20,21 @@ void addProject(const void* in_project);
 void addConfiguration(const char* in_configuration_name);
 void addPlatform(const char* in_platform_name, EPlatformType in_type);
 
+typedef struct cc_flags {
+  std::vector<std::string> defines;
+} cc_flags;
+
 typedef struct CConstruct {
+  const struct {
+    void (*reset)(cc_flags* out_flags);
+    void (*addPreprocessorDefine)(cc_flags* in_flags, const char* in_define);
+  } state;
+
   const struct {
     void* (*create)(const char* in_project_name, EProjectType in_project_type);
     void (*addFiles)(void* in_project, const char* in_group_name, const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
+    void (*setFlags)(const void* in_project, const cc_flags* in_flags);
   } project;
 
   const struct {
@@ -47,6 +57,7 @@ extern CConstruct builder;
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
+// For ease of use set a default CConstruct instance for each platform
 #if defined(_MSC_VER)
 auto cc_default = cc_vs2019_builder;
 #else

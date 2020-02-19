@@ -474,12 +474,14 @@ void xcode_generateInFolder(const char* workspace_path) {
   }
 }
 
-CConstruct cc_xcode_builder = {{createProject, addFilesToProject, addInputProject},
-                               {
-                                   setWorkspaceLabel,
-                                   setOutputFolder,
-                                   addProject,
-                                   addConfiguration,
-                                   addPlatform,
-                               },
-                               xcode_generateInFolder};
+CConstruct cc_xcode_builder = {
+    {cc_state_reset, cc_state_addPreprocessorDefine},
+    {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
+    {
+        setWorkspaceLabel,
+        setOutputFolder,
+        addProject,
+        addConfiguration,
+        addPlatform,
+    },
+    xcode_generateInFolder};

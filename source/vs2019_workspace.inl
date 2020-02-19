@@ -101,12 +101,14 @@ EndGlobal
     printf("Created project '%s' at '%s'\n", p->name.c_str(), privateData.outputFolder);
   }
 }
-CConstruct cc_vs2019_builder = {{createProject, addFilesToProject, addInputProject},
-                                {
-                                    setWorkspaceLabel,
-                                    setOutputFolder,
-                                    addProject,
-                                    addConfiguration,
-                                    addPlatform,
-                                },
-                                vs2019_generateInFolder};
+CConstruct cc_vs2019_builder = {
+    {cc_state_reset, cc_state_addPreprocessorDefine},
+    {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
+    {
+        setWorkspaceLabel,
+        setOutputFolder,
+        addProject,
+        addConfiguration,
+        addPlatform,
+    },
+    vs2019_generateInFolder};

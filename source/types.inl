@@ -6,6 +6,7 @@ typedef struct TProject {
   std::vector<std::string> files;
   std::vector<std::string> groups;
   std::vector<TProject*> dependantOn;
+  cc_flags flags;
 } TProject;
 
 struct {
@@ -51,3 +52,12 @@ void setOutputFolder(const char* of) { privateData.outputFolder = of; }
 void setWorkspaceLabel(const char* label) { privateData.workspaceLabel = label; }
 
 void addProject(const void* in_project) { privateData.projects.push_back((TProject*)in_project); }
+
+void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flags)); }
+void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {
+  in_flags->defines.push_back(in_define_string);
+}
+
+void cc_project_setFlags(const void* in_project, const cc_flags* in_flags) {
+  ((TProject*)in_project)->flags = *in_flags;
+}

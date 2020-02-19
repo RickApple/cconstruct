@@ -15,6 +15,7 @@ std::string platform2String(EPlatformType platform) {
     case EPlatformTypeARM:
       return "ARM";
   }
+  return "";
 }
 
 struct vs_compiler_setting {
@@ -196,6 +197,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       }
 
       std::string preprocessor_defines = "_CONSOLE;%(PreprocessorDefinitions)";
+      for (size_t pdi = 0; pdi < p->flags.defines.size(); ++pdi) {
+        preprocessor_defines = p->flags.defines[pdi] + ";" + preprocessor_defines;
+      }
+
       if (is_debug_build) {
         preprocessor_defines = "_DEBUG;" + preprocessor_defines;
       } else {
