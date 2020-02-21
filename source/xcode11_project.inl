@@ -90,7 +90,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   for (size_t i = 0; i < p->dependantOn.size(); ++i) {
     std::string id            = dependencyFileReferenceUUID[i];
     std::string buildID       = dependencyBuildUUID[i];
-    std::string dependantName = "lib" + p->dependantOn[i]->name + ".a";
+    std::string dependantName = std::string("lib") + p->dependantOn[i]->name + ".a";
     fprintf(f,
             "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
             "};\n",
@@ -153,7 +153,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   for (size_t i = 0; i < p->dependantOn.size(); ++i) {
     std::string buildID = dependencyBuildUUID[i];
     fprintf(f, "				%s /* lib%s.a in Frameworks */,\n",
-            buildID.c_str(), p->dependantOn[i]->name.c_str());
+            buildID.c_str(), p->dependantOn[i]->name);
   }
   fprintf(f, R"lit(			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -174,7 +174,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			isa = PBXGroup;
 			children = (
 				403CC53D23EB479400558E07 /* )lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit( */,
 				403CC53C23EB479400558E07 /* Products */,
 				4008B25F23EDACFC00FCB192 /* Frameworks */,
@@ -192,14 +192,14 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			sourceTree = "<group>";
 		};
 		403CC53D23EB479400558E07 /* )lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit( */ = {
 			isa = PBXGroup;
 			children = (
 				403CC54523EB480800558E07 /* src */,
 			);
 			path = )lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit(;
 			sourceTree = "<group>";
 		};
@@ -221,10 +221,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
 /* Begin PBXNativeTarget section */
 )lit");
-  fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(outputTargetUIID), p->name.c_str());
+  fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(outputTargetUIID), p->name);
   fprintf(f, R"lit(			isa = PBXNativeTarget;
 			buildConfigurationList = 403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit(" */;
 			buildPhases = (
 				403CC53723EB479400558E07 /* Sources */,
@@ -237,8 +237,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			);
 )lit");
 
-  fprintf(f, "			name = %s;\n", p->name.c_str());
-  fprintf(f, "			productName = %s;\n", p->name.c_str());
+  fprintf(f, "			name = %s;\n", p->name);
+  fprintf(f, "			productName = %s;\n", p->name);
   fprintf(f, "			productReference = %s /* %s */;\n",
           xCodeUUID2String(outputFileReferenceUIID), outputName.c_str());
   fprintf(f, "			productType = ");
@@ -266,7 +266,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 				};
 			};
 			buildConfigurationList = 403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit(" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
@@ -282,7 +282,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			targets = (
 )lit");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
-          p->name.c_str());
+          p->name);
   fprintf(f, R"lit(			);
 		};
 /* End PBXProject section */
@@ -372,7 +372,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   fprintf(f, R"lit(/* Begin XCConfigurationList section */
 		403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -388,7 +388,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			defaultConfigurationName = Release;
 		};
 		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
-  fprintf(f, "%s", p->name.c_str());
+  fprintf(f, "%s", p->name);
   fprintf(f, R"lit(" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -414,7 +414,7 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   for (unsigned i = 0; i < privateData.projects.size(); ++i) {
     auto p = privateData.projects[i];
     fprintf(f, "  <FileRef\n");
-    fprintf(f, "    location = \"group:%s.xcodeproj\">\n", p->name.c_str());
+    fprintf(f, "    location = \"group:%s.xcodeproj\">\n", p->name);
     fprintf(f, "  </FileRef>\n");
   }
 

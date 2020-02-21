@@ -10,7 +10,7 @@ typedef struct TConfiguration {
 
 typedef struct TProject {
   EProjectType type;
-  std::string name;
+  const char* name;
   std::vector<std::string> files;
   std::vector<std::string> groups;
   std::vector<TProject*> dependantOn;
@@ -29,10 +29,11 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
   auto p             = new TProject;
   p->type            = in_project_type;
   size_t name_length = strlen(in_project_name);
-  // p->name            = (char*)cc_alloc_(name_length + 1);
-  // memcpy(p->name, in_project_name, name_length);
-  // p->name[name_length] = 0;
-  p->name = in_project_name;
+
+  char* name_copy = (char*)cc_alloc_(name_length + 1);
+  memcpy(name_copy, in_project_name, name_length);
+  name_copy[name_length] = 0;
+  p->name                = name_copy;
   privateData.projects.push_back(p);
   return p;
 }

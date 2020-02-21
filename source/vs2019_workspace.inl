@@ -46,7 +46,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
     fprintf(workspace,
             "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s.vcxproj\", "
             "\"{%s}\"\n",
-            p->name.c_str(), replaceSpacesWithUnderscores(p->name).c_str(), projectId.c_str());
+            p->name, replaceSpacesWithUnderscores(p->name).c_str(), projectId.c_str());
     fprintf(workspace, "EndProject\n");
   }
 
@@ -98,7 +98,7 @@ EndGlobal
     vs2019_createProjectFile(p, project_id.c_str(), project_ids, count_folder_depth);
     vs2019_createFilters(p);
 
-    printf("Created project '%s' at '%s'\n", p->name.c_str(), privateData.outputFolder);
+    printf("Created project '%s' at '%s'\n", p->name, privateData.outputFolder);
   }
 }
 CConstruct cc_vs2019_builder = {
