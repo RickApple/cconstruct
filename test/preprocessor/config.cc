@@ -20,8 +20,6 @@ int main() {
   cc.project.addFiles(p, "Source Files", files);
   cc.project.setFlags(p, &flags);
 
-  cc.workspace.addProject(p);
-
   cc.generateInFolder("build");
 
   return 0;

@@ -29,9 +29,6 @@ int main() {
     cc.project.addInputProject(b, l);
   }
 
-  cc.workspace.addProject(l);
-  cc.workspace.addProject(b);
-
 #if defined(_MSC_VER)
   cc.generateInFolder("build/msvc");
 #else

@@ -19,8 +19,6 @@ int main() {
   const char* files[] = {"src/main.c", "src/function.c", NULL};
   cc.project.addFiles(p, "Source Files", files);
 
-  cc.workspace.addProject(p);
-
   cc.generateInFolder("build");
 
   return 0;

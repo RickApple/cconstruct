@@ -25,10 +25,15 @@ struct {
   std::vector<const TPlatform*> platforms;
 } privateData;
 
-void* createProject(const char* in_project_name, EProjectType in_project_type) {
-  auto p  = new TProject;
-  p->type = in_project_type;
+void* cc_project_create_(const char* in_project_name, EProjectType in_project_type) {
+  auto p             = new TProject;
+  p->type            = in_project_type;
+  size_t name_length = strlen(in_project_name);
+  // p->name            = (char*)cc_alloc_(name_length + 1);
+  // memcpy(p->name, in_project_name, name_length);
+  // p->name[name_length] = 0;
   p->name = in_project_name;
+  privateData.projects.push_back(p);
   return p;
 }
 
@@ -56,8 +61,6 @@ void addPlatform(const CCPlatformHandle in_platform) {
 
 void setOutputFolder(const char* of) { privateData.outputFolder = of; }
 void setWorkspaceLabel(const char* label) { privateData.workspaceLabel = label; }
-
-void addProject(const void* in_project) { privateData.projects.push_back((TProject*)in_project); }
 
 void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flags)); }
 void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {

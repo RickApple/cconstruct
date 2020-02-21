@@ -47,7 +47,6 @@ typedef struct CConstruct {
   const struct {
     void (*setLabel)(const char* label);
     void (*setOutputFolder)(const char* in_output_folder);
-    void (*addProject)(const void* in_project);
     void (*addConfiguration)(const CCConfigurationHandle in_configuration);
     void (*addPlatform)(const CCPlatformHandle in_platform);
   } workspace;

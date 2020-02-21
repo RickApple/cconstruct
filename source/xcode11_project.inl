@@ -478,11 +478,10 @@ CConstruct cc_xcode_builder = {
     {cc_platform_create},
     {cc_configuration_create},
     {cc_state_reset, cc_state_addPreprocessorDefine},
-    {createProject, addFilesToProject, addInputProject, cc_project_setFlags},
+    {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags},
     {
         setWorkspaceLabel,
         setOutputFolder,
-        addProject,
         addConfiguration,
         addPlatform,
     },
