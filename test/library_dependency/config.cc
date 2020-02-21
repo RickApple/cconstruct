@@ -1,8 +1,6 @@
 #include "../../source/cconstruct.h"
 
 int main() {
-  auto cc = cc_default;
-
   cc.workspace.setOutputFolder("bin/x64");
   cc.workspace.setLabel("library_dependency");
 
@@ -30,9 +28,9 @@ int main() {
   }
 
 #if defined(_MSC_VER)
-  cc.generateInFolder("build/msvc");
+  cc_default_generator("build/msvc");
 #else
-  cc.generateInFolder("build/xcode");
+  cc_default_generator("build/xcode");
 #endif
 
   return 0;

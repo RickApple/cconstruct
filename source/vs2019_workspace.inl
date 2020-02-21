@@ -101,15 +101,3 @@ EndGlobal
     printf("Created project '%s' at '%s'\n", p->name, privateData.outputFolder);
   }
 }
-CConstruct cc_vs2019_builder = {
-    {cc_platform_create},
-    {cc_configuration_create},
-    {cc_state_reset, cc_state_addPreprocessorDefine},
-    {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags},
-    {
-        setWorkspaceLabel,
-        setOutputFolder,
-        addConfiguration,
-        addPlatform,
-    },
-    vs2019_generateInFolder};

@@ -51,11 +51,7 @@ typedef struct CConstruct {
     void (*addPlatform)(const CCPlatformHandle in_platform);
   } workspace;
 
-  void (*generateInFolder)(const char* workspace_folder);
-
 } CConstruct;
-
-extern CConstruct builder;
 
 #include "tools.inl"
 #include "types.inl"
@@ -63,9 +59,23 @@ extern CConstruct builder;
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
+CConstruct cc = {{cc_platform_create},
+                 {cc_configuration_create},
+                 {cc_state_reset, cc_state_addPreprocessorDefine},
+                 {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags_,
+                  cc_project_setFlagsLimited_},
+                 {
+                     setWorkspaceLabel,
+                     setOutputFolder,
+                     addConfiguration,
+                     addPlatform,
+                 }};
+
 // For ease of use set a default CConstruct instance for each platform
 #if defined(_MSC_VER)
-auto cc_default = cc_vs2019_builder;
+void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
+// auto cc_default = cc_vs2019_builder;
 #else
-auto cc_default = cc_xcode_builder;
+void (*cc_default_generator)(const char* workspace_folder) = xcode_generateInFolder;
+// auto cc_default                                            = cc_xcode_builder;
 #endif

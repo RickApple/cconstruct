@@ -1,8 +1,6 @@
 #include "../../source/cconstruct.h"
 
 int main() {
-  auto cc = cc_default;
-
   cc.workspace.setOutputFolder("test");
 
   auto platform_x86 = cc.platform.create("Win32", EPlatformTypeX86);
@@ -19,7 +17,7 @@ int main() {
   const char* files[] = {"src/main.c", "src/function.c", NULL};
   cc.project.addFiles(p, "Source Files", files);
 
-  cc.generateInFolder("build");
+  cc_default_generator("build");
 
   return 0;
 }

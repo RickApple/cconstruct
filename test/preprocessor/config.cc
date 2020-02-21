@@ -1,8 +1,6 @@
 #include "../../source/cconstruct.h"
 
 int main() {
-  auto cc = cc_default;
-
   cc.workspace.setOutputFolder("test");
 
   auto platform      = cc.platform.create("Win32", EPlatformTypeX86);
@@ -20,7 +18,7 @@ int main() {
   cc.project.addFiles(p, "Source Files", files);
   cc.project.setFlags(p, &flags);
 
-  cc.generateInFolder("build");
+  cc_default_generator("build");
 
   return 0;
 }
