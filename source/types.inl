@@ -21,6 +21,7 @@ typedef struct TProject {
 
 struct {
   const char* outputFolder;
+  // TODO: having no workspace label crashes on XCode generator
   const char* workspaceLabel = "workspace";
   TProject** projects;
   const TConfiguration** configurations;

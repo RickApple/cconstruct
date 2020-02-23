@@ -33,8 +33,9 @@ typedef struct TPlatform* CCPlatformHandle;
 typedef struct TConfiguration* CCConfigurationHandle;
 
 typedef struct CConstruct {
-  const struct { CCPlatformHandle (*create)(EPlatformType in_type); } platform;
-  const struct { CCConfigurationHandle (*create)(const char* in_label); } configuration;
+  CCConfigurationHandle (*createConfiguration)(const char* in_label);
+  CCPlatformHandle (*createPlatform)(const char* in_label, EPlatformType in_type);
+  void* (*createProject)(const char* in_project_name, EProjectType in_project_type);
 
   const struct {
     void (*reset)(cc_flags* out_flags);
@@ -42,7 +43,6 @@ typedef struct CConstruct {
   } state;
 
   const struct {
-    void* (*create)(const char* in_project_name, EProjectType in_project_type);
     void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files,
                      const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
@@ -56,6 +56,7 @@ typedef struct CConstruct {
     void (*setOutputFolder)(const char* in_output_folder);
     void (*addConfiguration)(const CCConfigurationHandle in_configuration);
     void (*addPlatform)(const CCPlatformHandle in_platform);
+
   } workspace;
 
 } CConstruct;
@@ -66,17 +67,12 @@ typedef struct CConstruct {
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-const CConstruct cc = {
-    {cc_platform_create},
-    {cc_configuration_create},
-    {cc_state_reset, cc_state_addPreprocessorDefine},
-    {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags},
-    {
-        setWorkspaceLabel,
-        setOutputFolder,
-        addConfiguration,
-        addPlatform,
-    }};
+const CConstruct cc = {cc_configuration_create,
+                       cc_platform_create,
+                       cc_project_create_,
+                       {cc_state_reset, cc_state_addPreprocessorDefine},
+                       {addFilesToProject, addInputProject, cc_project_setFlags},
+                       {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
 
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)

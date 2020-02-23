@@ -10,6 +10,8 @@ A tool to make IDE project files, using C as a description language.
 - Allow for a way to add files in a specific folder so user doesn't have to manually give complete path to every single file
 - Create test for hierarchical folder structure
 - Make tests for cconstruct build out of tree
+- set default output folder to build/${platform}
+- allows handle relative locations correctly
 
 
 

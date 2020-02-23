@@ -8,19 +8,17 @@
       "label": "Build",
       "windows": {
         "command": "${workspaceFolder}/test/run_tests.bat",
-        "args": []
+        "args": [],
+        "options": {
+          "cwd": "${workspaceFolder}/test"
+        },
       },
       "osx": {
-        "command": "/usr/bin/clang++",
-        "args": [
-          "-std=c++11",
-          "test/hello_world/config.cc",
-          "-o",
-          "${workspaceFolder}/test/hello_world/cconstruct"
-        ]
-      },
-      "options": {
-        "cwd": "${workspaceFolder}/test"
+        "command": "./run_tests.sh",
+        "args": [],
+        "options": {
+          "cwd": "${workspaceFolder}/test"
+        },
       },
       "presentation": {
         "echo": true,

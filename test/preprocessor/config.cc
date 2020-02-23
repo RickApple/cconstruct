@@ -3,9 +3,9 @@
 int main() {
   cc.workspace.setOutputFolder("test");
 
-  auto platform              = cc.platform.create(EPlatformTypeX64);
-  auto configuration_debug   = cc.configuration.create("Debug");
-  auto configuration_release = cc.configuration.create("Release");
+  auto platform              = cc.createPlatform(EPlatformTypeX64);
+  auto configuration_debug   = cc.createConfiguration("Debug");
+  auto configuration_release = cc.createConfiguration("Release");
 
   cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration_debug);
