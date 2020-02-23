@@ -1,7 +1,7 @@
 
 const char* vs_findUUIDForProject(const char** uuids, const TProject* project) {
-  unsigned i=0;
-  while(privateData.projects[i] != project) {
+  unsigned i = 0;
+  while (privateData.projects[i] != project) {
     ++i;
   }
 
@@ -27,7 +27,7 @@ struct vs_compiler_setting {
 
 void vs2019_createFilters(const TProject* in_project) {
   const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
-  FILE* filter_file = fopen(projectfilters_file_path, "wb");
+  FILE* filter_file                    = fopen(projectfilters_file_path, "wb");
 
   fprintf(filter_file, R"lit(<?xml version="1.0" encoding="utf-8"?>)lit"
                        "\n");
@@ -36,18 +36,18 @@ void vs2019_createFilters(const TProject* in_project) {
           "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   // Remove duplicate groups
-  const TProject* p = (TProject*)in_project;
+  const TProject* p          = (TProject*)in_project;
   const char** unique_groups = {0};
-  for( unsigned ig=0; ig<array_count(p->groups); ++ig ) {
+  for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
     const char* g = p->groups[ig];
-    if( g[0] ) {
+    if (g[0]) {
       bool already_contains_group = false;
-      for( unsigned i=0; i<array_count(unique_groups); ++i ) {
-        if( strcmp(g, unique_groups[i])==0 ) {
+      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+        if (strcmp(g, unique_groups[i]) == 0) {
           already_contains_group = true;
         }
       }
-      if( !already_contains_group ) {
+      if (!already_contains_group) {
         array_push(unique_groups, g);
       }
     }
@@ -55,7 +55,7 @@ void vs2019_createFilters(const TProject* in_project) {
 
   fprintf(filter_file, "  <ItemGroup>\n");
   int count = 0;
-  for (unsigned i=0; i<array_count(unique_groups); ++i ) {
+  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
     const char* g = unique_groups[i];
     fprintf(filter_file, "    <Filter Include=\"%s\">\n", g);
     fprintf(filter_file,
@@ -65,12 +65,12 @@ void vs2019_createFilters(const TProject* in_project) {
   }
   fprintf(filter_file, "  </ItemGroup>\n");
 
-  for (unsigned i=0; i<array_count(unique_groups); ++i ) {
+  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
     const char* g = unique_groups[i];
     fprintf(filter_file, "  <ItemGroup>\n");
     for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
       const char* f = p->files[fi];
-      if (strcmp(f, g)==0) {
+      if (strcmp(f, g) == 0) {
         if (strstr(f, ".h")) {
           fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", f);
           fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
@@ -88,15 +88,15 @@ void vs2019_createFilters(const TProject* in_project) {
   fprintf(filter_file, "</Project>\n");
 }
 
-void vs2019_createProjectFile(const TProject* p, const char* project_id,
-                              const char** project_ids, int folder_depth) {
+void vs2019_createProjectFile(const TProject* p, const char* project_id, const char** project_ids,
+                              int folder_depth) {
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
     prepend_path = cc_string_append(prepend_path, "../");
   }
 
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
-  FILE* project_file = fopen(project_file_path, "wb");
+  FILE* project_file            = fopen(project_file_path, "wb");
   fprintf(project_file, R"lit(<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 )lit");
@@ -106,11 +106,9 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
-      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c,
-              platform_label);
+      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
-      fprintf(project_file, "      <Platform>%s</Platform>\n",
-              platform_label);
+      fprintf(project_file, "      <Platform>%s</Platform>\n", platform_label);
       fprintf(project_file, "    </ProjectConfiguration>\n");
     }
   }
@@ -184,7 +182,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
               platform_label);
-      bool is_debug_build = (stricmp(c, "debug") == 0);
+      // TODO: fix detection of type of config
+      bool is_debug_build = (strcmp(c, "Debug") == 0);
       if (is_debug_build) {
         fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
       } else {
@@ -195,27 +194,26 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
     }
   }
 
-  
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
     const auto config              = privateData.configurations[ci];
     const auto configuration_label = config->label;
     const bool is_debug_build      = (stricmp(configuration_label, "debug") == 0);
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       const auto platform = privateData.platforms[pi];
-      
+
       vs_compiler_setting* compiler_flags = {0};
       {
-        vs_compiler_setting precompiled_setting = {"PrecompiledHeader", "NotUsing"};
-        vs_compiler_setting warning_setting = {"WarningLevel", "Level3"};
-        vs_compiler_setting sdlcheck_setting = {"SDLCheck", "true"};
+        vs_compiler_setting precompiled_setting     = {"PrecompiledHeader", "NotUsing"};
+        vs_compiler_setting warning_setting         = {"WarningLevel", "Level3"};
+        vs_compiler_setting sdlcheck_setting        = {"SDLCheck", "true"};
         vs_compiler_setting conformancemode_setting = {"ConformanceMode", "true"};
         array_push(compiler_flags, precompiled_setting);
         array_push(compiler_flags, warning_setting);
         array_push(compiler_flags, sdlcheck_setting);
         array_push(compiler_flags, conformancemode_setting);
       }
-      
-      vs_compiler_setting* linker_flags = {0};
+
+      vs_compiler_setting* linker_flags     = {0};
       vs_compiler_setting subsystem_setting = {"SubSystem", "Console"};
       vs_compiler_setting debuginfo_setting = {"GenerateDebugInformation", "true"};
       array_push(linker_flags, subsystem_setting);
@@ -225,7 +223,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         vs_compiler_setting setting = {"Optimization", "Disabled"};
         array_push(compiler_flags, setting);
       } else {
-        vs_compiler_setting opt_setting = {"Optimization", "MaxSpeed"};
+        vs_compiler_setting opt_setting   = {"Optimization", "MaxSpeed"};
         vs_compiler_setting check_setting = {"BasicRuntimeChecks", "Default"};
         array_push(compiler_flags, opt_setting);
         array_push(compiler_flags, check_setting);
@@ -241,7 +239,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
 
         for (unsigned pdi = 0; pdi < array_count(p->flags[ipc].defines); ++pdi) {
-          preprocessor_defines = cc_string_append(p->flags[ipc].defines[pdi], cc_printf(";%s", preprocessor_defines));
+          preprocessor_defines =
+              cc_string_append(p->flags[ipc].defines[pdi], cc_printf(";%s", preprocessor_defines));
         }
         for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
           additional_compiler_flags = cc_string_append(
@@ -263,15 +262,17 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       if (is_win32) {
         preprocessor_defines = cc_string_append("WIN32;", preprocessor_defines);
       }
-      
+
       vs_compiler_setting preprocessor_setting = {"PreprocessorDefinitions", preprocessor_defines};
-      vs_compiler_setting additionaloptions_setting = {"AdditionalOptions", additional_compiler_flags};
+      vs_compiler_setting additionaloptions_setting = {"AdditionalOptions",
+                                                       additional_compiler_flags};
       array_push(compiler_flags, preprocessor_setting);
       array_push(compiler_flags, additionaloptions_setting);
-        
-      if (*additional_include_folders!=0) {
+
+      if (*additional_include_folders != 0) {
         // Skip the starting ;
-        vs_compiler_setting additionalincludes_setting = {"AdditionalIncludeDirectories", additional_include_folders + 1};
+        vs_compiler_setting additionalincludes_setting = {"AdditionalIncludeDirectories",
+                                                          additional_include_folders + 1};
         array_push(compiler_flags, additionalincludes_setting);
       }
 

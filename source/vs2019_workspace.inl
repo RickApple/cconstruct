@@ -1,12 +1,12 @@
 
 const char* replaceSpacesWithUnderscores(const char* in) {
   unsigned length = strlen(in);
-  char* out = (char*)cc_alloc_(length+1);  // +1 for terminating 0
+  char* out       = (char*)cc_alloc_(length + 1);  // +1 for terminating 0
   memcpy(out, in, length);
   out[length] = 0;
-  char* it = out;
-  for( unsigned i=0; i<length; ++i, ++it ) {
-    if( *it ==' ' ) {
+  char* it    = out;
+  for (unsigned i = 0; i < length; ++i, ++it) {
+    if (*it == ' ') {
       *it = '_';
     }
   }
@@ -52,7 +52,7 @@ void vs2019_generateInFolder(const char* workspace_path) {
   (void)chdir(workspace_path);
 
   const char* workspace_file_path = cc_printf("%s.sln", privateData.workspaceLabel);
-  FILE* workspace = fopen(workspace_file_path, "wb");
+  FILE* workspace                 = fopen(workspace_file_path, "wb");
   if (workspace == NULL) {
     fprintf(stderr, "Couldn't create workspace.sln\n");
     return;
@@ -64,7 +64,8 @@ VisualStudioVersion = 16.0.29709.97
 MinimumVisualStudioVersion = 10.0.40219.1
 )lit");
 
-  const char** project_ids = (const char**)cc_alloc_(sizeof(const char*)*array_count(privateData.projects));
+  const char** project_ids =
+      (const char**)cc_alloc_(sizeof(const char*) * array_count(privateData.projects));
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     project_ids[i] = vs_generateUUID();
@@ -96,7 +97,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
     for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
       auto c = privateData.configurations[ci]->label;
       for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-        auto p = privateData.platforms[pi]->type;
+        auto p              = privateData.platforms[pi]->type;
         auto platform_label = vs_projectPlatform2String_(p);
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
                 solutionPlatform2String(p), c, platform_label);

@@ -30,7 +30,10 @@
         "showReuseMessage": true,
         "clear": true
       },
-      "problemMatcher": ["$gcc", "$msCompile"],
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true

@@ -1,7 +1,8 @@
 #pragma warning(disable : 4996)
-#include <stdbool.h>
-#include <stdarg.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
+
 #include <algorithm>
 #include <set>
 #include <string>
@@ -42,7 +43,8 @@ typedef struct CConstruct {
 
   const struct {
     void* (*create)(const char* in_project_name, EProjectType in_project_type);
-    void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files, const char* in_file_names[]);
+    void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files,
+                     const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
     void (*setFlags)(const void* in_project, const cc_flags* in_flags);
     void (*setFlagsLimited)(const void* in_out_project, const cc_flags* in_flags,
@@ -64,17 +66,17 @@ typedef struct CConstruct {
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-const CConstruct cc = {{cc_platform_create},
-                 {cc_configuration_create},
-                 {cc_state_reset, cc_state_addPreprocessorDefine},
-                 {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags_,
-                  cc_project_setFlagsLimited_},
-                 {
-                     setWorkspaceLabel,
-                     setOutputFolder,
-                     addConfiguration,
-                     addPlatform,
-                 }};
+const CConstruct cc = {
+    {cc_platform_create},
+    {cc_configuration_create},
+    {cc_state_reset, cc_state_addPreprocessorDefine},
+    {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags},
+    {
+        setWorkspaceLabel,
+        setOutputFolder,
+        addConfiguration,
+        addPlatform,
+    }};
 
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)

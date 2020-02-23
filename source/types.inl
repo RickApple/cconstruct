@@ -28,9 +28,9 @@ struct {
 } privateData;
 
 void* cc_project_create_(const char* in_project_name, EProjectType in_project_type) {
-  auto p             = new TProject;
+  auto p = new TProject;
   memset(p, 0, sizeof(TProject));
-  p->type            = in_project_type;
+  p->type              = in_project_type;
   unsigned name_length = strlen(in_project_name);
 
   char* name_copy = (char*)cc_alloc_(name_length + 1);
@@ -44,10 +44,12 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
 /**
  * Add multiple files to a project, from a NULL-terminated array
  */
-void addFilesToProject(void* in_project, const char* in_group_name, unsigned num_files, const char* in_file_names[]) {
-  for( unsigned i=0; i<num_files; ++i,++in_file_names) {
+void addFilesToProject(void* in_project, const char* in_group_name, unsigned num_files,
+                       const char* in_file_names[]) {
+  for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
     array_push(((TProject*)in_project)->files, cc_string_clone(*in_file_names));
-    array_push(((TProject*)in_project)->groups, in_group_name ? cc_string_clone(in_group_name) : "");
+    array_push(((TProject*)in_project)->groups,
+               in_group_name ? cc_string_clone(in_group_name) : "");
   }
 }
 
@@ -84,13 +86,13 @@ void cc_project_setFlags_(const void* in_out_project, const cc_flags* in_flags) 
 
 CCPlatformHandle cc_platform_create(EPlatformType in_type) {
   unsigned byte_count = sizeof(TPlatform);
-  TPlatform* p      = (TPlatform*)cc_alloc_(byte_count);
-  p->type           = in_type;
+  TPlatform* p        = (TPlatform*)cc_alloc_(byte_count);
+  p->type             = in_type;
   return p;
 }
 CCConfigurationHandle cc_configuration_create(const char* in_label) {
   unsigned byte_count = strlen(in_label) + 1 + sizeof(TConfiguration);
-  TConfiguration* c = (TConfiguration*)cc_alloc_(byte_count);
+  TConfiguration* c   = (TConfiguration*)cc_alloc_(byte_count);
   strcpy((char*)c->label, in_label);
   return c;
 }

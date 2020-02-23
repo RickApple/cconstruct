@@ -34,8 +34,7 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
 }
 
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
-                            const xcode_uuid* projectFileReferenceUUIDs,
-                            int folder_depth) {
+                            const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
   const TProject* p = (TProject*)in_project;
 
   const char* prepend_path = "";
@@ -46,7 +45,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   unsigned files_count = array_count(p->files);
 
   std::vector<std::string> file_ref_paths(files_count);
-  for( unsigned i=0; i<array_count(p->files); ++i ) {
+  for (unsigned i = 0; i < array_count(p->files); ++i) {
     file_ref_paths[i] = cc_string_append(prepend_path, p->files[i]);
   }
 
@@ -314,16 +313,25 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     configuration_ids[i] = xCodeGenerateUUID();
   }
+
+  std::string preprocessor_defines = "					\"$(inherited)\",\n";
+  for (size_t pdi = 0; pdi < p->flags.defines.size(); ++pdi) {
+    preprocessor_defines = "					\"" + p->flags.defines[pdi] +
+                           "\",\n" + preprocessor_defines;
+  }
+
   std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
+  std::string combined_preprocessor_debug =
+      "(\n					\"DEBUG=1\",\n" + preprocessor_defines +
+      "				)";
+  std::string combined_preprocessor_release =
+      "(\n" + preprocessor_defines + "				)";
   std::vector<struct xcode_compiler_setting> debug_config_data = {
       {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"DEBUG_INFORMATION_FORMAT", "dwarf"},
       {"ENABLE_TESTABILITY", "YES"},
       {"GCC_OPTIMIZATION_LEVEL", "0"},
-      {"GCC_PREPROCESSOR_DEFINITIONS", R"lit((
-					"DEBUG=1",
-					"$(inherited)",
-				))lit"},
+      {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_debug.c_str()},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
       {"SDKROOT", "macosx"}};
@@ -331,6 +339,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""},
       {"ENABLE_NS_ASSERTIONS", "NO"},
+      {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release.c_str()},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
       {"SDKROOT", "macosx"}};
@@ -443,7 +452,8 @@ void xcode_generateInFolder(const char* workspace_path) {
 
   // Before doing anything, generate a UUID for each projects output file
   xcode_uuid* projectFileReferenceUUIDs = 0;
-  projectFileReferenceUUIDs = (xcode_uuid*)array_grow(projectFileReferenceUUIDs, array_count(privateData.projects));
+  projectFileReferenceUUIDs =
+      (xcode_uuid*)array_grow(projectFileReferenceUUIDs, array_count(privateData.projects));
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     projectFileReferenceUUIDs[i] = xCodeGenerateUUID();
   }
