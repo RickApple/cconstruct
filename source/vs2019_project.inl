@@ -185,9 +185,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
                                                            {"GenerateDebugInformation", "true"}};
 
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
-    auto c                    = privateData.configurations[ci]->label;
-    const bool is_debug_build = (stricmp(c, "debug") == 0);
+    const auto config              = privateData.configurations[ci];
+    const auto configuration_label = config->label;
+    const bool is_debug_build      = (stricmp(configuration_label, "debug") == 0);
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+      const auto platform = privateData.platforms[pi];
       auto compiler_flags = general_compiler_flags;  // Make copy
       if (is_debug_build) {
         compiler_flags.push_back({"Optimization", "Disabled"});
@@ -197,8 +199,16 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       }
 
       std::string preprocessor_defines = "_CONSOLE;%(PreprocessorDefinitions)";
-      for (size_t pdi = 0; pdi < p->flags.defines.size(); ++pdi) {
-        preprocessor_defines = p->flags.defines[pdi] + ";" + preprocessor_defines;
+      for (size_t ipc = 0; ipc < p->flags.size(); ++ipc) {
+        // TODO ordering and combination so that more specific flags can override general ones
+        printf("Testing flags %i for %s,%s\n", ipc, configuration_label, platform->label);
+        if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+        if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
+
+        printf("  flags valid\n");
+        for (size_t pdi = 0; pdi < p->flags[ipc].defines.size(); ++pdi) {
+          preprocessor_defines = p->flags[ipc].defines[pdi] + ";" + preprocessor_defines;
+        }
       }
 
       if (is_debug_build) {
@@ -214,8 +224,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
 
       auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
-              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
-              platform_label);
+              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
+              configuration_label, platform_label);
       fprintf(project_file, "    <ClCompile>\n");
 
       for (size_t cfi = 0; cfi < compiler_flags.size(); ++cfi) {

@@ -14,7 +14,10 @@ typedef struct TProject {
   std::vector<std::string> files;
   std::vector<std::string> groups;
   std::vector<TProject*> dependantOn;
-  cc_flags flags;
+
+  std::vector<cc_flags> flags;
+  std::vector<CCConfigurationHandle> configs;
+  std::vector<CCPlatformHandle> platforms;
 } TProject;
 
 struct {
@@ -68,8 +71,16 @@ void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_st
   in_flags->defines.push_back(in_define_string);
 }
 
-void cc_project_setFlags(const void* in_project, const cc_flags* in_flags) {
-  ((TProject*)in_project)->flags = *in_flags;
+void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_flags,
+                                 CCPlatformHandle in_platform,
+                                 CCConfigurationHandle in_configuration) {
+  ((TProject*)in_out_project)->flags.push_back(*in_flags);
+  ((TProject*)in_out_project)->platforms.push_back(in_platform);
+  ((TProject*)in_out_project)->configs.push_back(in_configuration);
+}
+
+void cc_project_setFlags_(const void* in_out_project, const cc_flags* in_flags) {
+  cc_project_setFlagsLimited_(in_out_project, in_flags, NULL, NULL);
 }
 
 CCPlatformHandle cc_platform_create(const char* in_label, EPlatformType in_type) {

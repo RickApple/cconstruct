@@ -42,6 +42,8 @@ typedef struct CConstruct {
     void (*addFiles)(void* in_project, const char* in_group_name, const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
     void (*setFlags)(const void* in_project, const cc_flags* in_flags);
+    void (*setFlagsLimited)(const void* in_out_project, const cc_flags* in_flags,
+                            CCPlatformHandle in_platform, CCConfigurationHandle in_configuration);
   } project;
 
   const struct {
