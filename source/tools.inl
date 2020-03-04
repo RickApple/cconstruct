@@ -1,13 +1,12 @@
 #if defined(_MSC_VER)
+#include <direct.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #else
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
-
-std::string replaceSpacesWithUnderscores(std::string in) {
-  std::replace(in.begin(), in.end(), ' ', '_');
-  return in;
-}
 
 const char* strip_path(const char* path) { return strrchr(path, '/') + 1; }
 
@@ -19,7 +18,6 @@ char* append_string(char* destination, const char* source) {
 }
 
 #if defined(_MSC_VER)
-#include <direct.h>
 
 int make_folder(const char* folder_path) {
   char buffer[1024] = {0};
@@ -61,8 +59,8 @@ int make_folder(const char* folder_path) {
 #endif
 
 void* cc_alloc_(size_t size) {
-  static uintptr_t next_free     = NULL;
-  static uintptr_t end_next_free = next_free;
+  static uintptr_t next_free     = (uintptr_t)NULL;
+  static uintptr_t end_next_free = (uintptr_t)NULL;
 
   if ((end_next_free - next_free) < size) {
     // Doesn't fit, allocate a new block
