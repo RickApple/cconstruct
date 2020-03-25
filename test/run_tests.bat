@@ -59,6 +59,26 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 popd
 
 
+
+pushd include_folders
+
+rd /S /Q build
+
+cl.exe -EHsc -Fe: cconstruct.exe config.cc
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+cconstruct.exe
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+msbuild build\workspace.sln
+if %errorlevel% neq 0 exit /b %errorlevel%
+build\Debug\include_folders.exe
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+popd
+
+
+
 pushd library_dependency
 
 rd /S /Q build

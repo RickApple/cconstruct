@@ -199,8 +199,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         compiler_flags.push_back({"BasicRuntimeChecks", "Default"});
       }
 
-      std::string preprocessor_defines      = "_CONSOLE;%(PreprocessorDefinitions)";
-      std::string additional_compiler_flags = "%(AdditionalOptions)";
+      std::string preprocessor_defines       = "_CONSOLE;%(PreprocessorDefinitions)";
+      std::string additional_compiler_flags  = "%(AdditionalOptions)";
+      std::string additional_include_folders = "";
+
       for (size_t ipc = 0; ipc < p->flags.size(); ++ipc) {
         // TODO ordering and combination so that more specific flags can override general ones
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
@@ -212,6 +214,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         for (size_t cfi = 0; cfi < p->flags[ipc].compile_options.size(); ++cfi) {
           additional_compiler_flags =
               p->flags[ipc].compile_options[cfi] + " " + additional_compiler_flags;
+        }
+        for (size_t ifi = 0; ifi < p->flags[ipc].include_folders.size(); ++ifi) {
+          // Order matters here, so append
+          additional_include_folders =
+              additional_include_folders + ";" + p->flags[ipc].include_folders[ifi];
         }
       }
 
@@ -227,6 +234,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       compiler_flags.push_back({"PreprocessorDefinitions", preprocessor_defines.c_str()});
 
       compiler_flags.push_back({"AdditionalOptions", additional_compiler_flags.c_str()});
+      if (!additional_include_folders.empty()) {
+        // Skip the starting ;
+        compiler_flags.push_back(
+            {"AdditionalIncludeDirectories", additional_include_folders.c_str() + 1});
+      }
 
       auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
       fprintf(project_file,
