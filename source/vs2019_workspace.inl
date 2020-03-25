@@ -96,7 +96,7 @@ EndGlobal
 )lit");
 
   fclose(workspace);
-  printf("Created workspace at '%s'\n", privateData.outputFolder);
+  printf("Created workspace at '%s'\n", workspace_path);
 
   for (unsigned i = 0; i < privateData.projects.size(); ++i) {
     auto p          = privateData.projects[i];
@@ -104,6 +104,6 @@ EndGlobal
     vs2019_createProjectFile(p, project_id.c_str(), project_ids, count_folder_depth);
     vs2019_createFilters(p);
 
-    printf("Created project '%s' at '%s'\n", p->name, privateData.outputFolder);
+    printf("Created project '%s' at '%s'\n", p->name, workspace_path);
   }
 }
