@@ -42,8 +42,9 @@ void vs2019_generateInFolder(const char* workspace_path) {
   }
   (void)chdir(workspace_path);
 
-  std::string workspace_file_path = "workspace.sln";
-  FILE* workspace                 = fopen(workspace_file_path.c_str(), "wb");
+  std::string workspace_file_path = privateData.workspaceLabel;
+  workspace_file_path += ".sln";
+  FILE* workspace = fopen(workspace_file_path.c_str(), "wb");
   if (workspace == NULL) {
     fprintf(stderr, "Couldn't create workspace.sln\n");
     return;

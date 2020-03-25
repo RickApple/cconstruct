@@ -69,7 +69,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-msbuild build\msvc\workspace.sln
+msbuild build\msvc\library_dependency.sln
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 build\msvc\Debug\my_binary.exe

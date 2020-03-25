@@ -21,7 +21,7 @@ typedef struct TProject {
 
 struct {
   const char* outputFolder;
-  const char* workspaceLabel;
+  const char* workspaceLabel = "workspace";
   std::vector<TProject*> projects;
   std::vector<const TConfiguration*> configurations;
   std::vector<const TPlatform*> platforms;
