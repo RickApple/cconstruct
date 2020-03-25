@@ -87,8 +87,9 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform_label = privateData.platforms[pi]->label;
-      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
+      auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
+      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c,
+              platform_label.c_str());
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n",
               projectPlatform2String(privateData.platforms[pi]->type).c_str());
@@ -114,11 +115,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform_label = privateData.platforms[pi]->label;
+      auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
-              c, platform_label);
+              c, platform_label.c_str());
       fprintf(project_file, "    <ConfigurationType>");
       if (p->type == CCProjectTypeConsoleApplication) {
         fprintf(project_file, "Application");
@@ -143,11 +144,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform_label = privateData.platforms[pi]->label;
+      auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c, platform_label);
+              c, platform_label.c_str());
       fprintf(project_file,
               "    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" "
               "Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" "
@@ -159,12 +160,12 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
   for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-      auto platform_label = privateData.platforms[pi]->label;
+      auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
 
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
-              platform_label);
+              platform_label.c_str());
       bool is_debug_build = (stricmp(c, "debug") == 0);
       if (is_debug_build) {
         fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
@@ -227,10 +228,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
 
       compiler_flags.push_back({"AdditionalOptions", additional_compiler_flags.c_str()});
 
-      auto platform_label = privateData.platforms[pi]->label;
+      auto platform_label = projectPlatform2String(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              configuration_label, platform_label);
+              configuration_label, platform_label.c_str());
       fprintf(project_file, "    <ClCompile>\n");
 
       for (size_t cfi = 0; cfi < compiler_flags.size(); ++cfi) {

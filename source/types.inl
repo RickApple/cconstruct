@@ -2,7 +2,6 @@ typedef struct TProject TProject;
 
 typedef struct TPlatform {
   EPlatformType type;
-  const char label[];
 } TPlatform;
 typedef struct TConfiguration {
   const char label[];
@@ -83,11 +82,10 @@ void cc_project_setFlags_(const void* in_out_project, const cc_flags* in_flags) 
   cc_project_setFlagsLimited_(in_out_project, in_flags, NULL, NULL);
 }
 
-CCPlatformHandle cc_platform_create(const char* in_label, EPlatformType in_type) {
-  size_t byte_count = strlen(in_label) + 1 + sizeof(TPlatform);
+CCPlatformHandle cc_platform_create(EPlatformType in_type) {
+  size_t byte_count = sizeof(TPlatform);
   TPlatform* p      = (TPlatform*)cc_alloc_(byte_count);
   p->type           = in_type;
-  strcpy((char*)p->label, in_label);
   return p;
 }
 CCConfigurationHandle cc_configuration_create(const char* in_label) {

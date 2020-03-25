@@ -29,9 +29,7 @@ typedef struct TPlatform* CCPlatformHandle;
 typedef struct TConfiguration* CCConfigurationHandle;
 
 typedef struct CConstruct {
-  const struct {
-    CCPlatformHandle (*create)(const char* in_label, EPlatformType in_type);
-  } platform;
+  const struct { CCPlatformHandle (*create)(EPlatformType in_type); } platform;
   const struct { CCConfigurationHandle (*create)(const char* in_label); } configuration;
 
   const struct {

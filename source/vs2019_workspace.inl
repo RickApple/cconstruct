@@ -87,12 +87,11 @@ MinimumVisualStudioVersion = 10.0.40219.1
     for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
       auto c = privateData.configurations[ci]->label;
       for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
-        auto p             = privateData.platforms[pi]->type;
-        auto platform_name = privateData.platforms[pi]->label;
+        auto p = privateData.platforms[pi]->type;
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId.c_str(), c,
-                solutionPlatform2String(p).c_str(), c, platform_name);
+                solutionPlatform2String(p).c_str(), c, projectPlatform2String(p).c_str());
         fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId.c_str(), c,
-                solutionPlatform2String(p).c_str(), c, platform_name);
+                solutionPlatform2String(p).c_str(), c, projectPlatform2String(p).c_str());
       }
     }
   }

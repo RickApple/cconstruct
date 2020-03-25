@@ -3,7 +3,7 @@
 int main() {
   cc.workspace.setOutputFolder("test");
 
-  auto platform_x64 = cc.platform.create("x64", EPlatformTypeX64);
+  auto platform_x64 = cc.platform.create(EPlatformTypeX64);
   cc.workspace.addPlatform(platform_x64);
 
   auto configuration_debug   = cc.configuration.create("Debug");
@@ -17,8 +17,6 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
-  // Need this flag to be able to compile without erros on VS 2019
-  flags.defines.push_back("_CRT_SECURE_NO_WARNINGS");
   flags.compile_options.push_back("/WX");
   cc.project.setFlags(p, &flags);
 
