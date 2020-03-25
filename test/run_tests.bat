@@ -1,5 +1,21 @@
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
 
+pushd compile_flags
+
+rd /S /Q build
+
+cl.exe -EHsc -Fe: cconstruct.exe config.cc
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+cconstruct.exe
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+msbuild build\workspace.sln /p:Configuration=Release /p:Platform=X64
+if %errorlevel% neq 1 exit /b %errorlevel%
+REM building should cause an error because flag has been added to set warnings as errors
+
+popd
+
 pushd preprocessor
 
 rd /S /Q build
@@ -62,3 +78,22 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 popd
 
 
+
+
+
+pushd ..\tools
+
+rd /S /Q build
+
+cl.exe -EHsc -Fe: cconstruct.exe config.cc
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+cconstruct.exe
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+msbuild build\workspace.sln
+if %errorlevel% neq 0 exit /b %errorlevel%
+build\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_release.h
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+popd

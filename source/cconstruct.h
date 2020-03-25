@@ -20,6 +20,8 @@ void addProject(const void* in_project);
 
 typedef struct cc_flags {
   std::vector<std::string> defines;
+  std::vector<std::string> compile_options;
+  std::vector<std::string> link_options;
 } cc_flags;
 
 // Opaque handles at this point

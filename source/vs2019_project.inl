@@ -198,16 +198,19 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         compiler_flags.push_back({"BasicRuntimeChecks", "Default"});
       }
 
-      std::string preprocessor_defines = "_CONSOLE;%(PreprocessorDefinitions)";
+      std::string preprocessor_defines      = "_CONSOLE;%(PreprocessorDefinitions)";
+      std::string additional_compiler_flags = "%(AdditionalOptions)";
       for (size_t ipc = 0; ipc < p->flags.size(); ++ipc) {
         // TODO ordering and combination so that more specific flags can override general ones
-        printf("Testing flags %i for %s,%s\n", ipc, configuration_label, platform->label);
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
         if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
 
-        printf("  flags valid\n");
         for (size_t pdi = 0; pdi < p->flags[ipc].defines.size(); ++pdi) {
           preprocessor_defines = p->flags[ipc].defines[pdi] + ";" + preprocessor_defines;
+        }
+        for (size_t cfi = 0; cfi < p->flags[ipc].compile_options.size(); ++cfi) {
+          additional_compiler_flags =
+              p->flags[ipc].compile_options[cfi] + " " + additional_compiler_flags;
         }
       }
 
@@ -221,6 +224,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
         preprocessor_defines = "WIN32;" + preprocessor_defines;
       }
       compiler_flags.push_back({"PreprocessorDefinitions", preprocessor_defines.c_str()});
+
+      compiler_flags.push_back({"AdditionalOptions", additional_compiler_flags.c_str()});
 
       auto platform_label = privateData.platforms[pi]->label;
       fprintf(project_file,
