@@ -6,10 +6,10 @@ const char* vs_findUUIDForProject(const std::vector<std::string>& uuids, const T
   return "";
 }
 
-std::string platform2String(EPlatformType platform) {
+std::string projectPlatform2String(EPlatformType platform) {
   switch (platform) {
     case EPlatformTypeX86:
-      return "x86";
+      return "Win32";
     case EPlatformTypeX64:
       return "x64";
     case EPlatformTypeARM:
@@ -91,7 +91,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id,
       fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n",
-              platform2String(privateData.platforms[pi]->type).c_str());
+              projectPlatform2String(privateData.platforms[pi]->type).c_str());
       fprintf(project_file, "    </ProjectConfiguration>\n");
     }
   }

@@ -13,6 +13,18 @@ std::string vs_generateUUID() {
   return buffer;
 };
 
+std::string solutionPlatform2String(EPlatformType platform) {
+  switch (platform) {
+    case EPlatformTypeX86:
+      return "x86";
+    case EPlatformTypeX64:
+      return "x64";
+    case EPlatformTypeARM:
+      return "ARM";
+  }
+  return "";
+}
+
 void vs2019_generateInFolder(const char* workspace_path) {
   int count_folder_depth = 1;
   {
@@ -63,8 +75,8 @@ MinimumVisualStudioVersion = 10.0.40219.1
     auto c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
       auto p = privateData.platforms[pi]->type;
-      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, platform2String(p).c_str(), c,
-              platform2String(p).c_str());
+      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, solutionPlatform2String(p).c_str(), c,
+              solutionPlatform2String(p).c_str());
     }
   }
   fprintf(workspace, R"lit(	EndGlobalSection
@@ -78,9 +90,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
         auto p             = privateData.platforms[pi]->type;
         auto platform_name = privateData.platforms[pi]->label;
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId.c_str(), c,
-                platform2String(p).c_str(), c, platform_name);
+                solutionPlatform2String(p).c_str(), c, platform_name);
         fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId.c_str(), c,
-                platform2String(p).c_str(), c, platform_name);
+                solutionPlatform2String(p).c_str(), c, platform_name);
       }
     }
   }
