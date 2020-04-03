@@ -9,7 +9,7 @@ std::string vs_generateUUID() {
   ++count;
 
   char buffer[64];
-  sprintf(buffer, "00000000-0000-0000-0000-%012i", count);
+  sprintf(buffer, "00000000-0000-0000-0000-%012zi", count);
   return buffer;
 };
 
