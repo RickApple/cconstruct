@@ -1,4 +1,6 @@
+
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
+echo on
 
 pushd compile_flags
 
@@ -117,3 +119,5 @@ build\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_re
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd
+
+echo All Tests Finished
