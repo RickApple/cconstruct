@@ -43,11 +43,10 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
 /**
  * Add multiple files to a project, from a NULL-terminated array
  */
-void addFilesToProject(void* in_project, const char* in_group_name, const char* in_file_names[]) {
-  while (*in_file_names) {
+void addFilesToProject(void* in_project, const char* in_group_name, unsigned num_files, const char* in_file_names[]) {
+  for( unsigned i=0; i<num_files; ++i,++in_file_names) {
     ((TProject*)in_project)->files.push_back(*in_file_names);
     ((TProject*)in_project)->groups.push_back(in_group_name ? in_group_name : "");
-    ++in_file_names;
   }
 }
 

@@ -10,8 +10,8 @@ int main() {
   cc.workspace.addConfiguration(configuration);
 
   auto p              = cc.project.create("cconstruct_release", CCProjectTypeConsoleApplication);
-  const char* files[] = {"cconstruct_release.c", nullptr};
-  cc.project.addFiles(p, "Source Files", files);
+  const char* files[] = {"cconstruct_release.c"};
+  cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc_flags flags = {};
   cc.state.reset(&flags);

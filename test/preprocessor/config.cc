@@ -14,8 +14,8 @@ int main() {
   cc_flags flags = {};
 
   auto p              = cc.project.create("preprocessor", CCProjectTypeConsoleApplication);
-  const char* files[] = {"src/main.c", nullptr};
-  cc.project.addFiles(p, "Source Files", files);
+  const char* files[] = {"src/main.c"};
+  cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc.state.reset(&flags);
   cc.state.addPreprocessorDefine(&flags, "TEST_VALUE=5");

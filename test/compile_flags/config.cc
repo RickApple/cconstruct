@@ -12,8 +12,9 @@ int main() {
   cc.workspace.addConfiguration(configuration_release);
 
   auto p              = cc.project.create("my_binary", CCProjectTypeConsoleApplication);
-  const char* files[] = {"src/main.c", NULL};
-  cc.project.addFiles(p, "Source Files", files);
+  const char* files[] = {"src/main.c"};
+
+  cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc_flags flags;
   cc.state.reset(&flags);

@@ -8,6 +8,9 @@
 #include <unistd.h>
 #endif
 
+
+#define countof(a) sizeof(a)/sizeof(a[0])
+
 const char* strip_path(const char* path) { return strrchr(path, '/') + 1; }
 
 char* append_string(char* destination, const char* source) {

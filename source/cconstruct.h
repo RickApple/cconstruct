@@ -40,7 +40,7 @@ typedef struct CConstruct {
 
   const struct {
     void* (*create)(const char* in_project_name, EProjectType in_project_type);
-    void (*addFiles)(void* in_project, const char* in_group_name, const char* in_file_names[]);
+    void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files, const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
     void (*setFlags)(const void* in_project, const cc_flags* in_flags);
     void (*setFlagsLimited)(const void* in_out_project, const cc_flags* in_flags,
@@ -77,8 +77,6 @@ CConstruct cc = {{cc_platform_create},
 // For ease of use set a default CConstruct instance for each platform
 #if defined(_MSC_VER)
 void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
-// auto cc_default = cc_vs2019_builder;
 #else
 void (*cc_default_generator)(const char* workspace_folder) = xcode_generateInFolder;
-// auto cc_default                                            = cc_xcode_builder;
 #endif

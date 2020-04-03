@@ -16,14 +16,14 @@ int main() {
 
   auto l = cc.project.create("my_library", CCProjectTypeStaticLibrary);
   {
-    const char* files[] = {"src/library.c", NULL};
-    cc.project.addFiles(l, "Source Files", files);
+    const char* files[] = {"src/library.c"};
+    cc.project.addFiles(l, "Source Files", countof(files), files);
   }
 
   auto b = cc.project.create("my_binary", CCProjectTypeConsoleApplication);
   {
-    const char* files[] = {"src/main.c", NULL};
-    cc.project.addFiles(b, "Source Files", files);
+    const char* files[] = {"src/main.c"};
+    cc.project.addFiles(b, "Source Files", countof(files), files);
     cc.project.addInputProject(b, l);
   }
 
