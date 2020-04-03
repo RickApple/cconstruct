@@ -30,7 +30,7 @@ void vs2019_createFilters(const TProject* in_project) {
                        "\n");
   fprintf(filter_file,
           "<Project ToolsVersion=\"4.0\" "
-          "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\"\n");
+          "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   // Remove duplicate groups
   const TProject* p = (TProject*)in_project;
