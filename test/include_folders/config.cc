@@ -17,7 +17,7 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
-  flags.include_folders.push_back("../src/include");  // TODO: fix the relativeness of this folder
+  array_push(flags.include_folders, "../src/include");  // TODO: fix the relativeness of this folder
   cc.project.setFlags(p, &flags);
 
   cc_default_generator("build");

@@ -1,19 +1,28 @@
 
-std::string replaceSpacesWithUnderscores(std::string in) {
-  std::replace(in.begin(), in.end(), ' ', '_');
+const char* replaceSpacesWithUnderscores(const char* in) {
+  unsigned length = strlen(in);
+  char* out = (char*)cc_alloc_(length+1);  // +1 for terminating 0
+  memcpy(out, in, length);
+  out[length] = 0;
+  char* it = out;
+  for( unsigned i=0; i<length; ++i, ++it ) {
+    if( *it ==' ' ) {
+      *it = '_';
+    }
+  }
   return in;
 }
 
-std::string vs_generateUUID() {
+const char* vs_generateUUID() {
   static size_t count = 0;
   ++count;
 
-  char buffer[64];
+  char* buffer = (char*)cc_alloc_(37);
   sprintf(buffer, "00000000-0000-0000-0000-%012zi", count);
   return buffer;
 };
 
-std::string solutionPlatform2String(EPlatformType platform) {
+const char* solutionPlatform2String(EPlatformType platform) {
   switch (platform) {
     case EPlatformTypeX86:
       return "x86";
@@ -42,9 +51,8 @@ void vs2019_generateInFolder(const char* workspace_path) {
   }
   (void)chdir(workspace_path);
 
-  std::string workspace_file_path = privateData.workspaceLabel;
-  workspace_file_path += ".sln";
-  FILE* workspace = fopen(workspace_file_path.c_str(), "wb");
+  const char* workspace_file_path = cc_printf("%s.sln", privateData.workspaceLabel);
+  FILE* workspace = fopen(workspace_file_path, "wb");
   if (workspace == NULL) {
     fprintf(stderr, "Couldn't create workspace.sln\n");
     return;
@@ -56,43 +64,44 @@ VisualStudioVersion = 16.0.29709.97
 MinimumVisualStudioVersion = 10.0.40219.1
 )lit");
 
-  std::vector<std::string> project_ids(privateData.projects.size());
+  const char** project_ids = (const char**)cc_alloc_(sizeof(const char*)*array_count(privateData.projects));
 
-  for (size_t i = 0; i < privateData.projects.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     project_ids[i] = vs_generateUUID();
     auto projectId = project_ids[i];
     auto p         = privateData.projects[i];
     fprintf(workspace,
             "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s.vcxproj\", "
             "\"{%s}\"\n",
-            p->name, replaceSpacesWithUnderscores(p->name).c_str(), projectId.c_str());
+            p->name, replaceSpacesWithUnderscores(p->name), projectId);
     fprintf(workspace, "EndProject\n");
   }
 
   fprintf(workspace, R"lit(Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 )lit");
-  for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
+  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
     auto c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       auto p = privateData.platforms[pi]->type;
-      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, solutionPlatform2String(p).c_str(), c,
-              solutionPlatform2String(p).c_str());
+      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, solutionPlatform2String(p), c,
+              solutionPlatform2String(p));
     }
   }
   fprintf(workspace, R"lit(	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 )lit");
-  for (size_t i = 0; i < privateData.projects.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     auto projectId = project_ids[i];
-    for (unsigned ci = 0; ci < privateData.configurations.size(); ++ci) {
+    for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
       auto c = privateData.configurations[ci]->label;
-      for (unsigned pi = 0; pi < privateData.platforms.size(); ++pi) {
+      for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
         auto p = privateData.platforms[pi]->type;
-        fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId.c_str(), c,
-                solutionPlatform2String(p).c_str(), c, projectPlatform2String(p).c_str());
-        fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId.c_str(), c,
-                solutionPlatform2String(p).c_str(), c, projectPlatform2String(p).c_str());
+        auto platform_label = vs_projectPlatform2String_(p);
+        fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
+                solutionPlatform2String(p), c, platform_label);
+        fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId, c,
+                solutionPlatform2String(p), c, platform_label);
       }
     }
   }
@@ -110,10 +119,10 @@ EndGlobal
   fclose(workspace);
   printf("Created workspace at '%s'\n", workspace_path);
 
-  for (unsigned i = 0; i < privateData.projects.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     auto p          = privateData.projects[i];
     auto project_id = project_ids[i];
-    vs2019_createProjectFile(p, project_id.c_str(), project_ids, count_folder_depth);
+    vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
     vs2019_createFilters(p);
 
     printf("Created project '%s' at '%s'\n", p->name, workspace_path);

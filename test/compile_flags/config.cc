@@ -18,7 +18,7 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
-  flags.compile_options.push_back("/WX");
+  array_push(flags.compile_options, "/WX");
   cc.project.setFlags(p, &flags);
 
   cc_default_generator("build");

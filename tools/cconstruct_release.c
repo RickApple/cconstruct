@@ -1,10 +1,13 @@
+#include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "../source/tools.inl"
 
 const char* combinePaths(const char* folder1, const char* folder2) {
-  size_t combined_length = strlen(folder1) + 1 + strlen(folder2) + 1;
-  char* out_buffer       = cc_alloc_(combined_length);
+  unsigned combined_length = strlen(folder1) + 1 + strlen(folder2) + 1;
+  char* out_buffer       = (char*)cc_alloc_(combined_length);
   char* append_buffer    = out_buffer;
   strcpy(out_buffer, folder1);
 
@@ -47,7 +50,7 @@ int copyFileContents(const char* in_file_path, FILE* out_file) {
 int main(int argc, const char* argv[]) {
   if (argc < 3) {
     fprintf(stderr, "Input format is 'cconstruct_release input_file_path output_file_path");
-    return;
+    return 1;
   }
 
   printf("Building '%s' to '%s'\n", argv[1], argv[2]);
@@ -86,7 +89,7 @@ int main(int argc, const char* argv[]) {
   memcpy(in_folder_path, in_file_path, in_file_only - in_file_path);
   printf("root path '%s'\n", in_folder_path);
 
-  const char* next_include            = NULL;
+  char* next_include                  = NULL;
   const char* k_include_search        = "#include \"";
   char include_file_path_buffer[2048] = {0};
 
@@ -94,8 +97,8 @@ int main(int argc, const char* argv[]) {
     // Write out string before the include
     fwrite(in_data, 1, next_include - in_data, out_file);
 
-    in_data                 = next_include + strlen(k_include_search);
-    const char* end_include = strchr(in_data, '"');
+    in_data           = next_include + strlen(k_include_search);
+    char* end_include = strchr(in_data, '"');
     memcpy(include_file_path_buffer, in_data, end_include - in_data);
     include_file_path_buffer[end_include - in_data] = 0;
 

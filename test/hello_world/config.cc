@@ -14,7 +14,7 @@ int main() {
   cc.workspace.addConfiguration(configuration_release);
 
   auto p              = cc.project.create("hello_world", CCProjectTypeConsoleApplication);
-  const char* files[] = {"src/main.c", "src/function.c"};
+  const char* files[] = {"src/main.c", "src/function.c", "src/function.h"};
   cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc_default_generator("build");

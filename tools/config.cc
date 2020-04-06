@@ -3,7 +3,7 @@
 int main() {
   cc.workspace.setOutputFolder("build/release");
 
-  auto platform      = cc.platform.create(EPlatformTypeX86);
+  auto platform      = cc.platform.create(EPlatformTypeX64);
   auto configuration = cc.configuration.create("Debug");
 
   cc.workspace.addPlatform(platform);

@@ -13,7 +13,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Debug|x64"
+devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 build\x64\Debug\hello_world.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
@@ -32,7 +32,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Debug|x64"
+devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 build\x64\Debug\include_folders.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
@@ -51,7 +51,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\msvc\library_dependency.sln /Build "Debug|x64"
+devenv.com build\msvc\library_dependency.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 build\msvc\x64\Debug\my_binary.exe
@@ -71,12 +71,12 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Debug|x64"
+devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 build\x64\Debug\preprocessor.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Release|x64"
+devenv.com build\workspace.sln /Build "Release|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 build\x64\Release\preprocessor.exe
 rem the release build is expected to give an error, since the preprocessor has a different value for that build
@@ -96,7 +96,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Release|x64"
+devenv.com build\workspace.sln /Build "Release|x64"
 if %errorlevel% neq 1 exit /b %errorlevel%
 REM building should cause an error because flag has been added to set warnings as errors
 
@@ -116,12 +116,12 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build Debug
+devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 rem Create output folder for combined file
 mkdir ..\build
-build\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_release.h
+build\x64\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_release.h
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd

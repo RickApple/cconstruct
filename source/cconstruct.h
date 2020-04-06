@@ -1,5 +1,7 @@
 #pragma warning(disable : 4996)
 #include <stdbool.h>
+#include <stdarg.h>
+#include <assert.h>
 #include <algorithm>
 #include <set>
 #include <string>
@@ -19,10 +21,10 @@ void create();
 void addProject(const void* in_project);
 
 typedef struct cc_flags {
-  std::vector<std::string> defines;
-  std::vector<std::string> include_folders;
-  std::vector<std::string> compile_options;
-  std::vector<std::string> link_options;
+  const char** defines;
+  const char** include_folders;
+  const char** compile_options;
+  const char** link_options;
 } cc_flags;
 
 // Opaque handles at this point
@@ -62,7 +64,7 @@ typedef struct CConstruct {
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-CConstruct cc = {{cc_platform_create},
+const CConstruct cc = {{cc_platform_create},
                  {cc_configuration_create},
                  {cc_state_reset, cc_state_addPreprocessorDefine},
                  {cc_project_create_, addFilesToProject, addInputProject, cc_project_setFlags_,
@@ -74,7 +76,7 @@ CConstruct cc = {{cc_platform_create},
                      addPlatform,
                  }};
 
-// For ease of use set a default CConstruct instance for each platform
+// For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)
 void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
 #else

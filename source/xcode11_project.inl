@@ -11,7 +11,7 @@ typedef struct xcode_uuid {
 static_assert(sizeof(xcode_uuid) == 12, "Incorrect size of UUID");
 
 xcode_uuid xCodeGenerateUUID() {
-  static size_t count = 0;
+  static unsigned count = 0;
 
   xcode_uuid out = {0};
   out.uuid[0]    = ++count;
@@ -26,37 +26,40 @@ const char* xCodeUUID2String(xcode_uuid uuid) {
   return out;
 }
 
-xcode_uuid findUUIDForProject(const std::vector<xcode_uuid>& uuids, const TProject* project) {
-  for (unsigned i = 0; i < uuids.size(); ++i) {
+xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) {
+  for (unsigned i = 0; i < array_count(uuids); ++i) {
     if (privateData.projects[i] == project) return uuids[i];
   }
   return {};
 }
 
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
-                            const std::vector<xcode_uuid>& projectFileReferenceUUIDs,
+                            const xcode_uuid* projectFileReferenceUUIDs,
                             int folder_depth) {
   const TProject* p = (TProject*)in_project;
 
-  std::string prepend_path = "";
+  const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
-    prepend_path += "../";
+    prepend_path = cc_string_append(prepend_path, "../");
   }
 
-  std::vector<std::string> file_ref_paths(p->files.size());
-  std::transform(p->files.begin(), p->files.end(), file_ref_paths.begin(),
-                 [&](const std::string& f) { return prepend_path + f; });
+  unsigned files_count = array_count(p->files);
 
-  std::vector<std::string> fileReferenceUUID(p->files.size());
-  std::vector<std::string> fileUUID(p->files.size());
-  for (unsigned fi = 0; fi < p->files.size(); ++fi) {
+  std::vector<std::string> file_ref_paths(files_count);
+  for( unsigned i=0; i<array_count(p->files); ++i ) {
+    file_ref_paths[i] = cc_string_append(prepend_path, p->files[i]);
+  }
+
+  std::vector<std::string> fileReferenceUUID(files_count);
+  std::vector<std::string> fileUUID(files_count);
+  for (unsigned fi = 0; fi < files_count; ++fi) {
     fileReferenceUUID[fi] = xCodeUUID2String(xCodeGenerateUUID());
     fileUUID[fi]          = xCodeUUID2String(xCodeGenerateUUID());
   }
 
-  std::vector<std::string> dependencyFileReferenceUUID(p->dependantOn.size());
-  std::vector<std::string> dependencyBuildUUID(p->dependantOn.size());
-  for (unsigned fi = 0; fi < p->dependantOn.size(); ++fi) {
+  std::vector<std::string> dependencyFileReferenceUUID(array_count(p->dependantOn));
+  std::vector<std::string> dependencyBuildUUID(array_count(p->dependantOn));
+  for (unsigned fi = 0; fi < array_count(p->dependantOn); ++fi) {
     dependencyFileReferenceUUID[fi] = xCodeUUID2String(xCodeGenerateUUID());
     dependencyBuildUUID[fi]         = xCodeUUID2String(xCodeGenerateUUID());
   }
@@ -80,14 +83,14 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 /* Begin PBXBuildFile section */
 )lit");
 
-  for (unsigned fi = 0; fi < p->files.size(); ++fi) {
-    const char* filename = p->files[fi].c_str();
+  for (unsigned fi = 0; fi < files_count; ++fi) {
+    const char* filename = p->files[fi];
     fprintf(f,
             "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
             fileUUID[fi].c_str(), strip_path(filename), fileReferenceUUID[fi].c_str(),
             strip_path(filename));
   }
-  for (size_t i = 0; i < p->dependantOn.size(); ++i) {
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     std::string id            = dependencyFileReferenceUUID[i];
     std::string buildID       = dependencyBuildUUID[i];
     std::string dependantName = std::string("lib") + p->dependantOn[i]->name + ".a";
@@ -115,8 +118,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   }
 
   fprintf(f, "/* Begin PBXFileReference section */\n");
-  for (unsigned fi = 0; fi < p->files.size(); ++fi) {
-    const char* filename = p->files[fi].c_str();
+  for (unsigned fi = 0; fi < files_count; ++fi) {
+    const char* filename = p->files[fi];
     fprintf(f,
             "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
             "lastKnownFileType "
@@ -135,7 +138,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   fprintf(f, "\"; includeInIndex = 0; path = %s; sourceTree = BUILT_PRODUCTS_DIR; };\n",
           outputName.c_str());
 
-  for (size_t i = 0; i < p->dependantOn.size(); ++i) {
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     std::string id = dependencyFileReferenceUUID[i];
     fprintf(f,
             "		%s /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = "
@@ -150,7 +153,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			buildActionMask = 2147483647;
 			files = (
 )lit");
-  for (size_t i = 0; i < p->dependantOn.size(); ++i) {
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     std::string buildID = dependencyBuildUUID[i];
     fprintf(f, "				%s /* lib%s.a in Frameworks */,\n",
             buildID.c_str(), p->dependantOn[i]->name);
@@ -207,8 +210,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			isa = PBXGroup;
 			children = (
 )lit");
-  for (unsigned fi = 0; fi < p->files.size(); ++fi) {
-    const char* filename = p->files[fi].c_str();
+  for (unsigned fi = 0; fi < files_count; ++fi) {
+    const char* filename = p->files[fi];
     fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi].c_str(),
             strip_path(filename));
   }
@@ -294,8 +297,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			files = (
 )lit");
 
-  for (unsigned fi = 0; fi < p->files.size(); ++fi) {
-    const char* filename = p->files[fi].c_str();
+  for (unsigned fi = 0; fi < files_count; ++fi) {
+    const char* filename = p->files[fi];
     fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi].c_str(),
             strip_path(filename));
   }
@@ -307,8 +310,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
 )lit");
 
-  std::vector<xcode_uuid> configuration_ids(privateData.configurations.size());
-  for (size_t i = 0; i < privateData.configurations.size(); ++i) {
+  std::vector<xcode_uuid> configuration_ids(array_count(privateData.configurations));
+  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     configuration_ids[i] = xCodeGenerateUUID();
   }
   std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
@@ -335,7 +338,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   std::vector<std::vector<struct xcode_compiler_setting>> config_data = {debug_config_data,
                                                                          release_config_data};
   fprintf(f, "/* Begin XCBuildConfiguration section */\n");
-  for (size_t i = 0; i < privateData.configurations.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
 
@@ -343,7 +346,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f, "			isa = XCBuildConfiguration;\n");
     fprintf(f, "			buildSettings = {\n");
     auto config = config_data[i];
-    for (size_t ic = 0; ic < config.size(); ++ic) {
+    for (unsigned ic = 0; ic < config.size(); ++ic) {
       fprintf(f, "				%s = %s;\n", config[ic].key, config[ic].value);
     }
     fprintf(f, "			};\n");
@@ -377,7 +380,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			isa = XCConfigurationList;
 			buildConfigurations = (
 )lit");
-  for (size_t i = 0; i < privateData.configurations.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
     fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
@@ -411,7 +414,7 @@ void xCodeCreateWorkspaceFile(FILE* f) {
    version = "1.0">
 )lit");
 
-  for (unsigned i = 0; i < privateData.projects.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     auto p = privateData.projects[i];
     fprintf(f, "  <FileRef\n");
     fprintf(f, "    location = \"group:%s.xcodeproj\">\n", p->name);
@@ -439,12 +442,13 @@ void xcode_generateInFolder(const char* workspace_path) {
   (void)chdir(workspace_path);
 
   // Before doing anything, generate a UUID for each projects output file
-  std::vector<xcode_uuid> projectFileReferenceUUIDs(privateData.projects.size());
-  for (unsigned i = 0; i < privateData.projects.size(); ++i) {
+  xcode_uuid* projectFileReferenceUUIDs = 0;
+  projectFileReferenceUUIDs = (xcode_uuid*)array_grow(projectFileReferenceUUIDs, array_count(privateData.projects));
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     projectFileReferenceUUIDs[i] = xCodeGenerateUUID();
   }
 
-  for (unsigned i = 0; i < privateData.projects.size(); ++i) {
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     auto p = privateData.projects[i];
 
     std::string projectFilePath = p->name;
