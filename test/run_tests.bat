@@ -13,7 +13,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 cconstruct.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-devenv.exe build\workspace.sln /Build "Debug|x64" /out Errors.Txt
+devenv.exe build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 build\x64\Debug\hello_world.exe
 if %errorlevel% neq 0 exit /b %errorlevel%

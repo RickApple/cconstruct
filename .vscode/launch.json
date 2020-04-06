@@ -5,6 +5,17 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "(Windows) Launch",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/test/library_dependency/cconstruct.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/test/library_dependency/",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
       "name": "(lldb) Launch",
       "type": "cppdbg",
       "request": "launch",

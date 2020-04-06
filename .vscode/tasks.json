@@ -6,16 +6,21 @@
     {
       "type": "shell",
       "label": "Build",
-      "command": "/usr/bin/clang++",
-      "args": [
-        "-g",
-        "-std=c++11",
-        "test/hello_world/config.cpp",
-        "-o",
-        "${workspaceFolder}/test/hello_world/cconstruct"
-      ],
+      "windows": {
+        "command": "${workspaceFolder}/test/run_tests.bat",
+        "args": []
+      },
+      "osx": {
+        "command": "/usr/bin/clang++",
+        "args": [
+          "-std=c++11",
+          "test/hello_world/config.cc",
+          "-o",
+          "${workspaceFolder}/test/hello_world/cconstruct"
+        ]
+      },
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/test"
       },
       "presentation": {
         "echo": true,
@@ -25,7 +30,7 @@
         "showReuseMessage": true,
         "clear": true
       },
-      "problemMatcher": ["$gcc"],
+      "problemMatcher": ["$gcc", "$msCompile"],
       "group": {
         "kind": "build",
         "isDefault": true
