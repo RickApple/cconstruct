@@ -314,20 +314,26 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     configuration_ids[i] = xCodeGenerateUUID();
   }
 
-  std::string preprocessor_defines = "					\"$(inherited)\",\n";
-  for (size_t pdi = 0; pdi < p->flags.defines.size(); ++pdi) {
-    preprocessor_defines = "					\"" + p->flags.defines[pdi] +
-                           "\",\n" + preprocessor_defines;
-  }
+  const char* preprocessor_defines = "					\"$(inherited)\",\n";
+  for (unsigned ipc = 0; ipc < p->flags.size(); ++ipc) {
+    // TODO ordering and combination so that more specific flags can override general ones
+    // if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+    // if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
 
+    for (unsigned pdi = 0; pdi < array_count(p->flags[ipc].defines); ++pdi) {
+      preprocessor_defines = cc_printf("					\"%s\",\n%s",
+                                       p->flags[ipc].defines[pdi], preprocessor_defines);
+    }
+  }
   std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
   std::string combined_preprocessor_debug =
-      "(\n					\"DEBUG=1\",\n" + preprocessor_defines +
-      "				)";
+      "(\n					\"DEBUG=1\",\n" +
+      std::string(preprocessor_defines) + "				)";
   std::string combined_preprocessor_release =
-      "(\n" + preprocessor_defines + "				)";
+      "(\n" + std::string(preprocessor_defines) + "				)";
   std::vector<struct xcode_compiler_setting> debug_config_data = {
       {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
+      {"ALWAYS_SEARCH_USER_PATHS", "NO"},
       {"DEBUG_INFORMATION_FORMAT", "dwarf"},
       {"ENABLE_TESTABILITY", "YES"},
       {"GCC_OPTIMIZATION_LEVEL", "0"},
@@ -337,6 +343,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       {"SDKROOT", "macosx"}};
   std::vector<struct xcode_compiler_setting> release_config_data = {
       {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
+      {"ALWAYS_SEARCH_USER_PATHS", "NO"},
       {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""},
       {"ENABLE_NS_ASSERTIONS", "NO"},
       {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release.c_str()},

@@ -12,8 +12,7 @@ int main() {
   cc.workspace.addConfiguration(configuration_release);
 
   cc_flags flags = {};
-
-  auto p              = cc.project.create("preprocessor", CCProjectTypeConsoleApplication);
+  auto p              = cc.createProject("preprocessor", CCProjectTypeConsoleApplication);
   const char* files[] = {"src/main.c"};
   cc.project.addFiles(p, "Source Files", countof(files), files);
 

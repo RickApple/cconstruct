@@ -197,7 +197,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
     const auto config              = privateData.configurations[ci];
     const auto configuration_label = config->label;
-    const bool is_debug_build      = (stricmp(configuration_label, "debug") == 0);
+    const bool is_debug_build      = (strcmp(configuration_label, "Debug") == 0);
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       const auto platform = privateData.platforms[pi];
 

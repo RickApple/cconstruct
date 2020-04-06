@@ -34,7 +34,7 @@ typedef struct TConfiguration* CCConfigurationHandle;
 
 typedef struct CConstruct {
   CCConfigurationHandle (*createConfiguration)(const char* in_label);
-  CCPlatformHandle (*createPlatform)(const char* in_label, EPlatformType in_type);
+  CCPlatformHandle (*createPlatform)(EPlatformType in_type);
   void* (*createProject)(const char* in_project_name, EProjectType in_project_type);
 
   const struct {
@@ -67,12 +67,13 @@ typedef struct CConstruct {
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-const CConstruct cc = {cc_configuration_create,
-                       cc_platform_create,
-                       cc_project_create_,
-                       {cc_state_reset, cc_state_addPreprocessorDefine},
-                       {addFilesToProject, addInputProject, cc_project_setFlags},
-                       {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
+const CConstruct cc = {
+    cc_configuration_create,
+    cc_platform_create,
+    cc_project_create_,
+    {cc_state_reset, cc_state_addPreprocessorDefine},
+    {addFilesToProject, addInputProject, cc_project_setFlags_, cc_project_setFlagsLimited_},
+    {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
 
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)
