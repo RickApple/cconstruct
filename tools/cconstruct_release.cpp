@@ -2,13 +2,15 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "../source/tools.inl"
 
 const char* combinePaths(const char* folder1, const char* folder2) {
   unsigned combined_length = strlen(folder1) + 1 + strlen(folder2) + 1;
-  char* out_buffer       = (char*)cc_alloc_(combined_length);
-  char* append_buffer    = out_buffer;
+  char* out_buffer         = (char*)cc_alloc_(combined_length);
+  char* append_buffer      = out_buffer;
   strcpy(out_buffer, folder1);
 
   append_buffer += strlen(folder1);
