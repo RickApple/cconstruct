@@ -18,7 +18,12 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
+#ifdef WIN32
   array_push(flags.compile_options, "/WX");
+#else
+  array_push(flags.compile_options, "-Werror");
+  array_push(flags.compile_options, "-Wunused-variable");
+#endif
   cc.project.setFlags(p, &flags);
 
   cc_default_generator("build");

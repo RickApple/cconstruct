@@ -37,13 +37,20 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -c
 ./build/test/preprocessor   
 popd
 
+set +e
 pushd compile_flags
 rm -rf build
 clang++ -std=c++11 config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme compile_flags
-#REM building should cause an error because flag has been added to set warnings as errors
+# building should cause an error because flag has been added to set warnings as errors
+if [ $? -eq 0 ]
+then
+  exit 1
+fi
 popd
+
+set -e
 
 
 pushd ../tools

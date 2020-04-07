@@ -315,7 +315,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   }
 
   const char* preprocessor_defines       = "					\"$(inherited)\",\n";
+  const char* additional_compiler_flags  = "";
   const char* additional_include_folders = "(\n";
+
   for (unsigned ipc = 0; ipc < p->flags.size(); ++ipc) {
     // TODO ordering and combination so that more specific flags can override general ones
     // if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
@@ -326,6 +328,12 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                                        p->flags[ipc].defines[pdi], preprocessor_defines);
     }
 
+    for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
+      additional_compiler_flags =
+          cc_string_append(additional_compiler_flags,
+                           cc_printf("					  \"%s\",\n",
+                                     p->flags[ipc].compile_options[cfi]));
+    }
     for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
       // Order matters here, so append
       additional_include_folders =
@@ -334,6 +342,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                                      p->flags[ipc].include_folders[ifi]));
     }
   }
+  // if (additional_compiler_flags[0] != 0)
+  { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
   additional_include_folders = cc_string_append(additional_include_folders, "               )");
   std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
   std::string combined_preprocessor_debug =
@@ -342,8 +352,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   std::string combined_preprocessor_release =
       "(\n" + std::string(preprocessor_defines) + "				)";
   std::vector<struct xcode_compiler_setting> debug_config_data = {
-      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"ALWAYS_SEARCH_USER_PATHS", "NO"},
+      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"DEBUG_INFORMATION_FORMAT", "dwarf"},
       {"ENABLE_TESTABILITY", "YES"},
       {"GCC_OPTIMIZATION_LEVEL", "0"},
@@ -351,16 +361,18 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       {"HEADER_SEARCH_PATHS", additional_include_folders},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
+      {"OTHER_CFLAGS", additional_compiler_flags},
       {"SDKROOT", "macosx"}};
   std::vector<struct xcode_compiler_setting> release_config_data = {
-      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"ALWAYS_SEARCH_USER_PATHS", "NO"},
+      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
       {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""},
       {"ENABLE_NS_ASSERTIONS", "NO"},
       {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release.c_str()},
       {"HEADER_SEARCH_PATHS", additional_include_folders},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
+      {"OTHER_CFLAGS", additional_compiler_flags},
       {"SDKROOT", "macosx"}};
 
   std::vector<std::vector<struct xcode_compiler_setting>> config_data = {debug_config_data,
