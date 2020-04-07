@@ -3,14 +3,14 @@
 int main() {
   cc.workspace.setOutputFolder("build/release");
 
-  auto platform      = cc.platform.create(EPlatformTypeX64);
-  auto configuration = cc.configuration.create("Debug");
+  auto platform      = cc.createPlatform(EPlatformTypeX64);
+  auto configuration = cc.createConfiguration("Debug");
 
   cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration);
 
-  auto p              = cc.project.create("cconstruct_release", CCProjectTypeConsoleApplication);
-  const char* files[] = {"cconstruct_release.c"};
+  auto p              = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication);
+  const char* files[] = {"cconstruct_release.cpp"};
   cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc_flags flags = {};
