@@ -11,6 +11,14 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme hello_world
 ./build/test/hello_world
 popd
 
+pushd include_folders
+rm -rf build
+clang++ -std=c++11 config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme include_folders
+./build/test/include_folders
+popd
+
 pushd library_dependency
 rm -rf build
 clang++ -std=c++11 config.cc -o cconstruct

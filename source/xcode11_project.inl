@@ -314,7 +314,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     configuration_ids[i] = xCodeGenerateUUID();
   }
 
-  const char* preprocessor_defines = "					\"$(inherited)\",\n";
+  const char* preprocessor_defines       = "					\"$(inherited)\",\n";
+  const char* additional_include_folders = "(\n";
   for (unsigned ipc = 0; ipc < p->flags.size(); ++ipc) {
     // TODO ordering and combination so that more specific flags can override general ones
     // if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
@@ -324,7 +325,16 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       preprocessor_defines = cc_printf("					\"%s\",\n%s",
                                        p->flags[ipc].defines[pdi], preprocessor_defines);
     }
+
+    for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
+      // Order matters here, so append
+      additional_include_folders =
+          cc_string_append(additional_include_folders,
+                           cc_printf("					  \"%s\",\n",
+                                     p->flags[ipc].include_folders[ifi]));
+    }
   }
+  additional_include_folders = cc_string_append(additional_include_folders, "               )");
   std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
   std::string combined_preprocessor_debug =
       "(\n					\"DEBUG=1\",\n" +
@@ -338,6 +348,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       {"ENABLE_TESTABILITY", "YES"},
       {"GCC_OPTIMIZATION_LEVEL", "0"},
       {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_debug.c_str()},
+      {"HEADER_SEARCH_PATHS", additional_include_folders},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
       {"SDKROOT", "macosx"}};
@@ -347,6 +358,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""},
       {"ENABLE_NS_ASSERTIONS", "NO"},
       {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release.c_str()},
+      {"HEADER_SEARCH_PATHS", additional_include_folders},
       {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
       {"ONLY_ACTIVE_ARCH", "YES"},
       {"SDKROOT", "macosx"}};
