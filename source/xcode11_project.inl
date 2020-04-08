@@ -76,7 +76,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   fprintf(f,
           "// !$*UTF8*$!\n{\n	archiveVersion = 1;\n	classes = {\n	};\n	objectVersion = "
-          "50;\n	objects = {\n/* Begin PBXBuildFile section */\n");
+          "50;\n	objects = {\n\n/* Begin PBXBuildFile section */\n");
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
@@ -103,7 +103,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             "/usr/share/man/man1/;\n			dstSubfolderSpec = 0;\n			"
             "files = (\n			);\n			"
             "runOnlyForDeploymentPostprocessing = 1;\n		};\n/* End PBXCopyFilesBuildPhase "
-            "section */\n");
+            "section */\n\n");
   }
 
   fprintf(f, "/* Begin PBXFileReference section */\n");
@@ -231,7 +231,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       "	knownRegions = (\n				en,\n				Base,\n	"
       "		);\n			mainGroup = 403CC53223EB479400558E07;\n			"
       "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
-      "projectDirPath = \"\";\n			projectRoot = "
+      "projectDirPath = \"\";\n			projectRoot = \"\""
       ";\n			targets = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
           p->name);

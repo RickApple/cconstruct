@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 typedef enum { CCProjectTypeConsoleApplication = 0, CCProjectTypeStaticLibrary } EProjectType;
 typedef enum { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM } EPlatformType;

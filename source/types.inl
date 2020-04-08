@@ -87,7 +87,7 @@ const char** string_array_clone(const char** in) {
     out                                        = (char**)(out_header + 1);
     memcpy(out, in, sizeof(const char*) * header->count_);
   }
-  return out;
+  return (const char**)out;
 }
 
 void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_flags,
