@@ -2,14 +2,10 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
 
-#include <algorithm>
-#include <set>
-#include <string>
-#include <vector>
-
-enum EProjectType { CCProjectTypeConsoleApplication = 0, CCProjectTypeStaticLibrary };
-enum EPlatformType { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM };
+typedef enum { CCProjectTypeConsoleApplication = 0, CCProjectTypeStaticLibrary } EProjectType;
+typedef enum { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM } EPlatformType;
 
 // Project functions
 void* createProject(const char* in_project_name, EProjectType in_project_type);

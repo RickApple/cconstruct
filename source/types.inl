@@ -21,15 +21,19 @@ typedef struct TProject {
 
 struct {
   const char* outputFolder;
-  // TODO: having no workspace label crashes on XCode generator
-  const char* workspaceLabel = "workspace";
+  const char* workspaceLabel;
   TProject** projects;
   const TConfiguration** configurations;
   const TPlatform** platforms;
 } privateData;
 
 void* cc_project_create_(const char* in_project_name, EProjectType in_project_type) {
-  auto p = new TProject;
+  // TODO: having no workspace label crashes on XCode generator
+  if (privateData.workspaceLabel == 0) {
+    privateData.workspaceLabel = "workspace";
+  }
+
+  TProject* p = (TProject*)malloc(sizeof(TProject));
   memset(p, 0, sizeof(TProject));
   p->type              = in_project_type;
   unsigned name_length = strlen(in_project_name);
@@ -74,13 +78,13 @@ void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_st
 }
 
 const char** string_array_clone(const char** in) {
-  const char** out             = {0};
+  char** out                   = {0};
   const array_header_t* header = array_header(in);
   if (header && header->count_ > 0) {
     array_header_t* out_header =
         (array_header_t*)cc_alloc_(sizeof(array_header_t) + sizeof(const char*) * header->count_);
     out_header->count_ = out_header->capacity_ = header->count_;
-    out                                        = (const char**)(out_header + 1);
+    out                                        = (char**)(out_header + 1);
     memcpy(out, in, sizeof(const char*) * header->count_);
   }
   return out;
@@ -90,11 +94,11 @@ void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_
                                  CCPlatformHandle in_platform,
                                  CCConfigurationHandle in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
-  cc_flags stored_flags         = {0};
-  stored_flags.defines          = string_array_clone(in_flags->defines);
-  stored_flags.include_folders  = string_array_clone(in_flags->include_folders);
-  stored_flags.compile_options  = string_array_clone(in_flags->compile_options);
-  stored_flags.link_options     = string_array_clone(in_flags->link_options);
+  cc_flags stored_flags        = {0};
+  stored_flags.defines         = string_array_clone(in_flags->defines);
+  stored_flags.include_folders = string_array_clone(in_flags->include_folders);
+  stored_flags.compile_options = string_array_clone(in_flags->compile_options);
+  stored_flags.link_options    = string_array_clone(in_flags->link_options);
 
   array_push(((TProject*)in_out_project)->flags, stored_flags);
   array_push(((TProject*)in_out_project)->platforms, (TPlatform*)in_platform);

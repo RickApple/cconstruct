@@ -3,15 +3,15 @@
 int main() {
   cc.workspace.setOutputFolder("test");
 
-  auto platform_x64 = cc.createPlatform(EPlatformTypeX64);
+  CCPlatformHandle platform_x64 = cc.createPlatform(EPlatformTypeX64);
   cc.workspace.addPlatform(platform_x64);
 
-  auto configuration_debug   = cc.createConfiguration("Debug");
-  auto configuration_release = cc.createConfiguration("Release");
+  CCConfigurationHandle configuration_debug   = cc.createConfiguration("Debug");
+  CCConfigurationHandle configuration_release = cc.createConfiguration("Release");
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  auto p              = cc.createProject("compile_flags", CCProjectTypeConsoleApplication);
+  void* p             = cc.createProject("compile_flags", CCProjectTypeConsoleApplication);
   const char* files[] = {"src/main.c"};
 
   cc.project.addFiles(p, "Source Files", countof(files), files);

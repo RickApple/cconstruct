@@ -20,17 +20,16 @@ const char* vs_projectPlatform2String_(EPlatformType platform) {
   return "";
 }
 
-struct vs_compiler_setting {
+typedef struct vs_compiler_setting {
   const char* key;
   const char* value;
-};
+} vs_compiler_setting;
 
 void vs2019_createFilters(const TProject* in_project) {
   const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
   FILE* filter_file                    = fopen(projectfilters_file_path, "wb");
 
-  fprintf(filter_file, R"lit(<?xml version="1.0" encoding="utf-8"?>)lit"
-                       "\n");
+  fprintf(filter_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
   fprintf(filter_file,
           "<Project ToolsVersion=\"4.0\" "
           "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
@@ -97,15 +96,15 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
 
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
   FILE* project_file            = fopen(project_file_path, "wb");
-  fprintf(project_file, R"lit(<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-)lit");
+  fprintf(project_file,
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <Project DefaultTargets=\"Build\" "
+          "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
 
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    auto c = privateData.configurations[ci]->label;
+    const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
       fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n", platform_label);
@@ -114,24 +113,21 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   }
   fprintf(project_file, "  </ItemGroup>\n");
 
-  fprintf(project_file, R"lit(  <PropertyGroup Label="Globals">
-    <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{%s}</ProjectGuid>
-    <Keyword>Win32Proj</Keyword>
-    <RootNamespace>builder</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-  </PropertyGroup>
-)lit",
-          project_id);
+  fprintf(
+      project_file,
+      "  <PropertyGroup Label=\"Globals\">\n    <VCProjectVersion>15.0</VCProjectVersion>\n    "
+      "<ProjectGuid>{%s}</ProjectGuid>\n    <Keyword>Win32Proj</Keyword>\n    "
+      "<RootNamespace>builder</RootNamespace>\n    "
+      "<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>\n  </PropertyGroup>\n",
+      project_id);
 
   fprintf(project_file,
-          R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-)lit");
+          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n");
 
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    auto c = privateData.configurations[ci]->label;
+    const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
@@ -151,16 +147,14 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
     }
   }
 
-  fprintf(project_file, R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="Shared">
-  </ImportGroup>
-)lit");
+  fprintf(project_file,
+          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />\n  <ImportGroup "
+          "Label=\"ExtensionSettings\">\n  </ImportGroup>\n  <ImportGroup Label=\"Shared\">\n  "
+          "</ImportGroup>\n");
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    auto c = privateData.configurations[ci]->label;
+    const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
@@ -174,9 +168,9 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   }
 
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    auto c = privateData.configurations[ci]->label;
+    const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
 
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
@@ -195,11 +189,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   }
 
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const auto config              = privateData.configurations[ci];
-    const auto configuration_label = config->label;
-    const bool is_debug_build      = (strcmp(configuration_label, "Debug") == 0);
+    const TConfiguration* config    = privateData.configurations[ci];
+    const char* configuration_label = config->label;
+    const bool is_debug_build       = (strcmp(configuration_label, "Debug") == 0);
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const auto platform = privateData.platforms[pi];
+      const TPlatform* platform = privateData.platforms[pi];
 
       vs_compiler_setting* compiler_flags = {0};
       {
@@ -276,7 +270,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         array_push(compiler_flags, additionalincludes_setting);
       }
 
-      auto platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
               configuration_label, platform_label);
@@ -313,19 +307,15 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
 
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
-    fprintf(project_file, R"lit(  <ItemGroup>
-    <ProjectReference Include="my_library.vcxproj">
-      <Project>{%s}</Project>
-    </ProjectReference>
-  </ItemGroup>
-)lit",
+    fprintf(project_file,
+            "  <ItemGroup>\n    <ProjectReference Include=\"my_library.vcxproj\">\n      "
+            "<Project>{%s}</Project>\n    </ProjectReference>\n  </ItemGroup>\n",
             id);
   }
 
-  fprintf(project_file, R"lit(  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
-</Project>)lit");
+  fprintf(project_file,
+          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\" />\n  <ImportGroup "
+          "Label=\"ExtensionTargets\">\n  </ImportGroup>\n</Project>");
 
   fclose(project_file);
 }

@@ -2,12 +2,13 @@
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
 echo on
 
+set COMPILE_CONSTRUCT_COMMAND=cl.exe -EHsc -Fe: cconstruct.exe /TC
 
 pushd hello_world
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe
@@ -26,7 +27,7 @@ pushd include_folders
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe
@@ -45,7 +46,7 @@ pushd library_dependency
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe
@@ -65,7 +66,7 @@ pushd preprocessor
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe
@@ -90,7 +91,7 @@ pushd compile_flags
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe
@@ -110,7 +111,7 @@ pushd ..\tools
 
 rd /S /Q build
 
-cl.exe -EHsc -Fe: cconstruct.exe config.cc
+%COMPILE_CONSTRUCT_COMMAND% config.cc
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 cconstruct.exe

@@ -1,8 +1,8 @@
 
-struct xcode_compiler_setting {
+typedef struct xcode_compiler_setting {
   const char* key;
   const char* value;
-};
+} xcode_compiler_setting;
 
 typedef struct xcode_uuid {
   unsigned int uuid[3];
@@ -26,7 +26,8 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
   for (unsigned i = 0; i < array_count(uuids); ++i) {
     if (privateData.projects[i] == project) return uuids[i];
   }
-  return {};
+  xcode_uuid empty = {0};
+  return empty;
 }
 
 #define add_setting(a, k, v)                 \
@@ -73,16 +74,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     outputName = cc_printf("lib%s.a", outputName);
   }
 
-  fprintf(f, R"lit(// !$*UTF8*$!
-{
-	archiveVersion = 1;
-	classes = {
-	};
-	objectVersion = 50;
-	objects = {
-
-/* Begin PBXBuildFile section */
-)lit");
+  fprintf(f,
+          "// !$*UTF8*$!\n{\n	archiveVersion = 1;\n	classes = {\n	};\n	objectVersion = "
+          "50;\n	objects = {\n/* Begin PBXBuildFile section */\n");
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
@@ -102,19 +96,14 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   fprintf(f, "/* End PBXBuildFile section */\n\n");
 
   if (p->type == CCProjectTypeConsoleApplication) {
-    fprintf(f, R"lit(/* Begin PBXCopyFilesBuildPhase section */
-		403CC53923EB479400558E07 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
-)lit");
+    fprintf(f,
+            "/* Begin PBXCopyFilesBuildPhase section */\n		403CC53923EB479400558E07 "
+            "/* CopyFiles */ = {\n			isa = PBXCopyFilesBuildPhase;\n		"
+            "	buildActionMask = 2147483647;\n			dstPath = "
+            "/usr/share/man/man1/;\n			dstSubfolderSpec = 0;\n			"
+            "files = (\n			);\n			"
+            "runOnlyForDeploymentPostprocessing = 1;\n		};\n/* End PBXCopyFilesBuildPhase "
+            "section */\n");
   }
 
   fprintf(f, "/* Begin PBXFileReference section */\n");
@@ -146,98 +135,70 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   }
   fprintf(f, "/* End PBXFileReference section */\n\n");
 
-  fprintf(f, R"lit(/* Begin PBXFrameworksBuildPhase section */
-		403CC53823EB479400558E07 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-)lit");
+  fprintf(f,
+          "/* Begin PBXFrameworksBuildPhase section */\n		403CC53823EB479400558E07 "
+          "/* Frameworks */ = {\n			isa = PBXFrameworksBuildPhase;\n	"
+          "		buildActionMask = 2147483647;\n			files = (\n");
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* buildID = dependencyBuildUUID[i];
     fprintf(f, "				%s /* lib%s.a in Frameworks */,\n", buildID,
             p->dependantOn[i]->name);
   }
-  fprintf(f, R"lit(			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
+  fprintf(f,
+          "			);\n			runOnlyForDeploymentPostprocessing = "
+          "0;\n		};\n/* End PBXFrameworksBuildPhase section */\n\n");
 
-)lit");
-
-  fprintf(f, R"lit(/* Begin PBXGroup section */
-		4008B25F23EDACFC00FCB192 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		403CC53223EB479400558E07 = {
-			isa = PBXGroup;
-			children = (
-				403CC53D23EB479400558E07 /* )lit");
+  fprintf(
+      f,
+      "/* Begin PBXGroup section */\n		4008B25F23EDACFC00FCB192 /* Frameworks */ = {\n	"
+      "		isa = PBXGroup;\n			children = (\n			);\n	"
+      "		name = Frameworks;\n			sourceTree = \"<group>\";\n		"
+      "};\n		403CC53223EB479400558E07 = {\n			isa = PBXGroup;\n	"
+      "		children = (\n				403CC53D23EB479400558E07 /* ");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit( */,
-				403CC53C23EB479400558E07 /* Products */,
-				4008B25F23EDACFC00FCB192 /* Frameworks */,
-			);
-			sourceTree = "<group>";
-		};
-		403CC53C23EB479400558E07 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-)lit");
+  fprintf(f,
+          " */,\n				403CC53C23EB479400558E07 /* Products */,\n	"
+          "			4008B25F23EDACFC00FCB192 /* Frameworks */,\n			"
+          ");\n			sourceTree = \"<group>\";\n		};\n		"
+          "403CC53C23EB479400558E07 /* Products */ = {\n			isa = "
+          "PBXGroup;\n			children = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputFileReferenceUIID),
           outputName);
-  fprintf(f, R"lit(			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		403CC53D23EB479400558E07 /* )lit");
+  fprintf(f,
+          "			);\n			name = Products;\n			"
+          "sourceTree = \"<group>\";\n		};\n		403CC53D23EB479400558E07 /* ");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit( */ = {
-			isa = PBXGroup;
-			children = (
-				403CC54523EB480800558E07 /* src */,
-			);
-			path = )lit");
+  fprintf(f,
+          " */ = {\n			isa = PBXGroup;\n			children = (\n	"
+          "			403CC54523EB480800558E07 /* src */,\n			);\n	"
+          "		path = ");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit(;
-			sourceTree = "<group>";
-		};
-		403CC54523EB480800558E07 /* src */ = {
-			isa = PBXGroup;
-			children = (
-)lit");
+  fprintf(f,
+          ";\n			sourceTree = \"<group>\";\n		};\n		"
+          "403CC54523EB480800558E07 /* src */ = {\n			isa = PBXGroup;\n	"
+          "		children = (\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
     fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
             strip_path(filename));
   }
-  fprintf(f, R"lit(			);
-			name = src;
-			path = ../../src;
-			sourceTree = "<group>";
-		};
-/* End PBXGroup section */
-
-/* Begin PBXNativeTarget section */
-)lit");
+  fprintf(f,
+          "			);\n			name = src;\n			path = "
+          "../../src;\n			sourceTree = \"<group>\";\n		};\n/* End "
+          "PBXGroup section */\n\n/* Begin PBXNativeTarget section */\n");
   fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(outputTargetUIID), p->name);
-  fprintf(f, R"lit(			isa = PBXNativeTarget;
-			buildConfigurationList = 403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
+  fprintf(
+      f,
+      "			isa = PBXNativeTarget;\n			buildConfigurationList = "
+      "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit(" */;
-			buildPhases = (
-				403CC53723EB479400558E07 /* Sources */,
-				403CC53823EB479400558E07 /* Frameworks */,
-				403CC53923EB479400558E07 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-)lit");
+  fprintf(f,
+          "\" */;\n			buildPhases = (\n				"
+          "403CC53723EB479400558E07 /* Sources */,\n				"
+          "403CC53823EB479400558E07 /* Frameworks */,\n				"
+          "403CC53923EB479400558E07 /* CopyFiles */,\n			);\n			"
+          "buildRules = (\n			);\n			dependencies = (\n	"
+          "		);\n");
 
   fprintf(f, "			name = %s;\n", p->name);
   fprintf(f, "			productName = %s;\n", p->name);
@@ -249,52 +210,36 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   } else {
     fprintf(f, "\"com.apple.product-type.library.static\"");
   }
-  fprintf(f, R"lit(;
-		};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-		403CC53323EB479400558E07 /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				LastUpgradeCheck = 1130;
-				ORGANIZATIONNAME = "Daedalus Development";
-				TargetAttributes = {
-					)lit");
+  fprintf(f,
+          ";\n		};\n/* End PBXNativeTarget section */\n\n/* Begin PBXProject section "
+          "*/\n		403CC53323EB479400558E07 /* Project object */ = {\n			"
+          "isa = PBXProject;\n			attributes = {\n				"
+          "LastUpgradeCheck = 1130;\n				ORGANIZATIONNAME = \"Daedalus "
+          "Development\";\n				TargetAttributes = {\n			"
+          "		");
   fprintf(f, "%s", xCodeUUID2String(outputTargetUIID));
-  fprintf(f, R"lit( = {
-						CreatedOnToolsVersion = 11.3;
-					};
-				};
-			};
-			buildConfigurationList = 403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
+  fprintf(f,
+          " = {\n						CreatedOnToolsVersion = 11.3;\n	"
+          "				};\n				};\n			"
+          "};\n			buildConfigurationList = 403CC53623EB479400558E07 /* Build "
+          "configuration list for PBXProject \"");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit(" */;
-			compatibilityVersion = "Xcode 9.3";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
-			mainGroup = 403CC53223EB479400558E07;
-			productRefGroup = 403CC53C23EB479400558E07 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-)lit");
+  fprintf(
+      f,
+      "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
+      "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
+      "	knownRegions = (\n				en,\n				Base,\n	"
+      "		);\n			mainGroup = 403CC53223EB479400558E07;\n			"
+      "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
+      "projectDirPath = \"\";\n			projectRoot = "
+      ";\n			targets = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
           p->name);
-  fprintf(f, R"lit(			);
-		};
-/* End PBXProject section */
-
-/* Begin PBXSourcesBuildPhase section */
-		403CC53723EB479400558E07 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-)lit");
+  fprintf(f,
+          "			);\n		};\n/* End PBXProject section */\n\n/* Begin "
+          "PBXSourcesBuildPhase section */\n		403CC53723EB479400558E07 /* Sources */ = "
+          "{\n			isa = PBXSourcesBuildPhase;\n			buildActionMask = "
+          "2147483647;\n			files = (\n");
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
@@ -302,12 +247,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             strip_path(filename));
   }
 
-  fprintf(f, R"lit(			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
-)lit");
+  fprintf(f,
+          "			);\n			runOnlyForDeploymentPostprocessing = "
+          "0;\n		};\n/* End PBXSourcesBuildPhase section */\n\n");
 
   xcode_uuid* configuration_ids = {0};
   configuration_ids =
@@ -388,7 +330,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(config_id), config_name);
     fprintf(f, "			isa = XCBuildConfiguration;\n");
     fprintf(f, "			buildSettings = {\n");
-    auto config = config_data[i];
+    const xcode_compiler_setting* config = config_data[i];
     for (unsigned ic = 0; ic < array_count(config); ++ic) {
       fprintf(f, "				%s = %s;\n", config[ic].key, config[ic].value);
     }
@@ -396,69 +338,49 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f, "			name = %s;\n", config_name);
     fprintf(f, "		};\n");
   }
-  fprintf(f, R"lit(		403CC54323EB479400558E07 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		403CC54423EB479400558E07 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
-/* End XCBuildConfiguration section */
+  fprintf(f,
+          "		403CC54323EB479400558E07 /* Debug */ = {\n			isa = "
+          "XCBuildConfiguration;\n			buildSettings = {\n			"
+          "	CODE_SIGN_STYLE = Automatic;\n				PRODUCT_NAME = "
+          "\"$(TARGET_NAME)\";\n			};\n			name = Debug;\n	"
+          "	};\n		403CC54423EB479400558E07 /* Release */ = {\n			"
+          "isa = XCBuildConfiguration;\n			buildSettings = {\n		"
+          "		CODE_SIGN_STYLE = Automatic;\n				PRODUCT_NAME = "
+          "\"$(TARGET_NAME)\";\n			};\n			name = "
+          "Release;\n		};\n/* End XCBuildConfiguration section */\n\n");
 
-)lit");
-
-  fprintf(f, R"lit(/* Begin XCConfigurationList section */
-		403CC53623EB479400558E07 /* Build configuration list for PBXProject ")lit");
+  fprintf(f,
+          "/* Begin XCConfigurationList section */\n		403CC53623EB479400558E07 /* Build "
+          "configuration list for PBXProject \"");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit(" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-)lit");
+  fprintf(f,
+          "\" */ = {\n			isa = XCConfigurationList;\n			"
+          "buildConfigurations = (\n");
   for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
     fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
             config_name);
   }
-  fprintf(f, R"lit(			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget ")lit");
+  fprintf(f,
+          "			);\n			defaultConfigurationIsVisible = 0;\n	"
+          "		defaultConfigurationName = Release;\n		};\n		"
+          "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
   fprintf(f, "%s", p->name);
-  fprintf(f, R"lit(" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				403CC54323EB479400558E07 /* Debug */,
-				403CC54423EB479400558E07 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-/* End XCConfigurationList section */
-	};
-	rootObject = 403CC53323EB479400558E07 /* Project object */;
-}
-)lit");
+  fprintf(f,
+          "\" */ = {\n			isa = XCConfigurationList;\n			"
+          "buildConfigurations = (\n				403CC54323EB479400558E07 /* Debug "
+          "*/,\n				403CC54423EB479400558E07 /* Release */,\n	"
+          "		);\n			defaultConfigurationIsVisible = 0;\n		"
+          "	defaultConfigurationName = Release;\n		};\n/* End XCConfigurationList "
+          "section */\n	};\n	rootObject = 403CC53323EB479400558E07 /* Project object */;\n}\n");
 }
 
 void xCodeCreateWorkspaceFile(FILE* f) {
-  fprintf(f, R"lit(<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-)lit");
+  fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Workspace\n   version = \"1.0\">\n");
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    auto p = privateData.projects[i];
+    const TProject* p = privateData.projects[i];
     fprintf(f, "  <FileRef\n");
     fprintf(f, "    location = \"group:%s.xcodeproj\">\n", p->name);
     fprintf(f, "  </FileRef>\n");
@@ -493,7 +415,7 @@ void xcode_generateInFolder(const char* workspace_path) {
   }
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    auto p = privateData.projects[i];
+    const TProject* p = privateData.projects[i];
 
     const char* projectFilePath = cc_printf("%s.xcodeproj", p->name);
     int result                  = make_folder(projectFilePath);

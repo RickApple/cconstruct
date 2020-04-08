@@ -58,19 +58,17 @@ void vs2019_generateInFolder(const char* workspace_path) {
     return;
   }
 
-  fprintf(workspace, R"lit(Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29709.97
-MinimumVisualStudioVersion = 10.0.40219.1
-)lit");
+  fprintf(workspace,
+          "Microsoft Visual Studio Solution File, Format Version 12.00\n# Visual Studio Version "
+          "16\nVisualStudioVersion = 16.0.29709.97\nMinimumVisualStudioVersion = 10.0.40219.1\n");
 
   const char** project_ids =
       (const char**)cc_alloc_(sizeof(const char*) * array_count(privateData.projects));
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    project_ids[i] = vs_generateUUID();
-    auto projectId = project_ids[i];
-    auto p         = privateData.projects[i];
+    project_ids[i]        = vs_generateUUID();
+    const char* projectId = project_ids[i];
+    const TProject* p     = privateData.projects[i];
     fprintf(workspace,
             "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s.vcxproj\", "
             "\"{%s}\"\n",
@@ -78,27 +76,24 @@ MinimumVisualStudioVersion = 10.0.40219.1
     fprintf(workspace, "EndProject\n");
   }
 
-  fprintf(workspace, R"lit(Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-)lit");
+  fprintf(workspace, "Global\n	GlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    auto c = privateData.configurations[ci]->label;
+    const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      auto p = privateData.platforms[pi]->type;
-      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, solutionPlatform2String(p), c,
-              solutionPlatform2String(p));
+      const char* p = solutionPlatform2String(privateData.platforms[pi]->type);
+      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, p, c, p);
     }
   }
-  fprintf(workspace, R"lit(	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-)lit");
+  fprintf(
+      workspace,
+      "	EndGlobalSection\n	GlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    auto projectId = project_ids[i];
+    const char* projectId = project_ids[i];
     for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-      auto c = privateData.configurations[ci]->label;
+      const char* c = privateData.configurations[ci]->label;
       for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-        auto p              = privateData.platforms[pi]->type;
-        auto platform_label = vs_projectPlatform2String_(p);
+        const EPlatformType p      = privateData.platforms[pi]->type;
+        const char* platform_label = vs_projectPlatform2String_(p);
         fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
                 solutionPlatform2String(p), c, platform_label);
         fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId, c,
@@ -107,22 +102,18 @@ MinimumVisualStudioVersion = 10.0.40219.1
     }
   }
 
-  fprintf(workspace, R"lit(	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {7354F2AC-FB49-4B5D-B080-EDD798F580A5}
-	EndGlobalSection
-EndGlobal
-)lit");
+  fprintf(workspace,
+          "	EndGlobalSection\n	GlobalSection(SolutionProperties) = preSolution\n	"
+          "	HideSolutionNode = FALSE\n	EndGlobalSection\n	"
+          "GlobalSection(ExtensibilityGlobals) = postSolution\n		SolutionGuid = "
+          "{7354F2AC-FB49-4B5D-B080-EDD798F580A5}\n	EndGlobalSection\nEndGlobal\n");
 
   fclose(workspace);
   printf("Created workspace at '%s'\n", workspace_path);
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    auto p          = privateData.projects[i];
-    auto project_id = project_ids[i];
+    const TProject* p      = privateData.projects[i];
+    const char* project_id = project_ids[i];
     vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
     vs2019_createFilters(p);
 
