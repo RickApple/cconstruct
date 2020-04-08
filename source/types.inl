@@ -90,10 +90,11 @@ void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_
                                  CCPlatformHandle in_platform,
                                  CCConfigurationHandle in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
-  cc_flags stored_flags = {.defines         = string_array_clone(in_flags->defines),
-                           .include_folders = string_array_clone(in_flags->include_folders),
-                           .compile_options = string_array_clone(in_flags->compile_options),
-                           .link_options    = string_array_clone(in_flags->link_options)};
+  cc_flags stored_flags         = {0};
+  stored_flags.defines          = string_array_clone(in_flags->defines);
+  stored_flags.include_folders  = string_array_clone(in_flags->include_folders);
+  stored_flags.compile_options  = string_array_clone(in_flags->compile_options);
+  stored_flags.link_options     = string_array_clone(in_flags->link_options);
 
   array_push(((TProject*)in_out_project)->flags, stored_flags);
   array_push(((TProject*)in_out_project)->platforms, (TPlatform*)in_platform);
