@@ -14,7 +14,7 @@ typedef struct TProject {
   const char** groups;
   TProject** dependantOn;
 
-  std::vector<cc_flags> flags;
+  cc_flags* flags;
   TConfiguration** configs;
   TPlatform** platforms;
 } TProject;
@@ -73,10 +73,29 @@ void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_st
   array_push(in_flags->defines, cc_string_clone(in_define_string));
 }
 
+const char** string_array_clone(const char** in) {
+  const char** out             = {0};
+  const array_header_t* header = array_header(in);
+  if (header && header->count_ > 0) {
+    array_header_t* out_header =
+        (array_header_t*)cc_alloc_(sizeof(array_header_t) + sizeof(const char*) * header->count_);
+    out_header->count_ = out_header->capacity_ = header->count_;
+    out                                        = (const char**)(out_header + 1);
+    memcpy(out, in, sizeof(const char*) * header->count_);
+  }
+  return out;
+}
+
 void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_flags,
                                  CCPlatformHandle in_platform,
                                  CCConfigurationHandle in_configuration) {
-  ((TProject*)in_out_project)->flags.push_back(*in_flags);
+  // Clone the flags, so later changes aren't applied to this version
+  cc_flags stored_flags = {.defines         = string_array_clone(in_flags->defines),
+                           .include_folders = string_array_clone(in_flags->include_folders),
+                           .compile_options = string_array_clone(in_flags->compile_options),
+                           .link_options    = string_array_clone(in_flags->link_options)};
+
+  array_push(((TProject*)in_out_project)->flags, stored_flags);
   array_push(((TProject*)in_out_project)->platforms, (TPlatform*)in_platform);
   array_push(((TProject*)in_out_project)->configs, (TConfiguration*)in_configuration);
 }

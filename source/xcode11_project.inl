@@ -18,12 +18,8 @@ xcode_uuid xCodeGenerateUUID() {
   return out;
 }
 const char* xCodeUUID2String(xcode_uuid uuid) {
-  static char out[25] = {0};
-
   // Incorrect byte order, but don't care for now
-  sprintf(out, "%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
-
-  return out;
+  return cc_printf("%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
 }
 
 xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) {
@@ -32,6 +28,12 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
   }
   return {};
 }
+
+#define add_setting(a, k, v)                 \
+  {                                          \
+    xcode_compiler_setting setting = {k, v}; \
+    array_push(a, setting);                  \
+  }
 
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
@@ -44,31 +46,31 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   unsigned files_count = array_count(p->files);
 
-  std::vector<std::string> file_ref_paths(files_count);
+  const char** file_ref_paths = {0};
   for (unsigned i = 0; i < array_count(p->files); ++i) {
-    file_ref_paths[i] = cc_string_append(prepend_path, p->files[i]);
+    array_push(file_ref_paths, cc_string_append(prepend_path, p->files[i]));
   }
 
-  std::vector<std::string> fileReferenceUUID(files_count);
-  std::vector<std::string> fileUUID(files_count);
+  const char** fileReferenceUUID = {0};
+  const char** fileUUID          = {0};
   for (unsigned fi = 0; fi < files_count; ++fi) {
-    fileReferenceUUID[fi] = xCodeUUID2String(xCodeGenerateUUID());
-    fileUUID[fi]          = xCodeUUID2String(xCodeGenerateUUID());
+    array_push(fileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
+    array_push(fileUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
-  std::vector<std::string> dependencyFileReferenceUUID(array_count(p->dependantOn));
-  std::vector<std::string> dependencyBuildUUID(array_count(p->dependantOn));
+  const char** dependencyFileReferenceUUID = {0};
+  const char** dependencyBuildUUID         = {0};
   for (unsigned fi = 0; fi < array_count(p->dependantOn); ++fi) {
-    dependencyFileReferenceUUID[fi] = xCodeUUID2String(xCodeGenerateUUID());
-    dependencyBuildUUID[fi]         = xCodeUUID2String(xCodeGenerateUUID());
+    array_push(dependencyFileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
+    array_push(dependencyBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
   xcode_uuid outputFileReferenceUIID = findUUIDForProject(projectFileReferenceUUIDs, p);
   xcode_uuid outputTargetUIID        = xCodeGenerateUUID();
 
-  std::string outputName = p->name;
+  const char* outputName = p->name;
   if (p->type == CCProjectTypeStaticLibrary) {
-    outputName = "lib" + outputName + ".a";
+    outputName = cc_printf("lib%s.a", outputName);
   }
 
   fprintf(f, R"lit(// !$*UTF8*$!
@@ -86,17 +88,16 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     const char* filename = p->files[fi];
     fprintf(f,
             "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
-            fileUUID[fi].c_str(), strip_path(filename), fileReferenceUUID[fi].c_str(),
-            strip_path(filename));
+            fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
   }
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    std::string id            = dependencyFileReferenceUUID[i];
-    std::string buildID       = dependencyBuildUUID[i];
-    std::string dependantName = std::string("lib") + p->dependantOn[i]->name + ".a";
+    const char* id            = dependencyFileReferenceUUID[i];
+    const char* buildID       = dependencyBuildUUID[i];
+    const char* dependantName = cc_printf("lib%s.a", p->dependantOn[i]->name);
     fprintf(f,
             "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
             "};\n",
-            buildID.c_str(), dependantName.c_str(), id.c_str(), dependantName.c_str());
+            buildID, dependantName, id, dependantName);
   }
   fprintf(f, "/* End PBXBuildFile section */\n\n");
 
@@ -123,26 +124,25 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
             "lastKnownFileType "
             "= sourcecode.cpp.cpp; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
-            fileReferenceUUID[fi].c_str(), strip_path(filename), strip_path(filename),
-            file_ref_paths[fi].c_str());
-    printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi].c_str());
+            fileReferenceUUID[fi], strip_path(filename), strip_path(filename), file_ref_paths[fi]);
+    printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
   }
   fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
-          xCodeUUID2String(outputFileReferenceUIID), outputName.c_str());
+          xCodeUUID2String(outputFileReferenceUIID), outputName);
   if (p->type == CCProjectTypeConsoleApplication) {
     fprintf(f, "compiled.mach-o.executable");
   } else {
     fprintf(f, "archive.ar");
   }
   fprintf(f, "\"; includeInIndex = 0; path = %s; sourceTree = BUILT_PRODUCTS_DIR; };\n",
-          outputName.c_str());
+          outputName);
 
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    std::string id = dependencyFileReferenceUUID[i];
+    const char* id = dependencyFileReferenceUUID[i];
     fprintf(f,
             "		%s /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = "
             "archive.ar; path = libmy_library.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
-            id.c_str());
+            id);
   }
   fprintf(f, "/* End PBXFileReference section */\n\n");
 
@@ -153,9 +153,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			files = (
 )lit");
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    std::string buildID = dependencyBuildUUID[i];
-    fprintf(f, "				%s /* lib%s.a in Frameworks */,\n",
-            buildID.c_str(), p->dependantOn[i]->name);
+    const char* buildID = dependencyBuildUUID[i];
+    fprintf(f, "				%s /* lib%s.a in Frameworks */,\n", buildID,
+            p->dependantOn[i]->name);
   }
   fprintf(f, R"lit(			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -188,7 +188,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 			children = (
 )lit");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputFileReferenceUIID),
-          outputName.c_str());
+          outputName);
   fprintf(f, R"lit(			);
 			name = Products;
 			sourceTree = "<group>";
@@ -211,7 +211,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 )lit");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi].c_str(),
+    fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
             strip_path(filename));
   }
   fprintf(f, R"lit(			);
@@ -242,7 +242,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   fprintf(f, "			name = %s;\n", p->name);
   fprintf(f, "			productName = %s;\n", p->name);
   fprintf(f, "			productReference = %s /* %s */;\n",
-          xCodeUUID2String(outputFileReferenceUIID), outputName.c_str());
+          xCodeUUID2String(outputFileReferenceUIID), outputName);
   fprintf(f, "			productType = ");
   if (p->type == CCProjectTypeConsoleApplication) {
     fprintf(f, "\"com.apple.product-type.tool\"");
@@ -298,7 +298,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi].c_str(),
+    fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
             strip_path(filename));
   }
 
@@ -309,7 +309,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
 )lit");
 
-  std::vector<xcode_uuid> configuration_ids(array_count(privateData.configurations));
+  xcode_uuid* configuration_ids = {0};
+  configuration_ids =
+      (xcode_uuid*)array_grow(configuration_ids, array_count(privateData.configurations));
   for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     configuration_ids[i] = xCodeGenerateUUID();
   }
@@ -318,7 +320,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   const char* additional_compiler_flags  = "";
   const char* additional_include_folders = "(\n";
 
-  for (unsigned ipc = 0; ipc < p->flags.size(); ++ipc) {
+  for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
     // TODO ordering and combination so that more specific flags can override general ones
     // if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
     // if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
@@ -345,38 +347,39 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   // if (additional_compiler_flags[0] != 0)
   { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
   additional_include_folders = cc_string_append(additional_include_folders, "               )");
-  std::string safe_output_folder = "\"" + std::string(privateData.outputFolder) + "\"";
-  std::string combined_preprocessor_debug =
-      "(\n					\"DEBUG=1\",\n" +
-      std::string(preprocessor_defines) + "				)";
-  std::string combined_preprocessor_release =
-      "(\n" + std::string(preprocessor_defines) + "				)";
-  std::vector<struct xcode_compiler_setting> debug_config_data = {
-      {"ALWAYS_SEARCH_USER_PATHS", "NO"},
-      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
-      {"DEBUG_INFORMATION_FORMAT", "dwarf"},
-      {"ENABLE_TESTABILITY", "YES"},
-      {"GCC_OPTIMIZATION_LEVEL", "0"},
-      {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_debug.c_str()},
-      {"HEADER_SEARCH_PATHS", additional_include_folders},
-      {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
-      {"ONLY_ACTIVE_ARCH", "YES"},
-      {"OTHER_CFLAGS", additional_compiler_flags},
-      {"SDKROOT", "macosx"}};
-  std::vector<struct xcode_compiler_setting> release_config_data = {
-      {"ALWAYS_SEARCH_USER_PATHS", "NO"},
-      {"CONFIGURATION_BUILD_DIR", safe_output_folder.c_str()},
-      {"DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\""},
-      {"ENABLE_NS_ASSERTIONS", "NO"},
-      {"GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release.c_str()},
-      {"HEADER_SEARCH_PATHS", additional_include_folders},
-      {"MACOSX_DEPLOYMENT_TARGET", "10.14"},
-      {"ONLY_ACTIVE_ARCH", "YES"},
-      {"OTHER_CFLAGS", additional_compiler_flags},
-      {"SDKROOT", "macosx"}};
+  const char* safe_output_folder          = cc_printf("\"%s\"", privateData.outputFolder);
+  const char* combined_preprocessor_debug = cc_printf(
+      "(\n					\"DEBUG=1\",\n%s				)",
+      preprocessor_defines);
+  const char* combined_preprocessor_release =
+      cc_printf("(\n%s				)", preprocessor_defines);
+  xcode_compiler_setting* debug_config_data = {0};
+  add_setting(debug_config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
+  add_setting(debug_config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
+  add_setting(debug_config_data, "DEBUG_INFORMATION_FORMAT", "dwarf");
+  add_setting(debug_config_data, "ENABLE_TESTABILITY", "YES");
+  add_setting(debug_config_data, "GCC_OPTIMIZATION_LEVEL", "0");
+  add_setting(debug_config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_debug);
+  add_setting(debug_config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
+  add_setting(debug_config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+  add_setting(debug_config_data, "ONLY_ACTIVE_ARCH", "YES");
+  add_setting(debug_config_data, "OTHER_CFLAGS", additional_compiler_flags);
+  add_setting(debug_config_data, "SDKROOT", "macosx");
+  xcode_compiler_setting* release_config_data = {0};
+  add_setting(release_config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
+  add_setting(release_config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
+  add_setting(release_config_data, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
+  add_setting(release_config_data, "ENABLE_NS_ASSERTIONS", "NO");
+  add_setting(release_config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release);
+  add_setting(release_config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
+  add_setting(release_config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+  add_setting(release_config_data, "ONLY_ACTIVE_ARCH", "YES");
+  add_setting(release_config_data, "OTHER_CFLAGS", additional_compiler_flags);
+  add_setting(release_config_data, "SDKROOT", "macosx");
 
-  std::vector<std::vector<struct xcode_compiler_setting>> config_data = {debug_config_data,
-                                                                         release_config_data};
+  xcode_compiler_setting** config_data = {0};
+  array_push(config_data, debug_config_data);
+  array_push(config_data, release_config_data);
   fprintf(f, "/* Begin XCBuildConfiguration section */\n");
   for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
     const char* config_name = privateData.configurations[i]->label;
@@ -386,7 +389,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f, "			isa = XCBuildConfiguration;\n");
     fprintf(f, "			buildSettings = {\n");
     auto config = config_data[i];
-    for (unsigned ic = 0; ic < config.size(); ++ic) {
+    for (unsigned ic = 0; ic < array_count(config); ++ic) {
       fprintf(f, "				%s = %s;\n", config[ic].key, config[ic].value);
     }
     fprintf(f, "			};\n");
@@ -492,13 +495,12 @@ void xcode_generateInFolder(const char* workspace_path) {
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     auto p = privateData.projects[i];
 
-    std::string projectFilePath = p->name;
-    projectFilePath += ".xcodeproj";
-    int result = make_folder(projectFilePath.c_str());
+    const char* projectFilePath = cc_printf("%s.xcodeproj", p->name);
+    int result                  = make_folder(projectFilePath);
 
-    projectFilePath += "/project.pbxproj";
+    projectFilePath = cc_printf("%s/project.pbxproj", projectFilePath);
 
-    FILE* f = fopen(projectFilePath.c_str(), "wb");
+    FILE* f = fopen(projectFilePath, "wb");
 
     if (f) {
       xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, count_folder_depth);
@@ -507,11 +509,10 @@ void xcode_generateInFolder(const char* workspace_path) {
   }
 
   {
-    std::string workspaceFilePath = privateData.workspaceLabel;
-    workspaceFilePath += ".xcworkspace";
-    int result = make_folder(workspaceFilePath.c_str());
-    workspaceFilePath += "/contents.xcworkspacedata";
-    FILE* f = fopen(workspaceFilePath.c_str(), "wb");
+    const char* workspaceFilePath = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
+    int result                    = make_folder(workspaceFilePath);
+    workspaceFilePath             = cc_printf("%s/contents.xcworkspacedata", workspaceFilePath);
+    FILE* f                       = fopen(workspaceFilePath, "wb");
     if (f) {
       xCodeCreateWorkspaceFile(f);
       fclose(f);

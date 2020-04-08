@@ -233,7 +233,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       const char* additional_compiler_flags  = "%(AdditionalOptions)";
       const char* additional_include_folders = "";
 
-      for (unsigned ipc = 0; ipc < p->flags.size(); ++ipc) {
+      for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
         // TODO ordering and combination so that more specific flags can override general ones
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
         if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
