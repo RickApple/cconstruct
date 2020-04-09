@@ -59,6 +59,6 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cconstruct_release
-#mkdir ../build
+mkdir -p ../build
 build/build/release/cconstruct_release ../source/cconstruct.h ../build/cconstruct_release.h
 popd
