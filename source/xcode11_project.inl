@@ -42,14 +42,14 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
-    prepend_path = cc_string_append(prepend_path, "../");
+    prepend_path = cc_printf("%s../", prepend_path);
   }
 
   unsigned files_count = array_count(p->files);
 
   const char** file_ref_paths = {0};
   for (unsigned i = 0; i < array_count(p->files); ++i) {
-    array_push(file_ref_paths, cc_string_append(prepend_path, p->files[i]));
+    array_push(file_ref_paths, cc_printf("%s%s", prepend_path, p->files[i]));
   }
 
   const char** fileReferenceUUID = {0};
@@ -274,22 +274,20 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
     for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
       additional_compiler_flags =
-          cc_string_append(additional_compiler_flags,
-                           cc_printf("					  \"%s\",\n",
-                                     p->flags[ipc].compile_options[cfi]));
+          cc_printf("%s					  \"%s\",\n", additional_compiler_flags,
+                    p->flags[ipc].compile_options[cfi]);
     }
     for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
       // Order matters here, so append
       additional_include_folders =
-          cc_string_append(additional_include_folders,
-                           cc_printf("					  \"%s\",\n",
-                                     p->flags[ipc].include_folders[ifi]));
+          cc_printf("%s					  \"%s\",\n", additional_include_folders,
+                    p->flags[ipc].include_folders[ifi]);
     }
   }
   // if (additional_compiler_flags[0] != 0)
   { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
-  additional_include_folders = cc_string_append(additional_include_folders, "               )");
-  const char* safe_output_folder          = cc_printf("\"%s\"", privateData.outputFolder);
+  additional_include_folders     = cc_printf("%s               )", additional_include_folders);
+  const char* safe_output_folder = cc_printf("\"%s\"", privateData.outputFolder);
   const char* combined_preprocessor_debug = cc_printf(
       "(\n					\"DEBUG=1\",\n%s				)",
       preprocessor_defines);

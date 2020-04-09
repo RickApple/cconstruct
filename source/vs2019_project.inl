@@ -91,7 +91,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
                               int folder_depth) {
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
-    prepend_path = cc_string_append(prepend_path, "../");
+    prepend_path = cc_printf("%s../", prepend_path);
   }
 
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
@@ -234,27 +234,27 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
 
         for (unsigned pdi = 0; pdi < array_count(p->flags[ipc].defines); ++pdi) {
           preprocessor_defines =
-              cc_string_append(p->flags[ipc].defines[pdi], cc_printf(";%s", preprocessor_defines));
+              cc_printf("%s;%s", p->flags[ipc].defines[pdi], preprocessor_defines);
         }
         for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
-          additional_compiler_flags = cc_string_append(
-              p->flags[ipc].compile_options[cfi], cc_printf(" %s", additional_compiler_flags));
+          additional_compiler_flags =
+              cc_printf("%s %s", p->flags[ipc].compile_options[cfi], additional_compiler_flags);
         }
         for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
           // Order matters here, so append
-          additional_include_folders = cc_string_append(
-              additional_include_folders, cc_printf(";%s", p->flags[ipc].include_folders[ifi]));
+          additional_include_folders =
+              cc_printf("%s;%s", additional_include_folders, p->flags[ipc].include_folders[ifi]);
         }
       }
 
       if (is_debug_build) {
-        preprocessor_defines = cc_string_append("_DEBUG;", preprocessor_defines);
+        preprocessor_defines = cc_printf("_DEBUG;%s", preprocessor_defines);
       } else {
-        preprocessor_defines = cc_string_append("NDEBUG;", preprocessor_defines);
+        preprocessor_defines = cc_printf("NDEBUG;%s", preprocessor_defines);
       }
       const bool is_win32 = (privateData.platforms[pi]->type == EPlatformTypeX86);
       if (is_win32) {
-        preprocessor_defines = cc_string_append("WIN32;", preprocessor_defines);
+        preprocessor_defines = cc_printf("WIN32;%s", preprocessor_defines);
       }
 
       vs_compiler_setting preprocessor_setting = {"PreprocessorDefinitions", preprocessor_defines};

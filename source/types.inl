@@ -53,9 +53,9 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
 void addFilesToProject(void* in_project, const char* in_group_name, unsigned num_files,
                        const char* in_file_names[]) {
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
-    array_push(((TProject*)in_project)->files, cc_string_clone(*in_file_names));
+    array_push(((TProject*)in_project)->files, cc_printf("%s", *in_file_names));
     array_push(((TProject*)in_project)->groups,
-               in_group_name ? cc_string_clone(in_group_name) : "");
+               in_group_name ? cc_printf("%s", in_group_name) : "");
   }
 }
 
@@ -75,7 +75,7 @@ void setWorkspaceLabel(const char* label) { privateData.workspaceLabel = label; 
 
 void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flags)); }
 void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {
-  array_push(in_flags->defines, cc_string_clone(in_define_string));
+  array_push(in_flags->defines, cc_printf("%s", in_define_string));
 }
 
 const char** string_array_clone(const char** in) {

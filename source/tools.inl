@@ -102,26 +102,6 @@ const char* cc_printf(const char* format, ...) {
   return out;
 }
 
-const char* cc_string_append(const char* a, const char* b) {
-  unsigned length_a = strlen(a);
-  unsigned length_b = strlen(b);
-
-  char* out = (char*)cc_alloc_(length_a + length_b + 1);
-  memcpy(out, a, length_a);
-  memcpy(out + length_a, b, length_b);
-  out[length_a + length_b] = 0;
-  return out;
-}
-
-const char* cc_string_clone(const char* a) {
-  unsigned length_a = strlen(a);
-
-  char* out = (char*)cc_alloc_(length_a + 1);
-  memcpy(out, a, length_a);
-  out[length_a] = 0;
-  return out;
-}
-
 typedef struct array_header_t {
   unsigned count_;
   unsigned capacity_;
