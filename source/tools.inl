@@ -135,14 +135,9 @@ void* array_grow(void* a, unsigned element_size);
 
 #define array_full(a) ((a) ? (array_header(a)->count_ == array_header(a)->capacity_) : true)
 
-#ifdef __cplusplus
-#define array_push(a, item)                                          \
-  (array_full(a) ? (a = (decltype(a))array_grow(a, sizeof(*a))) : 0, \
+#define array_push(a, item)                                         \
+  (array_full(a) ? (*((void**)&a) = array_grow(a, sizeof(*a))) : 0, \
    (a[array_header(a)->count_++] = item))
-#else
-#define array_push(a, item) \
-  (array_full(a) ? (a = array_grow(a, sizeof(*a))) : 0, (a[array_header(a)->count_++] = item))
-#endif
 
 void* array_grow(void* a, unsigned element_size) {
   unsigned prev_capacity      = 0;

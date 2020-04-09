@@ -4,6 +4,7 @@ typedef struct TPlatform {
   EPlatformType type;
 } TPlatform;
 typedef struct TConfiguration {
+  int placeholder;  // Else get errors in C
   const char label[];
 } TConfiguration;
 

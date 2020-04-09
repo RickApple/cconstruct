@@ -10,7 +10,7 @@ int main() {
   cc.workspace.addConfiguration(configuration);
 
   void* p             = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication);
-  const char* files[] = {"cconstruct_release.cpp"};
+  const char* files[] = {"cconstruct_release.c"};
   cc.project.addFiles(p, "Source Files", countof(files), files);
 
   cc_flags flags = {0};
