@@ -80,9 +80,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    fprintf(f,
-            "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
-            fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
+    if (!is_header_file(filename))
+      fprintf(f,
+              "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
+              fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
   }
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id            = dependencyFileReferenceUUID[i];
@@ -129,9 +130,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id = dependencyFileReferenceUUID[i];
     fprintf(f,
-            "		%s /* libmy_library.a */ = {isa = PBXFileReference; explicitFileType = "
-            "archive.ar; path = libmy_library.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
-            id);
+            "		%s /* lib%s.a */ = {isa = PBXFileReference; explicitFileType = "
+            "archive.ar; path = lib%s.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
+            id, p->dependantOn[i]->name, p->dependantOn[i]->name);
   }
   fprintf(f, "/* End PBXFileReference section */\n\n");
 
@@ -243,8 +244,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
-            strip_path(filename));
+    if (!is_header_file(filename)) {
+      fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
+              strip_path(filename));
+    }
   }
 
   fprintf(f,
@@ -286,8 +289,16 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   }
   // if (additional_compiler_flags[0] != 0)
   { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
-  additional_include_folders     = cc_printf("%s               )", additional_include_folders);
-  const char* safe_output_folder = cc_printf("\"%s\"", privateData.outputFolder);
+  additional_include_folders = cc_printf("%s               )", additional_include_folders);
+  assert(array_count(privateData.platforms) == 1);
+  assert(privateData.platforms[0]->type == EPlatformTypeX64);
+  const char* substitution_keys[]   = {"configuration", "platform"};
+  const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+  const char* resolved_output_folder =
+      cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
+                    countof(substitution_keys));
+
+  const char* safe_output_folder          = cc_printf("\"%s\"", resolved_output_folder);
   const char* combined_preprocessor_debug = cc_printf(
       "(\n					\"DEBUG=1\",\n%s				)",
       preprocessor_defines);
@@ -387,10 +398,10 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   fprintf(f, "</Workspace>");
 }
 
-void xcode_generateInFolder(const char* workspace_path) {
+void xcode_generateInFolder(const char* generate_path) {
   int count_folder_depth = 1;
   {
-    const char* c = workspace_path;
+    const char* c = generate_path;
     while (*c) {
       if (*c == '/') count_folder_depth += 1;
       ++c;
@@ -398,11 +409,11 @@ void xcode_generateInFolder(const char* workspace_path) {
     if (*(c - 1) == '/') count_folder_depth -= 1;
   }
 
-  int result = make_folder(workspace_path);
+  int result = make_folder(generate_path);
   if (result != 0) {
-    fprintf(stderr, "Error %i creating path '%s'\n", result, workspace_path);
+    fprintf(stderr, "Error %i creating path '%s'\n", result, generate_path);
   }
-  (void)chdir(workspace_path);
+  (void)chdir(generate_path);
 
   // Before doing anything, generate a UUID for each projects output file
   xcode_uuid* projectFileReferenceUUIDs = 0;
@@ -416,30 +427,30 @@ void xcode_generateInFolder(const char* workspace_path) {
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     const TProject* p = privateData.projects[i];
 
-    const char* projectFilePath = cc_printf("%s.xcodeproj", p->name);
-    int result                  = make_folder(projectFilePath);
+    const char* project_path = cc_printf("%s.xcodeproj", p->name);
+    int result               = make_folder(project_path);
 
-    projectFilePath = cc_printf("%s/project.pbxproj", projectFilePath);
+    const char* project_file_path = cc_printf("%s/project.pbxproj", project_path);
 
-    FILE* f = fopen(projectFilePath, "wb");
+    FILE* f = fopen(project_file_path, "wb");
 
     if (f) {
       xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, count_folder_depth);
       fclose(f);
     }
 
-    printf("Constructed XCode project '%s' at '%s'\n", p->name, projectFilePath);
+    printf("Constructed XCode project '%s' at '%s/%s'\n", p->name, generate_path, project_path);
   }
 
   {
-    const char* workspace_file_path = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
-    int result                      = make_folder(workspace_file_path);
-    workspace_file_path = cc_printf("%s/contents.xcworkspacedata", workspace_file_path);
-    FILE* f             = fopen(workspace_file_path, "wb");
+    const char* workspace_path      = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
+    int result                      = make_folder(workspace_path);
+    const char* workspace_file_path = cc_printf("%s/contents.xcworkspacedata", workspace_path);
+    FILE* f                         = fopen(workspace_file_path, "wb");
     if (f) {
       xCodeCreateWorkspaceFile(f);
       fclose(f);
-      printf("Constructed XCode workspace at '%s'\n", workspace_file_path);
+      printf("Constructed XCode workspace at '%s/%s'\n", generate_path, workspace_path);
     }
   }
 }

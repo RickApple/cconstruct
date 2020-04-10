@@ -4,9 +4,7 @@ int main() {
   cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("library_dependency");
 
-  CCPlatformHandle platform_x86 = cc.createPlatform(EPlatformTypeX86);
   CCPlatformHandle platform_x64 = cc.createPlatform(EPlatformTypeX64);
-  cc.workspace.addPlatform(platform_x86);
   cc.workspace.addPlatform(platform_x64);
 
   CCConfigurationHandle configuration_debug   = cc.createConfiguration("Debug");

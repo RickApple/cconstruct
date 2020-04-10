@@ -9,7 +9,7 @@ $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme hello_world
 #-sdk "*targetSDK*" -configuration *buildConfig* CODE_SIGN_IDENTITY="*NameOfCertificateIdentity*" PROVISIONING_PROFILE="*ProvisioningProfileName" OTHER_CODE_SIGN_FLAGS="--keychain *keyChainName*"
-./build/test/hello_world
+./build/x64/Debug/hello_world
 popd
 
 pushd include_folders
@@ -17,7 +17,7 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme include_folders
-./build/test/include_folders
+./build/x64/Debug/include_folders
 popd
 
 pushd library_dependency
@@ -25,7 +25,7 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/xcode/library_dependency.xcworkspace -scheme my_binary
-./build/xcode/bin/x64/my_binary
+./build/xcode/x64/Debug/my_binary
 popd
 
 pushd preprocessor
@@ -33,9 +33,9 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Debug
-./build/test/preprocessor
+./build/x64/Debug/preprocessor
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Release
-./build/test/preprocessor   
+./build/x64/Release/preprocessor   
 popd
 
 set +e
@@ -60,5 +60,5 @@ $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cconstruct_release
 mkdir -p ../build
-build/build/release/cconstruct_release ../source/cconstruct.h ../build/cconstruct_release.h
+./build/x64/Debug/cconstruct_release ../source/cconstruct.h ../build/cconstruct_release.h
 popd

@@ -18,6 +18,8 @@ const char* strip_path(const char* path) {
     return path;
 }
 
+bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
+
 #if defined(_MSC_VER)
 
 int make_folder(const char* folder_path) {
@@ -182,7 +184,7 @@ const char* cc_substitute(const char* in_original, const char** keys, const char
   const char* in = in_original;
   for (unsigned i = 0; i < num_keys; ++i) {
     char* out_string = {0};
-    out_string       = array_reserve(out_string, sizeof(*out_string), 128);
+    out_string       = (char*)array_reserve(out_string, sizeof(*out_string), 128);
 
     const char* key = keys[i];
     snprintf(key_search, sizeof(key_search) - 1, "${%s}", key);
