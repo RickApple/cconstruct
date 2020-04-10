@@ -4,7 +4,7 @@ set -x
 
 # Compile a single instance with C++ to check compatiblity of cconstruct
 pushd 01_hello_world
-clang -x cpp config.cc -o cconstruct
+clang -x c++ config.cc -o cconstruct
 popd
 
 
