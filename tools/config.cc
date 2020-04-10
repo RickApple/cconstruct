@@ -1,8 +1,6 @@
 #include "../source/cconstruct.h"
 
 int main() {
-  cc.workspace.setOutputFolder("build/release");
-
   CCPlatformHandle platform           = cc.createPlatform(EPlatformTypeX64);
   CCConfigurationHandle configuration = cc.createConfiguration("Debug");
 

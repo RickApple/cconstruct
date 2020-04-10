@@ -80,28 +80,6 @@ void* cc_alloc_(unsigned size) {
   return out;
 }
 
-const char* cc_printf(const char* format, ...) {
-  unsigned length = strlen(format);
-
-  // Guess length of output format
-  unsigned alloc_size = (2 * length > 128) ? 2 * length : 128;
-
-  char* out = (char*)cc_alloc_(alloc_size);
-
-  va_list args;
-
-  va_start(args, format);
-  unsigned output_length = (unsigned)vsnprintf(out, alloc_size - 1, format, args);
-  va_end(args);
-
-  if (output_length > alloc_size) {
-    assert(false && "Not implemented");
-  }
-
-  out[alloc_size - 1] = 0;
-  return out;
-}
-
 typedef struct array_header_t {
   unsigned count_;
   unsigned capacity_;
@@ -118,6 +96,11 @@ void* array_grow(void* a, unsigned element_size);
 #define array_push(a, item)                                         \
   (array_full(a) ? (*((void**)&a) = array_grow(a, sizeof(*a))) : 0, \
    (a[array_header(a)->count_++] = item))
+
+#define array_append(a, data, count)                                  \
+  (array_full(a) ? (*((void**)&a) = array_grow(a, sizeof(*a))) : 0,   \
+   (memcpy(a + array_header(a)->count_, data, (count) * sizeof(*a))), \
+   (array_header(a)->count_ = array_header(a)->count_ + (count)))
 
 void* array_grow(void* a, unsigned element_size) {
   unsigned prev_capacity      = 0;
@@ -143,4 +126,79 @@ void* array_grow(void* a, unsigned element_size) {
   // At this point could free the prev data, but not doing so in CConstruct
 
   return out;
+}
+
+void* array_reserve(void* a, unsigned element_size, unsigned new_capacity) {
+  unsigned prev_capacity      = 0;
+  unsigned prev_count         = 0;
+  array_header_t* prev_header = array_header(a);
+  if (prev_header) {
+    prev_capacity = prev_header->capacity_;
+    prev_count    = prev_header->count_;
+  }
+
+  if (new_capacity > prev_capacity) {
+    array_header_t* new_header =
+        (array_header_t*)cc_alloc_(element_size * new_capacity + sizeof(array_header_t));
+    void* out             = new_header + 1;
+    new_header->count_    = prev_count;
+    new_header->capacity_ = new_capacity;
+    memcpy(out, a, element_size * prev_count);
+
+    // At this point could free the prev data, but not doing so in CConstruct
+
+    return out;
+  } else {
+    return a;
+  }
+}
+
+const char* cc_printf(const char* format, ...) {
+  unsigned length = strlen(format);
+
+  // Guess length of output format
+  unsigned alloc_size = (2 * length > 128) ? 2 * length : 128;
+
+  char* out = (char*)cc_alloc_(alloc_size);
+
+  va_list args;
+
+  va_start(args, format);
+  unsigned output_length = (unsigned)vsnprintf(out, alloc_size - 1, format, args);
+  va_end(args);
+
+  if (output_length > alloc_size) {
+    assert(false && "Not implemented");
+  }
+
+  out[alloc_size - 1] = 0;
+  return out;
+}
+
+const char* cc_substitute(const char* in_original, const char** keys, const char** values,
+                          unsigned num_keys) {
+  char key_search[128] = {0};
+
+  const char* in = in_original;
+  for (unsigned i = 0; i < num_keys; ++i) {
+    char* out_string = {0};
+    out_string       = array_reserve(out_string, sizeof(*out_string), 128);
+
+    const char* key = keys[i];
+    snprintf(key_search, sizeof(key_search) - 1, "${%s}", key);
+    const char* value       = values[i];
+    const char* offset      = in;
+    const char* piece_start = in;
+    while ((offset = strstr(offset, key_search)) != 0) {
+      array_append(out_string, piece_start, offset - piece_start);
+      array_append(out_string, value, strlen(value));
+      offset      = offset + strlen(key_search);
+      piece_start = offset;
+    }
+    array_append(out_string, piece_start, strlen(piece_start));
+    array_push(out_string, 0);
+    in = out_string;  // Breaking connection to stretchy buffer but that's ok.
+  }
+
+  return in;
 }

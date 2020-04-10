@@ -1,7 +1,7 @@
 #include "../../source/cconstruct.h"
 
 int main() {
-  cc.workspace.setOutputFolder("bin/x64");
+  cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("library_dependency");
 
   CCPlatformHandle platform_x86 = cc.createPlatform(EPlatformTypeX86);

@@ -1,8 +1,6 @@
 #include "../../source/cconstruct.h"
 
 int main() {
-  cc.workspace.setOutputFolder("test");
-
   CCPlatformHandle platform_x86 = cc.createPlatform(EPlatformTypeX86);
   CCPlatformHandle platform_x64 = cc.createPlatform(EPlatformTypeX64);
   cc.workspace.addPlatform(platform_x86);

@@ -252,10 +252,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "0;\n		};\n/* End PBXSourcesBuildPhase section */\n\n");
 
   xcode_uuid* configuration_ids = {0};
-  configuration_ids =
-      (xcode_uuid*)array_grow(configuration_ids, array_count(privateData.configurations));
+  configuration_ids = (xcode_uuid*)array_reserve(configuration_ids, sizeof(*configuration_ids),
+                                                 array_count(privateData.configurations));
   for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
-    configuration_ids[i] = xCodeGenerateUUID();
+    array_push(configuration_ids, xCodeGenerateUUID());
   }
 
   const char* preprocessor_defines       = "					\"$(inherited)\",\n";
@@ -407,9 +407,10 @@ void xcode_generateInFolder(const char* workspace_path) {
   // Before doing anything, generate a UUID for each projects output file
   xcode_uuid* projectFileReferenceUUIDs = 0;
   projectFileReferenceUUIDs =
-      (xcode_uuid*)array_grow(projectFileReferenceUUIDs, array_count(privateData.projects));
+      (xcode_uuid*)array_reserve(projectFileReferenceUUIDs, sizeof(*projectFileReferenceUUIDs),
+                                 array_count(privateData.projects));
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    projectFileReferenceUUIDs[i] = xCodeGenerateUUID();
+    array_push(projectFileReferenceUUIDs, xCodeGenerateUUID());
   }
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
@@ -426,16 +427,19 @@ void xcode_generateInFolder(const char* workspace_path) {
       xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, count_folder_depth);
       fclose(f);
     }
+
+    printf("Constructed XCode project '%s' at '%s'\n", p->name, projectFilePath);
   }
 
   {
-    const char* workspaceFilePath = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
-    int result                    = make_folder(workspaceFilePath);
-    workspaceFilePath             = cc_printf("%s/contents.xcworkspacedata", workspaceFilePath);
-    FILE* f                       = fopen(workspaceFilePath, "wb");
+    const char* workspace_file_path = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
+    int result                      = make_folder(workspace_file_path);
+    workspace_file_path = cc_printf("%s/contents.xcworkspacedata", workspace_file_path);
+    FILE* f             = fopen(workspace_file_path, "wb");
     if (f) {
       xCodeCreateWorkspaceFile(f);
       fclose(f);
+      printf("Constructed XCode workspace at '%s'\n", workspace_file_path);
     }
   }
 }

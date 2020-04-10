@@ -20,6 +20,15 @@ const char* vs_projectPlatform2String_(EPlatformType platform) {
   return "";
 }
 
+void vs_replaceForwardSlashWithBackwardSlashInPlace(char* in_out) {
+  if (in_out == 0) return;
+
+  while (*in_out) {
+    if (*in_out == '/') *in_out = '\\';
+    in_out++;
+  }
+}
+
 typedef struct vs_compiler_setting {
   const char* key;
   const char* value;
@@ -171,7 +180,12 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
     const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
-
+      const char* substitution_keys[]   = {"configuration", "platform"};
+      const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
+      const char* resolved_output_folder =
+          cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
+                        countof(substitution_keys));
+      vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
@@ -184,13 +198,11 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
       }
       fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
+      fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\$(ProjectName)\\Output\\</OutDir>\n",
+              resolved_output_folder);
       fprintf(project_file,
-              "    "
-              "<OutDir>$(SolutionDir)$(Platform)\\$(Configuration)\\$(ProjectName)\\Output\\</"
-              "OutDir>\n");
-      fprintf(
-          project_file,
-          "    <IntDir>$(Platform)\\$(Configuration)\\$(ProjectName)\\Intermediate\\</IntDir>\n");
+              "    <IntDir>$(SolutionDir)\\%s\\$(ProjectName)\\Intermediate\\</IntDir>\n",
+              resolved_output_folder);
 
       fprintf(project_file, "  </PropertyGroup>\n");
     }

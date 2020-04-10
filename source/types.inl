@@ -33,6 +33,9 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
   if (privateData.workspaceLabel == 0) {
     privateData.workspaceLabel = "workspace";
   }
+  if (privateData.outputFolder == 0) {
+    privateData.outputFolder = "${platform}\\${configuration}";
+  }
 
   TProject* p = (TProject*)malloc(sizeof(TProject));
   memset(p, 0, sizeof(TProject));
