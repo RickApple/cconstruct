@@ -16,7 +16,7 @@ int main() {
 
   void* l = cc.createProject("my_library", CCProjectTypeStaticLibrary);
   {
-    const char* files[] = {"src/library.c"};
+    const char* files[] = {"src/library/library.c", "src/library/function.h"};
     cc.project.addFiles(l, "Source Files", countof(files), files);
   }
 

@@ -16,7 +16,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
-build\x64\Debug\hello_world.exe
+build\x64\Debug\hello_world\Output\hello_world.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd
@@ -35,7 +35,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
-build\x64\Debug\include_folders.exe
+build\x64\Debug\include_folders\Output\include_folders.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd
@@ -55,7 +55,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 devenv.com build\msvc\library_dependency.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-build\msvc\x64\Debug\my_binary.exe
+build\msvc\x64\Debug\my_binary\Output\my_binary.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd
@@ -74,12 +74,12 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 devenv.com build\workspace.sln /Build "Debug|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
-build\x64\Debug\preprocessor.exe
+build\x64\Debug\preprocessor\Output\preprocessor.exe
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 devenv.com build\workspace.sln /Build "Release|x64"
 if %errorlevel% neq 0 exit /b %errorlevel%
-build\x64\Release\preprocessor.exe
+build\x64\Release\preprocessor\Output\preprocessor.exe
 rem the release build is expected to give an error, since the preprocessor has a different value for that build
 if %errorlevel% neq 1 exit /b %errorlevel%
 
@@ -122,7 +122,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 
 rem Create output folder for combined file
 mkdir ..\build
-build\x64\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_release.h
+build\x64\Debug\cconstruct_release\Output\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct_release.h
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 popd

@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "function.h"
+#include "library/function.h"
 
 int main(int argc, const char* argv[]) {
   const char* lib_string = getLibraryString();

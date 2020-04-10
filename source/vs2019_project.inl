@@ -184,6 +184,14 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
       }
       fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
+      fprintf(project_file,
+              "    "
+              "<OutDir>$(SolutionDir)$(Platform)\\$(Configuration)\\$(ProjectName)\\Output\\</"
+              "OutDir>\n");
+      fprintf(
+          project_file,
+          "    <IntDir>$(Platform)\\$(Configuration)\\$(ProjectName)\\Intermediate\\</IntDir>\n");
+
       fprintf(project_file, "  </PropertyGroup>\n");
     }
   }
@@ -308,7 +316,6 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id            = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
     const char* project_label = p->dependantOn[i]->name;
-    printf("depending on project %s\n", project_label);
     fprintf(project_file,
             "  <ItemGroup>\n    <ProjectReference Include=\"%s.vcxproj\">\n      "
             "<Project>{%s}</Project>\n    </ProjectReference>\n  </ItemGroup>\n",
