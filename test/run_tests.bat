@@ -4,11 +4,11 @@ echo on
 
 rem Compile a single instance of cconstruct with C++ to check for more copmile issues
 pushd 01_hello_world
-cl.exe -EHsc -Fe: cconstruct.exe config.cc || exit /b
+cl.exe -EHsc -Fe: cconstruct.exe config.cc /nologo || exit /b
 popd
 
 
-set COMPILE_CONSTRUCT_COMMAND=cl.exe -EHsc -Fe: cconstruct.exe /TC
+set COMPILE_CONSTRUCT_COMMAND=cl.exe -EHsc -Fe: cconstruct.exe /nologo /TC
 
 
 pushd 01_hello_world

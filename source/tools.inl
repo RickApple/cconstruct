@@ -95,13 +95,13 @@ void* array_grow(void* a, unsigned element_size);
 
 #define array_full(a) ((a) ? (array_header(a)->count_ == array_header(a)->capacity_) : true)
 
-#define array_push(a, item)                                         \
-  (array_full(a) ? (*((void**)&a) = array_grow(a, sizeof(*a))) : 0, \
+#define array_push(a, item)                                                \
+  (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
    (a[array_header(a)->count_++] = item))
 
-#define array_append(a, data, count)                                  \
-  (array_full(a) ? (*((void**)&a) = array_grow(a, sizeof(*a))) : 0,   \
-   (memcpy(a + array_header(a)->count_, data, (count) * sizeof(*a))), \
+#define array_append(a, data, count)                                       \
+  (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
+   (memcpy(a + array_header(a)->count_, data, (count) * sizeof(*a))),      \
    (array_header(a)->count_ = array_header(a)->count_ + (count)))
 
 void* array_grow(void* a, unsigned element_size) {
