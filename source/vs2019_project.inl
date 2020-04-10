@@ -106,7 +106,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
   FILE* project_file            = fopen(project_file_path, "wb");
   fprintf(project_file,
-          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n  <Project DefaultTargets=\"Build\" "
+          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project DefaultTargets=\"Build\" "
           "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
 
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
@@ -310,6 +310,13 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         fprintf(project_file, "      <%s>%s</%s>\n", key, value, key);
       }
       fprintf(project_file, "    </Link>\n");
+
+      bool have_post_build_action = (p->postBuildAction != 0);
+      if (have_post_build_action) {
+        fprintf(project_file, "    <PostBuildEvent>\n");
+        fprintf(project_file, "      <Command>%s</Command>\n", p->postBuildAction);
+        fprintf(project_file, "    </PostBuildEvent>\n");
+      }
       fprintf(project_file, "  </ItemDefinitionGroup>\n");
     }
   }

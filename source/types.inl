@@ -18,6 +18,7 @@ typedef struct TProject {
   cc_flags* flags;
   TConfiguration** configs;
   TPlatform** platforms;
+  const char* postBuildAction;
 } TProject;
 
 struct {
@@ -81,6 +82,10 @@ void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_st
   array_push(in_flags->defines, cc_printf("%s", in_define_string));
 }
 
+void addPostBuildAction(void* in_out_project, const char* in_action_command) {
+  ((TProject*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
+}
+
 const char** string_array_clone(const char** in) {
   char** out                   = {0};
   const array_header_t* header = array_header(in);
@@ -94,7 +99,7 @@ const char** string_array_clone(const char** in) {
   return (const char**)out;
 }
 
-void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_flags,
+void cc_project_setFlagsLimited_(void* in_out_project, const cc_flags* in_flags,
                                  CCPlatformHandle in_platform,
                                  CCConfigurationHandle in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
@@ -109,7 +114,7 @@ void cc_project_setFlagsLimited_(const void* in_out_project, const cc_flags* in_
   array_push(((TProject*)in_out_project)->configs, (TConfiguration*)in_configuration);
 }
 
-void cc_project_setFlags_(const void* in_out_project, const cc_flags* in_flags) {
+void cc_project_setFlags_(void* in_out_project, const cc_flags* in_flags) {
   cc_project_setFlagsLimited_(in_out_project, in_flags, NULL, NULL);
 }
 

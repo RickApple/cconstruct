@@ -3,7 +3,7 @@ set -e
 set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
-pushd hello_world
+pushd 01_hello_world
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
@@ -12,7 +12,7 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme hello_world
 ./build/x64/Debug/hello_world
 popd
 
-pushd include_folders
+pushd 02_include_folders
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
@@ -20,7 +20,7 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme include_folders
 ./build/x64/Debug/include_folders
 popd
 
-pushd library_dependency
+pushd 03_library_dependency
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
@@ -28,7 +28,7 @@ xcodebuild -quiet -workspace build/xcode/library_dependency.xcworkspace -scheme 
 ./build/xcode/x64/Debug/my_binary
 popd
 
-pushd preprocessor
+pushd 04_preprocessor
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
@@ -39,7 +39,7 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -c
 popd
 
 set +e
-pushd compile_flags
+pushd 05_compile_flags
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct

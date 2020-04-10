@@ -13,6 +13,7 @@ typedef enum { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM } EPlatf
 void* createProject(const char* in_project_name, EProjectType in_project_type);
 void addFileToProject(void* in_project, const char* in_file_name, const char* in_group_name);
 void addInputProject(const void* target_project, const void* on_project);
+void addPostBuildAction(const void* target_project, const char* command);
 
 // Workspace functions
 void setOutputFolder(const char* of);
@@ -44,9 +45,10 @@ typedef struct CConstruct {
     void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files,
                      const char* in_file_names[]);
     void (*addInputProject)(const void* target_project, const void* on_project);
-    void (*setFlags)(const void* in_project, const cc_flags* in_flags);
-    void (*setFlagsLimited)(const void* in_out_project, const cc_flags* in_flags,
+    void (*setFlags)(void* in_project, const cc_flags* in_flags);
+    void (*setFlagsLimited)(void* in_out_project, const cc_flags* in_flags,
                             CCPlatformHandle in_platform, CCConfigurationHandle in_configuration);
+    void (*addPostBuildAction)(void* in_out_project, const char* in_action_command);
   } project;
 
   const struct {
@@ -65,13 +67,13 @@ typedef struct CConstruct {
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-const CConstruct cc = {
-    cc_configuration_create,
-    cc_platform_create,
-    cc_project_create_,
-    {cc_state_reset, cc_state_addPreprocessorDefine},
-    {addFilesToProject, addInputProject, cc_project_setFlags_, cc_project_setFlagsLimited_},
-    {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
+const CConstruct cc = {cc_configuration_create,
+                       cc_platform_create,
+                       cc_project_create_,
+                       {cc_state_reset, cc_state_addPreprocessorDefine},
+                       {addFilesToProject, addInputProject, cc_project_setFlags_,
+                        cc_project_setFlagsLimited_, addPostBuildAction},
+                       {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
 
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)
