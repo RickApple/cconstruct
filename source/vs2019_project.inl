@@ -198,10 +198,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
       }
       fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
-      fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\$(ProjectName)\\Output\\</OutDir>\n",
-              resolved_output_folder);
+      fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\</OutDir>\n", resolved_output_folder);
+      // VS2019 warns if multiple projects have the same intermediate directory, so void that here
       fprintf(project_file,
-              "    <IntDir>$(SolutionDir)\\%s\\$(ProjectName)\\Intermediate\\</IntDir>\n",
+              "    <IntDir>$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\</IntDir>\n",
               resolved_output_folder);
 
       fprintf(project_file, "  </PropertyGroup>\n");

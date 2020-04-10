@@ -2,6 +2,12 @@
 set -e
 set -x
 
+# Compile a single instance with C++ to check compatiblity of cconstruct
+pushd 01_hello_world
+clang -x cpp config.cc -o cconstruct
+popd
+
+
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
 
 
@@ -77,5 +83,5 @@ $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cconstruct_release
 mkdir -p ../build
-./build/x64/Debug/cconstruct_release ../source/cconstruct.h ../build/cconstruct_release.h
+./build/x64/Debug/cconstruct_release ../source/cconstruct.h ../build/cconstruct.h
 popd
