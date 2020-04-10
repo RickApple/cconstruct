@@ -12,8 +12,8 @@ typedef enum { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM } EPlatf
 // Project functions
 void* createProject(const char* in_project_name, EProjectType in_project_type);
 void addFileToProject(void* in_project, const char* in_file_name, const char* in_group_name);
-void addInputProject(const void* target_project, const void* on_project);
-void addPostBuildAction(const void* target_project, const char* command);
+void addInputProject(void* target_project, const void* on_project);
+void addPostBuildAction(void* target_project, const char* command);
 
 // Workspace functions
 void setOutputFolder(const char* of);
@@ -44,7 +44,7 @@ typedef struct CConstruct {
   const struct {
     void (*addFiles)(void* in_project, const char* in_group_name, unsigned num_files,
                      const char* in_file_names[]);
-    void (*addInputProject)(const void* target_project, const void* on_project);
+    void (*addInputProject)(void* target_project, const void* on_project);
     void (*setFlags)(void* in_project, const cc_flags* in_flags);
     void (*setFlagsLimited)(void* in_out_project, const cc_flags* in_flags,
                             CCPlatformHandle in_platform, CCConfigurationHandle in_configuration);

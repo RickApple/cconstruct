@@ -63,7 +63,7 @@ void addFilesToProject(void* in_project, const char* in_group_name, unsigned num
   }
 }
 
-void addInputProject(const void* target_project, const void* on_project) {
+void addInputProject(void* target_project, const void* on_project) {
   array_push(((TProject*)target_project)->dependantOn, (TProject*)on_project);
 }
 

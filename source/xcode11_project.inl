@@ -96,6 +96,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   }
   fprintf(f, "/* End PBXBuildFile section */\n\n");
 
+  bool has_post_build_action = (p->postBuildAction != 0);
   if (p->type == CCProjectTypeConsoleApplication) {
     fprintf(f,
             "/* Begin PBXCopyFilesBuildPhase section */\n		403CC53923EB479400558E07 "
@@ -197,7 +198,12 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "\" */;\n			buildPhases = (\n				"
           "403CC53723EB479400558E07 /* Sources */,\n				"
           "403CC53823EB479400558E07 /* Frameworks */,\n				"
-          "403CC53923EB479400558E07 /* CopyFiles */,\n			);\n			"
+          "403CC53923EB479400558E07 /* CopyFiles */,\n				");
+  if (has_post_build_action) {
+    fprintf(f, "40C3D9692440AC2500C8EB40 /* ShellScript */,\n			");
+  }
+  fprintf(f,
+          ");\n			"
           "buildRules = (\n			);\n			dependencies = (\n	"
           "		);\n");
 
@@ -236,8 +242,33 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       ";\n			targets = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
           p->name);
+  fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
+
+  if (has_post_build_action) {
+    fprintf(f,
+            "/* Begin PBXShellScriptBuildPhase section */\n		40C3D9692440AC2500C8EB40 "
+            "/* ShellScript */ = {\n"
+            "			isa  = PBXShellScriptBuildPhase;\n"
+            "			buildActionMask = 2147483647;\n"
+            "			files = (\n"
+            "			);\n"
+            "			inputFileListPaths = (\n"
+            "			);\n"
+            "			inputPaths = (\n"
+            "			);\n"
+            "			outputFileListPaths = (\n"
+            "			);\n"
+            "			outputPaths = (\n"
+            "			);\n"
+            "			runOnlyForDeploymentPostprocessing = 0;\n"
+            "			shellPath = /bin/sh;\n"
+            "			shellScript = \"test\";\n"
+            "		};\n"
+            "/* End PBXShellScriptBuildPhase section */\n\n");
+  }
+
   fprintf(f,
-          "			);\n		};\n/* End PBXProject section */\n\n/* Begin "
+          "/* Begin "
           "PBXSourcesBuildPhase section */\n		403CC53723EB479400558E07 /* Sources */ = "
           "{\n			isa = PBXSourcesBuildPhase;\n			buildActionMask = "
           "2147483647;\n			files = (\n");
