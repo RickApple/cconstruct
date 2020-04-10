@@ -306,11 +306,13 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   }
 
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const char* id = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
+    const char* id            = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
+    const char* project_label = p->dependantOn[i]->name;
+    printf("depending on project %s\n", project_label);
     fprintf(project_file,
-            "  <ItemGroup>\n    <ProjectReference Include=\"my_library.vcxproj\">\n      "
+            "  <ItemGroup>\n    <ProjectReference Include=\"%s.vcxproj\">\n      "
             "<Project>{%s}</Project>\n    </ProjectReference>\n  </ItemGroup>\n",
-            id);
+            project_label, id);
   }
 
   fprintf(project_file,
