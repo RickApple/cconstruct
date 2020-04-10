@@ -248,7 +248,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f,
             "/* Begin PBXShellScriptBuildPhase section */\n		40C3D9692440AC2500C8EB40 "
             "/* ShellScript */ = {\n"
-            "			isa  = PBXShellScriptBuildPhase;\n"
+            "			isa = PBXShellScriptBuildPhase;\n"
             "			buildActionMask = 2147483647;\n"
             "			files = (\n"
             "			);\n"
@@ -262,9 +262,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             "			);\n"
             "			runOnlyForDeploymentPostprocessing = 0;\n"
             "			shellPath = /bin/sh;\n"
-            "			shellScript = \"test\";\n"
+            "			shellScript = \"%s\";\n"
             "		};\n"
-            "/* End PBXShellScriptBuildPhase section */\n\n");
+            "/* End PBXShellScriptBuildPhase section */\n\n",
+            p->postBuildAction);
   }
 
   fprintf(f,
