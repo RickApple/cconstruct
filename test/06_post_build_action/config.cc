@@ -13,7 +13,7 @@ int main() {
   const char* files[] = {"src/main.c"};
   cc.project.addFiles(p, "Source Files", countof(files), files);
   cc.project.addPostBuildAction(
-      p, "test");  // Note that this command will fail, as required by the test runner
+      p, "./bin/test");  // Note that this command will fail, as required by the test runner
 
   cc_default_generator("build");
 

@@ -313,8 +313,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
 
       bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
+        const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
+        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
         fprintf(project_file, "    <PostBuildEvent>\n");
-        fprintf(project_file, "      <Command>%s</Command>\n", p->postBuildAction);
+        fprintf(project_file, "      <Command>%s</Command>\n", windowsPostBuildAction);
         fprintf(project_file, "    </PostBuildEvent>\n");
       }
       fprintf(project_file, "  </ItemDefinitionGroup>\n");
