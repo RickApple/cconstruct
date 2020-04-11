@@ -32,6 +32,15 @@ typedef struct TPlatform* CCPlatformHandle;
 typedef struct TConfiguration* CCConfigurationHandle;
 
 typedef struct CConstruct {
+  /* If you want CConstruct to automatically pick up changes in your config files, then you need
+   * to call this function at the top of your main function, passing in the filename of your config
+   * file (you can use the __FILE__ macro).
+   * It will then rebuild the binary whenever you run it, replace the current binary, and then
+   * generate the projects. Since it's effectively only compiling a single file that is fast enough
+   * to do on each run.
+   */
+  void (*autoRecompileFromConfig)(const char* cconstruct_config_file_path);
+
   CCConfigurationHandle (*createConfiguration)(const char* in_label);
   CCPlatformHandle (*createPlatform)(EPlatformType in_type);
   void* (*createProject)(const char* in_project_name, EProjectType in_project_type);
@@ -61,13 +70,24 @@ typedef struct CConstruct {
 
 } CConstruct;
 
+// Tools
 #include "tools.inl"
 #include "types.inl"
+
+// Generators
 #include "vs2019_project.inl"
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-const CConstruct cc = {cc_configuration_create,
+// Automatic updating
+#include "process.inl"
+#include "restart_api.inl"
+
+// For automatic updates to the config
+#include "builder.inl"
+
+const CConstruct cc = {cc_autoRecompileFromConfig,
+                       cc_configuration_create,
                        cc_platform_create,
                        cc_project_create_,
                        {cc_state_reset, cc_state_addPreprocessorDefine},

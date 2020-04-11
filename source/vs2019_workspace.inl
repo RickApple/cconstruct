@@ -35,6 +35,7 @@ const char* solutionPlatform2String(EPlatformType platform) {
 }
 
 void vs2019_generateInFolder(const char* workspace_path) {
+  printf("Generating Visual Studio 2019 solution and projects ...\n");
   int count_folder_depth = 1;
   {
     const char* c = workspace_path;

@@ -10,6 +10,17 @@
 
 #define countof(a) sizeof(a) / sizeof(a[0])
 
+// TODO: allow this to be set from the command line
+bool is_verbose = true;
+
+#define LOG_ERROR_AND_QUIT(...)   \
+  {                               \
+    fprintf(stderr, __VA_ARGS__); \
+    exit(1);                      \
+  }
+#define LOG_VERBOSE(...) \
+  if (is_verbose) fprintf(stdout, __VA_ARGS__)
+
 const char* strip_path(const char* path) {
   const char* last_slash = strrchr(path, '/');
   if (last_slash)
@@ -159,7 +170,7 @@ const char* cc_printf(const char* format, ...) {
   unsigned length = strlen(format);
 
   // Guess length of output format
-  unsigned alloc_size = (2 * length > 128) ? 2 * length : 128;
+  unsigned alloc_size = (2 * length > 256) ? 2 * length : 256;
 
   char* out = (char*)cc_alloc_(alloc_size);
 

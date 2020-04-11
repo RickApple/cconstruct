@@ -10,7 +10,8 @@ A tool to make IDE project files, using C as a description language.
 - Make tests for cconstruct build out of tree
 - allows handle relative locations correctly
 - simplify output folders taking into account that VS gives warning if multiple projects have same output/intermediate folder
-- support post and pre build actions
+- support pre build actions (post already works)
+- have option to create project to debug cconstruct binary?
 
 ## Done
 

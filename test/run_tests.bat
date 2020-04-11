@@ -1,14 +1,14 @@
 
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-echo on
+call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat"
+echo off
+
 
 rem Compile a single instance of cconstruct with C++ to check for more copmile issues
 pushd 01_hello_world
-cl.exe -EHsc -Fe: cconstruct.exe config.cc /nologo || exit /b
+cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
 popd
 
-
-set COMPILE_CONSTRUCT_COMMAND=cl.exe -EHsc -Fe: cconstruct.exe /nologo /TC
+set COMPILE_CONSTRUCT_COMMAND=cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 
 
 pushd 01_hello_world
@@ -43,10 +43,12 @@ rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
-build\x64\Debug\preprocessor.exe || exit /b
+build\x64\Debug\preprocessor.exe
+rem Debug build has the expected value for the define, so should return 0
+if %errorlevel% neq 0 exit /b %errorlevel%
 devenv.com build\workspace.sln /Build "Release|x64" || exit /b
 build\x64\Release\preprocessor.exe
-rem the release build is expected to give an error, since the preprocessor has a different value for that build
+rem Release build is expected to return 1, since the define has a different value for that build
 if %errorlevel% neq 1 exit /b %errorlevel%
 popd
 
@@ -66,9 +68,28 @@ rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64"
+rem The build is expected to give an error, since the post build action doesn't succeed ...
 if %errorlevel% equ 0 exit /b %errorlevel%
-rem The build is expected to give an error, since the post build action doesn't succeed. However, the executable has been built as tested on the next line
+rem ... However, the executable has been built, so test it is there and works correctly
 build\x64\Debug\post_build_action.exe || exit /b
+popd
+
+
+pushd 07_changed_config
+rd /S /Q build
+copy return_value1.inl return_value.inl
+cl.exe /EHsc /Fecconstruct.exe config.cc /nologo || exit /b
+cconstruct.exe
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\changed_config.exe
+rem The first config builds the program so that it returns 1, so check for that specifically
+if %errorlevel% neq 1 exit /b %errorlevel%
+copy return_value2.inl return_value.inl
+cconstruct.exe
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\changed_config.exe
+rem The second config builds the program so that it returns 2, so check for that specifically
+if %errorlevel% neq 2 exit /b %errorlevel%
 popd
 
 
