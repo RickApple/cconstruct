@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include <malloc.h>
 #include <stdio.h>
 #include <tchar.h>
@@ -194,3 +195,4 @@ int system_np(const char* command, int timeout_milliseconds, char* stdout_data,
   }
   return r;
 }
+#endif

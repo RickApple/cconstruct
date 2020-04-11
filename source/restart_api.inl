@@ -3,6 +3,7 @@
 #define RA_CMDLINE_RESTART_PROCESS TEXT("--generate-projects")
 #endif
 
+#ifdef _WIN32
 // Mutex unique name
 #ifndef RA_MUTEX_OTHER_RESTARTING
 #define RA_MUTEX_OTHER_RESTARTING TEXT("CCONSTRUCT-RESTART-MUTEX")
@@ -88,3 +89,4 @@ BOOL RA_ActivateRestartProcess() {
   // Create another copy of process
   return CreateProcess(NULL, (LPSTR)quotedAppPath, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 }
+#endif
