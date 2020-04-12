@@ -1,6 +1,6 @@
 // Command line switch for restarted application
 #ifndef RA_CMDLINE_RESTART_PROCESS
-#define RA_CMDLINE_RESTART_PROCESS TEXT("--generate-projects")
+#define RA_CMDLINE_RESTART_PROCESS "--generate-projects"
 #endif
 
 #ifdef _WIN32

@@ -36,10 +36,11 @@ typedef struct CConstruct {
    * to call this function at the top of your main function, passing in the filename of your config
    * file (you can use the __FILE__ macro).
    * It will then rebuild the binary whenever you run it, replace the current binary, and then
-   * generate the projects. Since it's effectively only compiling a single file that is fast enough
+   * generate the projects. Since it's effectively only compiling a single file this is fast enough
    * to do on each run.
    */
-  void (*autoRecompileFromConfig)(const char* cconstruct_config_file_path);
+  void (*autoRecompileFromConfig)(const char* cconstruct_config_file_path, int argc,
+                                  const char* argv[]);
 
   CCConfigurationHandle (*createConfiguration)(const char* in_label);
   CCPlatformHandle (*createPlatform)(EPlatformType in_type);

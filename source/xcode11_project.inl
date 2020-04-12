@@ -38,6 +38,8 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
 
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
+  printf("Generating XCode workspace and projects ...\n");
+
   const TProject* p = (TProject*)in_project;
 
   const char* prepend_path = "";

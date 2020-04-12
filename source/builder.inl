@@ -1,4 +1,4 @@
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <Windows.h>
 
 static char stdout_data[16 * 1024 * 1024] = {0};
@@ -119,7 +119,7 @@ void cc_deletePreviousBuild_() {
   }
 }
 
-void cc_autoRecompileFromConfig(const char* config_file_path) {
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* argv[]) {
   cc_deletePreviousBuild_();
   if (RA_CheckForRestartProcessStart()) {
     RA_WaitForPreviousProcessFinish();
@@ -130,8 +130,75 @@ void cc_autoRecompileFromConfig(const char* config_file_path) {
     exit(0);
   }
 }
+#elif defined(__APPLE__)
+#include <stdio.h>
+void cc_recompile_binary_(const char* cconstruct_config_file_path) {
+  const char* cconstruct_internal_build_file_path = "cconstruct_internal_build";
+  const char* compile_command = cc_printf("clang %s -o %s", cconstruct_config_file_path,
+                                          cconstruct_internal_build_file_path);
+
+  FILE* pipe = popen(compile_command, "r");
+
+  if (!pipe) {
+    LOG_ERROR_AND_QUIT("popen(%s) failed!", compile_command);
+  }
+
+  char buffer[128];
+  const char* result = "";
+
+  while (!feof(pipe)) {
+    if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+      result = cc_printf("%s%s", result, buffer);
+    }
+  }
+
+  int rc = pclose(pipe);
+
+  if (rc == EXIT_SUCCESS) {  // == 0
+    LOG_VERBOSE("Built new CConstruct binary at '%s'\n", cconstruct_internal_build_file_path);
+  } else {
+    // It looks like the errors have already been printed to the console, so no need to to do that
+    // manually.
+    LOG_ERROR_AND_QUIT(
+        "Error recompiling CConstruct config file. You can add '%s' to generate projects "
+        "with the settings built into the existing CConstruct binary.\n",
+        RA_CMDLINE_RESTART_PROCESS);
+  }
+}
+
+void cc_swapBuilds_() {
+  const char* path = getprogname();
+
+  const char* internal_build_path = "cconstruct_internal_build";
+  if (rename(internal_build_path, path) != 0) {
+    LOG_ERROR_AND_QUIT("Error: Couldn't move binary from '%s' to '%s'\n", internal_build_path,
+                       path);
+  } else {
+    LOG_VERBOSE("Moved binary from '%s' to '%s'\n", internal_build_path, path);
+  }
+}
+
+bool cc_should_generate_projects(int argc, const char* argv[]) {
+  for (int i = 0; i < argc; ++i) {
+    if (strcmp(argv[i], RA_CMDLINE_RESTART_PROCESS) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* argv[]) {
+  if (cc_should_generate_projects(argc, argv)) {
+    // Do nothing
+  } else {
+    cc_recompile_binary_(config_file_path);
+    cc_swapBuilds_();
+    system(cc_printf("%s --generate-projects", argv[0]));
+    exit(0);
+  }
+}
 #else
-void cc_autoRecompileFromConfig(const char* config_file_path) {
-  printf("Auto-recompile not yet implemented for this platform\n");
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* argv[]) {
+  fprintf(stderr, "Auto recompile not implemented on this platform\n");
 }
 #endif

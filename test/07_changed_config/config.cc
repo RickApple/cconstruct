@@ -1,10 +1,10 @@
 #include "../../source/cconstruct.h"
 
-int main() {
+int main(int argc, const char* argv[]) {
   // This line needs to be added to your config file to allow CConstruct to pick up changes in your
   // config file. It will simply always create a new version of itself, before running that new
   // version.
-  cc.autoRecompileFromConfig(__FILE__);
+  cc.autoRecompileFromConfig(__FILE__, argc, argv);
 
   cc.workspace.setOutputFolder("${platform}/${configuration}");
 

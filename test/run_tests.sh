@@ -2,6 +2,7 @@
 set -e
 set -x
 
+
 # Compile a single instance with C++ to check compatiblity of cconstruct
 pushd 01_hello_world
 clang -x c++ config.cc -o cconstruct
@@ -63,6 +64,7 @@ then
 fi
 popd
 
+
 pushd 06_post_build_action
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
@@ -76,6 +78,34 @@ fi
 # but the binary should still have been built and be runnable
 ./build/x64/Debug/post_build_action
 popd
+
+
+set +e
+pushd 07_changed_config
+rm -rf build
+cp return_value1.inl return_value.inl
+$COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme changed_config
+./build/x64/Debug/changed_config
+# The first config builds the program so that it returns 1, so check for that specifically
+if [ $? -ne 1 ]
+then
+  exit 1
+fi
+cp return_value2.inl return_value.inl
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme changed_config
+./build/x64/Debug/changed_config
+# The second config builds the program so that it returns 2, so check for that specifically
+if [ $? -ne 2 ]
+then
+  exit 1
+fi
+popd
+set -e
+
+
 
 pushd ../tools
 rm -rf build
