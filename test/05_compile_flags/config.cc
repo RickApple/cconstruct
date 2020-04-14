@@ -9,10 +9,10 @@ int main() {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  void* p             = cc.createProject("compile_flags", CCProjectTypeConsoleApplication);
+  void* p             = cc.createProject("compile_flags", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};
 
-  cc.project.addFiles(p, "Source Files", countof(files), files);
+  cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_flags flags;
   cc.state.reset(&flags);

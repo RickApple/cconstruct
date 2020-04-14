@@ -12,9 +12,9 @@ int main() {
   cc.workspace.addConfiguration(configuration_release);
 
   cc_flags flags      = {0};
-  void* p             = cc.createProject("preprocessor", CCProjectTypeConsoleApplication);
+  void* p             = cc.createProject("preprocessor", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};
-  cc.project.addFiles(p, "Source Files", countof(files), files);
+  cc.project.addFiles(p, countof(files), files, NULL);
 
   cc.state.reset(&flags);
   cc.state.addPreprocessorDefine(&flags, "TEST_VALUE=5");

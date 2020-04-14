@@ -1,6 +1,8 @@
 
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat"
-echo off
+echo on
+
+set COMPILE_CONSTRUCT_COMMAND=cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 
 
 rem Compile a single instance of cconstruct with C++ to check for more copmile issues
@@ -8,7 +10,6 @@ pushd 01_hello_world
 cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
 popd
 
-set COMPILE_CONSTRUCT_COMMAND=cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 
 
 pushd 01_hello_world
@@ -90,6 +91,15 @@ devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\changed_config.exe
 rem The second config builds the program so that it returns 2, so check for that specifically
 if %errorlevel% neq 2 exit /b %errorlevel%
+popd
+
+
+pushd 08_project_structure
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
+devenv.com build\project_structure.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\my_binary.exe || exit /b
 popd
 
 

@@ -15,9 +15,9 @@ int main(int argc, const char* argv[]) {
   cc.workspace.addConfiguration(configuration);
 
   cc_flags flags      = {0};
-  void* p             = cc.createProject("changed_config", CCProjectTypeConsoleApplication);
+  void* p             = cc.createProject("changed_config", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};
-  cc.project.addFiles(p, "Source Files", countof(files), files);
+  cc.project.addFiles(p, countof(files), files, NULL);
 
   cc.state.reset(&flags);
 #include "return_value.inl"

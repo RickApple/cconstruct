@@ -13,15 +13,6 @@ const char* replaceSpacesWithUnderscores(const char* in) {
   return in;
 }
 
-const char* vs_generateUUID() {
-  static size_t count = 0;
-  ++count;
-
-  char* buffer = (char*)cc_alloc_(37);
-  sprintf(buffer, "00000000-0000-0000-0000-%012zi", count);
-  return buffer;
-};
-
 const char* solutionPlatform2String(EPlatformType platform) {
   switch (platform) {
     case EPlatformTypeX86:
@@ -62,12 +53,34 @@ void vs2019_generateInFolder(const char* workspace_path) {
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     const TProject* p      = privateData.projects[i];
     const char* project_id = project_ids[i];
-    vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
     vs2019_createFilters(p, count_folder_depth);
+    vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
 
     printf("Constructed VS2019 project '%s' at '%s/%s.vcxproj'\n", p->name, workspace_path,
            p->name);
   }
+
+  // Create list of groups needed.
+  const cc_group_impl_t** unique_groups = {0};
+  const char** unique_groups_id         = {0};
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+    const TProject* p        = privateData.projects[i];
+    const cc_group_impl_t* g = p->parent_group;
+    while (g) {
+      bool already_contains_group = false;
+      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+        if (g == unique_groups[i]) {
+          already_contains_group = true;
+        }
+      }
+      if (!already_contains_group) {
+        array_push(unique_groups, g);
+        array_push(unique_groups_id, vs_generateUUID());
+      }
+      g = g->parent_group;
+    }
+  }
+  const unsigned num_unique_groups = array_count(unique_groups);
 
   const char* workspace_file_path = cc_printf("%s.sln", privateData.workspaceLabel);
   FILE* workspace                 = fopen(workspace_file_path, "wb");
@@ -90,19 +103,29 @@ void vs2019_generateInFolder(const char* workspace_path) {
     fprintf(workspace, "EndProject\n");
   }
 
-  fprintf(workspace,
-          "Global\n	GlobalSection(SolutionConfigurationPlatforms) = "
-          "preSolution\n");
+  // Add solution folders
+  for (unsigned i = 0; i < num_unique_groups; ++i) {
+    const cc_group_impl_t* g = unique_groups[i];
+    fprintf(workspace,
+            "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%s\", \"%s\", "
+            "\"{%s}\"\n",
+            g->name, g->name, unique_groups_id[i]);
+    fprintf(workspace, "EndProject\n");
+  }
+
+  fprintf(workspace, "Global\n");
+
+  fprintf(workspace, "	GlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
     const char* c = privateData.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
       const char* p = solutionPlatform2String(privateData.platforms[pi]->type);
-      fprintf(workspace, "\t\t%s|%s = %s|%s\n", c, p, c, p);
+      fprintf(workspace, "		%s|%s = %s|%s\n", c, p, c, p);
     }
   }
-  fprintf(workspace,
-          "	EndGlobalSection\n	GlobalSection(ProjectConfigurationPlatforms) = "
-          "postSolution\n");
+  fprintf(workspace, "	EndGlobalSection\n");
+
+  fprintf(workspace, "	GlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     const char* projectId = project_ids[i];
     for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
@@ -110,19 +133,52 @@ void vs2019_generateInFolder(const char* workspace_path) {
       for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
         const EPlatformType p      = privateData.platforms[pi]->type;
         const char* platform_label = vs_projectPlatform2String_(p);
-        fprintf(workspace, "\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
+        fprintf(workspace, "		{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
                 solutionPlatform2String(p), c, platform_label);
-        fprintf(workspace, "\t\t{%s}.%s|%s.Build.0 = %s|%s\n", projectId, c,
+        fprintf(workspace, "		{%s}.%s|%s.Build.0 = %s|%s\n", projectId, c,
                 solutionPlatform2String(p), c, platform_label);
       }
     }
   }
+  fprintf(workspace, "	EndGlobalSection\n");
 
   fprintf(workspace,
-          "	EndGlobalSection\n	GlobalSection(SolutionProperties) = preSolution\n	"
-          "	HideSolutionNode = FALSE\n	EndGlobalSection\n	"
-          "GlobalSection(ExtensibilityGlobals) = postSolution\n		SolutionGuid = "
-          "{7354F2AC-FB49-4B5D-B080-EDD798F580A5}\n	EndGlobalSection\nEndGlobal\n");
+          "	GlobalSection(SolutionProperties) = preSolution\n"
+          "		HideSolutionNode = FALSE\n"
+          "	EndGlobalSection\n");
+
+  if (num_unique_groups > 0) {
+    fprintf(workspace, "	GlobalSection(NestedProjects) = preSolution\n");
+    for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+      const char* projectId = project_ids[i];
+      const TProject* p     = privateData.projects[i];
+      if (p->parent_group) {
+        for (unsigned ig = 0; ig < num_unique_groups; ++ig) {
+          if (p->parent_group == unique_groups[ig]) {
+            fprintf(workspace, "		{%s} = {%s}\n", projectId, unique_groups_id[ig]);
+          }
+        }
+      }
+    }
+    for (unsigned i = 0; i < num_unique_groups; ++i) {
+      const cc_group_impl_t* g = unique_groups[i];
+      if (g->parent_group) {
+        for (unsigned ig = 0; ig < num_unique_groups; ++ig) {
+          if (g->parent_group == unique_groups[ig]) {
+            fprintf(workspace, "		{%s} = {%s}\n", unique_groups_id[i],
+                    unique_groups_id[ig]);
+          }
+        }
+      }
+    }
+    fprintf(workspace, "	EndGlobalSection\n");
+  }
+
+  fprintf(workspace,
+          "	GlobalSection(ExtensibilityGlobals) = postSolution\n"
+          "		SolutionGuid = "
+          "{7354F2AC-FB49-4B5D-B080-EDD798F580A5}\n"
+          "	EndGlobalSection\nEndGlobal\n");
 
   fclose(workspace);
   printf("Constructed VS2019 workspace at '%s/%s'\n", workspace_path, workspace_file_path);

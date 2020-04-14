@@ -7,9 +7,9 @@ int main() {
   cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration);
 
-  void* p             = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication);
+  void* p = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"cconstruct_release.c"};
-  cc.project.addFiles(p, "Source Files", countof(files), files);
+  cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_flags flags = {0};
   cc.state.reset(&flags);

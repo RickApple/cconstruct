@@ -8,17 +8,24 @@ typedef struct TConfiguration {
   const char label[];
 } TConfiguration;
 
+typedef struct cc_group_impl_t {
+  const char* name;
+  const struct cc_group_impl_t* parent_group;
+} cc_group_impl_t;
+
 typedef struct TProject {
   EProjectType type;
   const char* name;
   const char** files;
-  const char** groups;
+  const cc_group_impl_t** groups;
   TProject** dependantOn;
 
   cc_flags* flags;
   TConfiguration** configs;
   TPlatform** platforms;
   const char* postBuildAction;
+
+  const cc_group_impl_t* parent_group;
 } TProject;
 
 struct {
@@ -27,9 +34,18 @@ struct {
   TProject** projects;
   const TConfiguration** configurations;
   const TPlatform** platforms;
+  const cc_group_impl_t* groups;
 } privateData;
 
-void* cc_project_create_(const char* in_project_name, EProjectType in_project_type) {
+cc_group_t cc_createGroup(const char* in_group_name, const cc_group_t in_parent_group) {
+  cc_group_impl_t* group = (cc_group_impl_t*)cc_alloc_(sizeof(cc_group_impl_t));
+  group->name            = cc_printf("%s", in_group_name);
+  group->parent_group    = (const cc_group_impl_t*)in_parent_group;
+  return (cc_group_t)group;
+}
+
+void* cc_project_create_(const char* in_project_name, EProjectType in_project_type,
+                         const cc_group_t in_parent_group) {
   // TODO: having no workspace label crashes on XCode generator
   if (privateData.workspaceLabel == 0) {
     privateData.workspaceLabel = "workspace";
@@ -48,18 +64,21 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
   name_copy[name_length] = 0;
   p->name                = name_copy;
   array_push(privateData.projects, p);
+
+  p->parent_group = (const cc_group_impl_t*)in_parent_group;
   return p;
 }
 
 /**
  * Add multiple files to a project, from a NULL-terminated array
+ *
+ * @param in_parent_group may be NULL
  */
-void addFilesToProject(void* in_project, const char* in_group_name, unsigned num_files,
-                       const char* in_file_names[]) {
+void addFilesToProject(void* in_project, unsigned num_files, const char* in_file_names[],
+                       const cc_group_t in_parent_group) {
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
     array_push(((TProject*)in_project)->files, cc_printf("%s", *in_file_names));
-    array_push(((TProject*)in_project)->groups,
-               in_group_name ? cc_printf("%s", in_group_name) : "");
+    array_push(((TProject*)in_project)->groups, (const cc_group_impl_t*)in_parent_group);
   }
 }
 

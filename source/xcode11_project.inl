@@ -94,7 +94,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   const char** unique_groups    = {0};
   const char** unique_groups_id = {0};
   for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
-    const char* g = p->groups[ig];
+    const char* g = p->groups[ig]->name;
     if (g[0]) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -212,7 +212,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             xCodeStringFromGroup(unique_groups, unique_groups_id, ug));
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename   = p->files[fi];
-      const char* file_group = p->groups[fi];
+      const char* file_group = p->groups[fi]->name;
       if (strcmp(file_group, ug) == 0) {
         fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
                 strip_path(filename));

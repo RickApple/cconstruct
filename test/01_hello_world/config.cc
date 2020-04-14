@@ -9,9 +9,9 @@ int main(int argc, char** argv) {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  void* p             = cc.createProject("hello_world", CCProjectTypeConsoleApplication);
+  void* p             = cc.createProject("hello_world", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c", "src/function.c", "src/function.h"};
-  cc.project.addFiles(p, "Source Files", countof(files), files);
+  cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_default_generator("build");
 

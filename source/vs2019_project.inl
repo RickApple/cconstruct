@@ -1,3 +1,11 @@
+const char* vs_generateUUID() {
+  static size_t count = 0;
+  ++count;
+
+  char* buffer = (char*)cc_alloc_(37);
+  sprintf(buffer, "00000000-0000-0000-0000-%012zi", count);
+  return buffer;
+};
 
 const char* vs_findUUIDForProject(const char** uuids, const TProject* project) {
   unsigned i = 0;
@@ -48,48 +56,70 @@ void vs2019_createFilters(const TProject* in_project, int folder_depth) {
           "<Project ToolsVersion=\"4.0\" "
           "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
-  // Remove duplicate groups
-  const TProject* p          = (TProject*)in_project;
-  const char** unique_groups = {0};
+  // Create list of groups needed.
+  const TProject* p                     = (TProject*)in_project;
+  const cc_group_impl_t** unique_groups = {0};
   for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
-    const char* g = p->groups[ig];
-    if (g[0]) {
+    const cc_group_impl_t* g = p->groups[ig];
+    while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (strcmp(g, unique_groups[i]) == 0) {
+        if (g == unique_groups[i]) {
           already_contains_group = true;
         }
       }
       if (!already_contains_group) {
         array_push(unique_groups, g);
       }
+      g = g->parent_group;
     }
   }
 
+  // Create names for the needed groups. Nested groups append their name in the filter file
+  //    Group A
+  //    Group A\Nested Group
+  //    Group B
+  const unsigned num_unique_groups = array_count(unique_groups);
+  const char** unique_group_names  = {0};
+  for (unsigned i = 0; i < num_unique_groups; ++i) {
+    const cc_group_impl_t* g = unique_groups[i];
+    assert(g);
+    const char* name = g->name[0] ? g->name : "<group>";
+    while (g->parent_group) {
+      g    = g->parent_group;
+      name = cc_printf("%s\\%s", g->name[0] ? g->name : "<group>", name);
+    }
+    array_push(unique_group_names, name);
+  }
+
   fprintf(filter_file, "  <ItemGroup>\n");
-  int count = 0;
-  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    const char* g = unique_groups[i];
-    fprintf(filter_file, "    <Filter Include=\"%s\">\n", g);
-    fprintf(filter_file,
-            "      <UniqueIdentifier>{d43b239c-1ecb-43eb-8aca-28bf989c811%i}</UniqueIdentifier>\n",
-            ++count);
+  for (unsigned i = 0; i < num_unique_groups; ++i) {
+    const cc_group_impl_t* g = unique_groups[i];
+    const char* group_name   = unique_group_names[i];
+    fprintf(filter_file, "    <Filter Include=\"%s\">\n", group_name);
+    fprintf(filter_file, "      <UniqueIdentifier>{%s}</UniqueIdentifier>\n", vs_generateUUID());
     fprintf(filter_file, "    </Filter>\n");
   }
   fprintf(filter_file, "  </ItemGroup>\n");
 
   for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
     fprintf(filter_file, "  <ItemGroup>\n");
-    const char* f                  = p->files[fi];
-    const char* g                  = p->groups[fi];
+    const char* f            = p->files[fi];
+    const cc_group_impl_t* g = p->groups[fi];
+    const char* group_name   = NULL;
+    for (unsigned ug = 0; ug < num_unique_groups; ++ug) {
+      if (unique_groups[ug] == g) {
+        group_name = unique_group_names[ug];
+      }
+    }
     const char* relative_file_path = cc_printf("%s%s", prepend_path, f);
     if (strstr(f, ".h")) {
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
-      fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
+      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClInclude>\n");
     } else {
       fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
-      fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
+      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClCompile>\n");
     }
     fprintf(filter_file, "  </ItemGroup>\n");
