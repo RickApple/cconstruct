@@ -36,6 +36,20 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
     array_push(a, setting);                  \
   }
 
+const char* xCodeStringFromGroup(const char** group_names, const char** group_ids,
+                                 const char* group_name) {
+  const unsigned num_groups = array_count(group_names);
+  for (unsigned i = 0; i < num_groups; ++i) {
+    printf("Comparing '%s' with '%s'\n", group_names[i], group_name);
+    if (strcmp(group_names[i], group_name) == 0) {
+      return cc_printf("%s /* %s */", group_ids[i], group_name);
+    }
+  }
+
+  assert(false && "Couldn't find group name");
+  return "";
+}
+
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
   printf("Generating XCode workspace and projects ...\n");
@@ -76,10 +90,30 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     outputName = cc_printf("lib%s.a", outputName);
   }
 
+  // Remove duplicate groups
+  const char** unique_groups    = {0};
+  const char** unique_groups_id = {0};
+  for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
+    const char* g = p->groups[ig];
+    if (g[0]) {
+      bool already_contains_group = false;
+      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+        if (strcmp(g, unique_groups[i]) == 0) {
+          already_contains_group = true;
+        }
+      }
+      if (!already_contains_group) {
+        array_push(unique_groups, g);
+        array_push(unique_groups_id, xCodeUUID2String(xCodeGenerateUUID()));
+      }
+    }
+  }
+
   fprintf(f,
           "// !$*UTF8*$!\n{\n	archiveVersion = 1;\n	classes = {\n	};\n	objectVersion = "
-          "50;\n	objects = {\n\n/* Begin PBXBuildFile section */\n");
+          "50;\n	objects = {\n\n");
 
+  fprintf(f, "/* Begin PBXBuildFile section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
     if (!is_header_file(filename))
@@ -152,49 +186,74 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			);\n			runOnlyForDeploymentPostprocessing = "
           "0;\n		};\n/* End PBXFrameworksBuildPhase section */\n\n");
 
-  fprintf(
-      f,
-      "/* Begin PBXGroup section */\n		4008B25F23EDACFC00FCB192 /* Frameworks */ = {\n	"
-      "		isa = PBXGroup;\n			children = (\n			);\n	"
-      "		name = Frameworks;\n			sourceTree = \"<group>\";\n		"
-      "};\n		403CC53223EB479400558E07 = {\n			isa = PBXGroup;\n	"
-      "		children = (\n				403CC53D23EB479400558E07 /* ");
-  fprintf(f, "%s", p->name);
+  fprintf(f, "/* Begin PBXGroup section */\n");
   fprintf(f,
-          " */,\n				403CC53C23EB479400558E07 /* Products */,\n	"
-          "			4008B25F23EDACFC00FCB192 /* Frameworks */,\n			"
-          ");\n			sourceTree = \"<group>\";\n		};\n		"
-          "403CC53C23EB479400558E07 /* Products */ = {\n			isa = "
-          "PBXGroup;\n			children = (\n");
+          "		403CC53223EB479400558E07 = {\n"
+          "			isa = PBXGroup;\n"
+          "			children = (\n");
+  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+    fprintf(f, "				%s,\n",
+            xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
+  }
+  fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
+  if (array_count(p->dependantOn) > 0) {
+    fprintf(f, "				4008B25F23EDACFC00FCB192 /* Frameworks */,\n");
+  }
+  fprintf(f,
+          "			);\n"
+          "			sourceTree = \"<group>\";\n"
+          "		};\n");
+  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+    const char* ug = unique_groups[i];
+    fprintf(f,
+            "		%s = {\n"
+            "			isa = PBXGroup;\n"
+            "			children = (\n",
+            xCodeStringFromGroup(unique_groups, unique_groups_id, ug));
+    for (unsigned fi = 0; fi < files_count; ++fi) {
+      const char* filename   = p->files[fi];
+      const char* file_group = p->groups[fi];
+      if (strcmp(file_group, ug) == 0) {
+        fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
+                strip_path(filename));
+      }
+    }
+    fprintf(f,
+            "			);\n"
+            "			name = \"%s\";\n"
+            "			sourceTree = \"<group>\";\n"
+            "		};\n",
+            ug);
+  }
+  if (array_count(p->dependantOn) > 0) {
+    fprintf(f,
+            "		4008B25F23EDACFC00FCB192 /* Frameworks */ = {\n"
+            "			isa = PBXGroup;\n"
+            "			children = (\n"
+            "			);\n"
+            "			name = Frameworks;\n"
+            "			sourceTree = \"<group>\";\n"
+            "		};\n");
+  }
+  fprintf(f,
+          "		403CC53C23EB479400558E07 /* Products */ = {\n"
+          "			isa = PBXGroup;\n"
+          "			children = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputFileReferenceUIID),
           outputName);
   fprintf(f,
-          "			);\n			name = Products;\n			"
-          "sourceTree = \"<group>\";\n		};\n		403CC53D23EB479400558E07 /* ");
-  fprintf(f, "%s", p->name);
-  fprintf(f,
-          " */ = {\n			isa = PBXGroup;\n			children = (\n	"
-          "			403CC54523EB480800558E07 /* src */,\n			);\n	"
-          "		path = ");
-  fprintf(f, "%s", p->name);
-  fprintf(f,
-          ";\n			sourceTree = \"<group>\";\n		};\n		"
-          "403CC54523EB480800558E07 /* src */ = {\n			isa = PBXGroup;\n	"
-          "		children = (\n");
-  for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->files[fi];
-    fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
-            strip_path(filename));
-  }
-  fprintf(f,
-          "			);\n			name = src;\n			path = "
-          "../../src;\n			sourceTree = \"<group>\";\n		};\n/* End "
-          "PBXGroup section */\n\n/* Begin PBXNativeTarget section */\n");
+          "			);\n"
+          "			name = Products;\n"
+          "			sourceTree = \"<group>\";\n"
+          "		};\n");
+  fprintf(f, "/* End PBXGroup section */\n\n");
+
+  fprintf(f, "/* Begin PBXNativeTarget section */\n");
   fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(outputTargetUIID), p->name);
-  fprintf(
-      f,
-      "			isa = PBXNativeTarget;\n			buildConfigurationList = "
-      "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
+  fprintf(f,
+          "			isa = PBXNativeTarget;\n			"
+          "buildConfigurationList = "
+          "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
   fprintf(f, "%s", p->name);
   fprintf(f,
           "\" */;\n			buildPhases = (\n				"
@@ -233,15 +292,16 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "};\n			buildConfigurationList = 403CC53623EB479400558E07 /* Build "
           "configuration list for PBXProject \"");
   fprintf(f, "%s", p->name);
-  fprintf(
-      f,
-      "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
-      "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
-      "	knownRegions = (\n				en,\n				Base,\n	"
-      "		);\n			mainGroup = 403CC53223EB479400558E07;\n			"
-      "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
-      "projectDirPath = \"\";\n			projectRoot = \"\""
-      ";\n			targets = (\n");
+  fprintf(f,
+          "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
+          "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
+          "	knownRegions = (\n				en,\n				"
+          "Base,\n	"
+          "		);\n			mainGroup = 403CC53223EB479400558E07;\n		"
+          "	"
+          "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
+          "projectDirPath = \"\";\n			projectRoot = \"\""
+          ";\n			targets = (\n");
   fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
           p->name);
   fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
@@ -295,7 +355,9 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     array_push(configuration_ids, xCodeGenerateUUID());
   }
 
-  const char* preprocessor_defines       = "					\"$(inherited)\",\n";
+  const char* preprocessor_defines =
+      "					"
+      "\"$(inherited)\",\n";
   const char* additional_compiler_flags  = "";
   const char* additional_include_folders = "(\n";
 

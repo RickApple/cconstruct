@@ -2,6 +2,8 @@
 set -e
 set -x
 
+COMPILE_CCONSTRUCT_COMMAND='clang -x c'
+
 
 # Compile a single instance with C++ to check compatiblity of cconstruct
 pushd 01_hello_world
@@ -9,7 +11,6 @@ clang -x c++ config.cc -o cconstruct
 popd
 
 
-COMPILE_CCONSTRUCT_COMMAND='clang -x c'
 
 
 pushd 01_hello_world
