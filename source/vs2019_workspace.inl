@@ -63,7 +63,7 @@ void vs2019_generateInFolder(const char* workspace_path) {
     const TProject* p      = privateData.projects[i];
     const char* project_id = project_ids[i];
     vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
-    vs2019_createFilters(p);
+    vs2019_createFilters(p, count_folder_depth);
 
     printf("Constructed VS2019 project '%s' at '%s/%s.vcxproj'\n", p->name, workspace_path,
            p->name);

@@ -34,7 +34,12 @@ typedef struct vs_compiler_setting {
   const char* value;
 } vs_compiler_setting;
 
-void vs2019_createFilters(const TProject* in_project) {
+void vs2019_createFilters(const TProject* in_project, int folder_depth) {
+  const char* prepend_path = "";
+  for (int i = 0; i < folder_depth; ++i) {
+    prepend_path = cc_printf("%s../", prepend_path);
+  }
+
   const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
   FILE* filter_file                    = fopen(projectfilters_file_path, "wb");
 
@@ -73,22 +78,19 @@ void vs2019_createFilters(const TProject* in_project) {
   }
   fprintf(filter_file, "  </ItemGroup>\n");
 
-  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    const char* g = unique_groups[i];
+  for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
     fprintf(filter_file, "  <ItemGroup>\n");
-    for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
-      const char* f = p->files[fi];
-      if (strcmp(f, g) == 0) {
-        if (strstr(f, ".h")) {
-          fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", f);
-          fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
-          fprintf(filter_file, "    </ClInclude>\n");
-        } else {
-          fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", f);
-          fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
-          fprintf(filter_file, "    </ClCompile>\n");
-        }
-      }
+    const char* f                  = p->files[fi];
+    const char* g                  = p->groups[fi];
+    const char* relative_file_path = cc_printf("%s%s", prepend_path, f);
+    if (strstr(f, ".h")) {
+      fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
+      fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
+      fprintf(filter_file, "    </ClInclude>\n");
+    } else {
+      fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
+      fprintf(filter_file, "      <Filter>%s</Filter>\n", g);
+      fprintf(filter_file, "    </ClCompile>\n");
     }
     fprintf(filter_file, "  </ItemGroup>\n");
   }
@@ -199,7 +201,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       }
       fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
       fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\</OutDir>\n", resolved_output_folder);
-      // VS2019 warns if multiple projects have the same intermediate directory, so void that here
+      // VS2019 warns if multiple projects have the same intermediate directory, so void that
+      // here
       fprintf(project_file,
               "    <IntDir>$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\</IntDir>\n",
               resolved_output_folder);

@@ -14,8 +14,10 @@ int main() {
 
   void* l = cc.createProject("my_library", CCProjectTypeStaticLibrary);
   {
-    const char* files[] = {"src/library/library.c", "src/library/function.h"};
-    cc.project.addFiles(l, "Source Files", countof(files), files);
+    const char* c_files[] = {"src/library/library.c"};
+    cc.project.addFiles(l, "Source Files", countof(c_files), c_files);
+    const char* h_files[] = {"src/library/function.h"};
+    cc.project.addFiles(l, "Header Files", countof(h_files), h_files);
   }
 
   void* b = cc.createProject("my_binary", CCProjectTypeConsoleApplication);
