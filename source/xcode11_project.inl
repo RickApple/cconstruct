@@ -36,13 +36,12 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) 
     array_push(a, setting);                  \
   }
 
-const char* xCodeStringFromGroup(const char** group_names, const char** group_ids,
-                                 const char* group_name) {
-  const unsigned num_groups = array_count(group_names);
+const char* xCodeStringFromGroup(const cc_group_impl_t** unique_groups, const char** group_ids,
+                                 const cc_group_impl_t* group) {
+  const unsigned num_groups = array_count(unique_groups);
   for (unsigned i = 0; i < num_groups; ++i) {
-    printf("Comparing '%s' with '%s'\n", group_names[i], group_name);
-    if (strcmp(group_names[i], group_name) == 0) {
-      return cc_printf("%s /* %s */", group_ids[i], group_name);
+    if (unique_groups[i] == group) {
+      return cc_printf("%s /* %s */", group_ids[i], group->name);
     }
   }
 
@@ -52,8 +51,6 @@ const char* xCodeStringFromGroup(const char** group_names, const char** group_id
 
 void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
-  printf("Generating XCode workspace and projects ...\n");
-
   const TProject* p = (TProject*)in_project;
 
   const char* prepend_path = "";
@@ -90,15 +87,15 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     outputName = cc_printf("lib%s.a", outputName);
   }
 
-  // Remove duplicate groups
-  const char** unique_groups    = {0};
-  const char** unique_groups_id = {0};
+  // Create list of groups needed.
+  const cc_group_impl_t** unique_groups = {0};
+  const char** unique_groups_id         = {0};
   for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
-    const char* g = p->groups[ig]->name;
-    if (g[0]) {
+    const cc_group_impl_t* g = p->groups[ig];
+    while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (strcmp(g, unique_groups[i]) == 0) {
+        if (g == unique_groups[i]) {
           already_contains_group = true;
         }
       }
@@ -106,8 +103,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
         array_push(unique_groups, g);
         array_push(unique_groups_id, xCodeUUID2String(xCodeGenerateUUID()));
       }
+      g = g->parent_group;
     }
   }
+  const unsigned num_unique_groups = array_count(unique_groups);
 
   fprintf(f,
           "// !$*UTF8*$!\n{\n	archiveVersion = 1;\n	classes = {\n	};\n	objectVersion = "
@@ -192,8 +191,16 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			isa = PBXGroup;\n"
           "			children = (\n");
   for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    fprintf(f, "				%s,\n",
-            xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
+    if (unique_groups[i]->parent_group == NULL) {
+      fprintf(f, "				%s,\n",
+              xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
+    }
+  }
+  for (unsigned i = 0; i < array_count(p->files); ++i) {
+    if (p->groups[i] == NULL) {
+      fprintf(f, "				%s /* %s */,\n", fileReferenceUUID[i],
+              strip_path(p->files[i]));
+    }
   }
   fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
   if (array_count(p->dependantOn) > 0) {
@@ -203,19 +210,26 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			);\n"
           "			sourceTree = \"<group>\";\n"
           "		};\n");
-  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    const char* ug = unique_groups[i];
+  for (unsigned i = 0; i < num_unique_groups; ++i) {
+    const cc_group_impl_t* g = unique_groups[i];
     fprintf(f,
             "		%s = {\n"
             "			isa = PBXGroup;\n"
             "			children = (\n",
-            xCodeStringFromGroup(unique_groups, unique_groups_id, ug));
+            xCodeStringFromGroup(unique_groups, unique_groups_id, g));
     for (unsigned fi = 0; fi < files_count; ++fi) {
-      const char* filename   = p->files[fi];
-      const char* file_group = p->groups[fi]->name;
-      if (strcmp(file_group, ug) == 0) {
+      const char* filename              = p->files[fi];
+      const cc_group_impl_t* file_group = p->groups[fi];
+      if (file_group == g) {
         fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
                 strip_path(filename));
+      }
+    }
+    for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
+      const cc_group_impl_t* child_group = unique_groups[gi];
+      if (child_group->parent_group == g) {
+        fprintf(f, "			    %s,\n",
+                xCodeStringFromGroup(unique_groups, unique_groups_id, child_group));
       }
     }
     fprintf(f,
@@ -223,7 +237,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             "			name = \"%s\";\n"
             "			sourceTree = \"<group>\";\n"
             "		};\n",
-            ug);
+            g->name);
   }
   if (array_count(p->dependantOn) > 0) {
     fprintf(f,
@@ -481,20 +495,65 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "section */\n	};\n	rootObject = 403CC53323EB479400558E07 /* Project object */;\n}\n");
 }
 
-void xCodeCreateWorkspaceFile(FILE* f) {
-  fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Workspace\n   version = \"1.0\">\n");
+void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
+                              const cc_group_impl_t* parent_group, int folder_depth) {
+  const char* prepend_path = "";
+  for (int i = 0; i < folder_depth; ++i) {
+    prepend_path = cc_printf("%s  ", prepend_path);
+  }
+
+  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+    if (unique_groups[i]->parent_group == parent_group) {
+      fprintf(f, "%s  <Group\n", prepend_path);
+      fprintf(f, "%s    location = \"container:\"\n", prepend_path);
+      fprintf(f, "%s    name = \"%s\">\n", prepend_path, unique_groups[i]->name);
+      xCode_addWorkspaceFolder(f, unique_groups, unique_groups[i], folder_depth + 1);
+      fprintf(f, "%s  </Group>\n", prepend_path);
+    }
+  }
 
   for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
     const TProject* p = privateData.projects[i];
-    fprintf(f, "  <FileRef\n");
-    fprintf(f, "    location = \"group:%s.xcodeproj\">\n", p->name);
-    fprintf(f, "  </FileRef>\n");
+    if (p->parent_group == parent_group) {
+      fprintf(f, "%s  <FileRef\n", prepend_path);
+      fprintf(f, "%s    location = \"group:%s.xcodeproj\">\n", prepend_path, p->name);
+      fprintf(f, "%s  </FileRef>\n", prepend_path);
+    }
   }
+}
+
+void xCodeCreateWorkspaceFile(FILE* f) {
+  fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Workspace\n   version = \"1.0\">\n");
+
+  // Create list of groups needed.
+  const cc_group_impl_t** unique_groups = {0};
+  const char** unique_groups_id         = {0};
+  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+    const TProject* p        = privateData.projects[i];
+    const cc_group_impl_t* g = p->parent_group;
+    while (g) {
+      bool already_contains_group = false;
+      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+        if (g == unique_groups[i]) {
+          already_contains_group = true;
+        }
+      }
+      if (!already_contains_group) {
+        array_push(unique_groups, g);
+        array_push(unique_groups_id, vs_generateUUID());
+      }
+      g = g->parent_group;
+    }
+  }
+
+  xCode_addWorkspaceFolder(f, unique_groups, NULL, 0);
 
   fprintf(f, "</Workspace>");
 }
 
 void xcode_generateInFolder(const char* generate_path) {
+  printf("Generating XCode workspace and projects ...\n");
+
   int count_folder_depth = 1;
   {
     const char* c = generate_path;

@@ -107,6 +107,15 @@ popd
 set -e
 
 
+pushd 08_project_structure
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/project_structure.xcworkspace -scheme my_binary
+./build/x64/Debug/my_binary
+popd
+
+
 
 pushd ../tools
 rm -rf build
