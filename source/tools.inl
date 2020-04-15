@@ -167,7 +167,7 @@ void* array_reserve(void* a, unsigned element_size, unsigned new_capacity) {
 }
 
 const char* cc_printf(const char* format, ...) {
-  unsigned length = strlen(format);
+  unsigned length = (unsigned)strlen(format);
 
   // Guess length of output format
   unsigned alloc_size = (2 * length > 256) ? 2 * length : 256;
@@ -203,12 +203,12 @@ const char* cc_substitute(const char* in_original, const char** keys, const char
     const char* offset      = in;
     const char* piece_start = in;
     while ((offset = strstr(offset, key_search)) != 0) {
-      array_append(out_string, piece_start, offset - piece_start);
-      array_append(out_string, value, strlen(value));
+      array_append(out_string, piece_start, (unsigned)(offset - piece_start));
+      array_append(out_string, value, (unsigned)strlen(value));
       offset      = offset + strlen(key_search);
       piece_start = offset;
     }
-    array_append(out_string, piece_start, strlen(piece_start));
+    array_append(out_string, piece_start, (unsigned)strlen(piece_start));
     array_push(out_string, 0);
     in = out_string;  // Breaking connection to stretchy buffer but that's ok.
   }

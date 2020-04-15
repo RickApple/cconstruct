@@ -111,7 +111,7 @@ cconstruct.exe || exit /b
 rem Without doing something about warnings, the following builds would fail.
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 devenv.com build\workspace.sln /Build "Release|x64" || exit /b
-
+popd
 
 
 pushd ..\tools

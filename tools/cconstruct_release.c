@@ -8,7 +8,7 @@
 #include "../source/tools.inl"
 
 const char* combinePaths(const char* folder1, const char* folder2) {
-  unsigned combined_length = strlen(folder1) + 1 + strlen(folder2) + 1;
+  unsigned combined_length = (unsigned)(strlen(folder1) + 1 + strlen(folder2) + 1);
   char* out_buffer         = (char*)cc_alloc_(combined_length);
   char* append_buffer      = out_buffer;
   strcpy(out_buffer, folder1);

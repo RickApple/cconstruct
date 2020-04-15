@@ -314,6 +314,8 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       vs_compiler_setting warning_level_setting = {"WarningLevel",
                                                    warning_strings[combined_warning_level]};
       array_push(compiler_flags, warning_level_setting);
+      vs_compiler_setting disable_unused_parameter_setting = {"DisableSpecificWarnings", "4100"};
+      array_push(compiler_flags, disable_unused_parameter_setting);
 
       vs_compiler_setting warning_as_error_setting = {
           "TreatWarningAsError", shouldDisableWarningsAsError ? "false" : "true"};
