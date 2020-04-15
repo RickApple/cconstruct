@@ -154,13 +154,15 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   }
   fprintf(project_file, "  </ItemGroup>\n");
 
-  fprintf(
-      project_file,
-      "  <PropertyGroup Label=\"Globals\">\n    <VCProjectVersion>15.0</VCProjectVersion>\n    "
-      "<ProjectGuid>{%s}</ProjectGuid>\n    <Keyword>Win32Proj</Keyword>\n    "
-      "<RootNamespace>builder</RootNamespace>\n    "
-      "<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>\n  </PropertyGroup>\n",
-      project_id);
+  fprintf(project_file,
+          "  <PropertyGroup Label=\"Globals\">\n"
+          "    <VCProjectVersion>15.0</VCProjectVersion>\n"
+          "    <ProjectGuid>{%s}</ProjectGuid>\n"
+          "    <Keyword>Win32Proj</Keyword>\n"
+          "    <RootNamespace>builder</RootNamespace>\n"
+          "    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>\n"
+          "  </PropertyGroup>\n",
+          project_id);
 
   fprintf(project_file,
           "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n");
@@ -251,11 +253,9 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       vs_compiler_setting* compiler_flags = {0};
       {
         vs_compiler_setting precompiled_setting     = {"PrecompiledHeader", "NotUsing"};
-        vs_compiler_setting warning_setting         = {"WarningLevel", "Level3"};
         vs_compiler_setting sdlcheck_setting        = {"SDLCheck", "true"};
         vs_compiler_setting conformancemode_setting = {"ConformanceMode", "true"};
         array_push(compiler_flags, precompiled_setting);
-        array_push(compiler_flags, warning_setting);
         array_push(compiler_flags, sdlcheck_setting);
         array_push(compiler_flags, conformancemode_setting);
       }
@@ -280,25 +280,44 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       const char* additional_compiler_flags  = "%(AdditionalOptions)";
       const char* additional_include_folders = "";
 
+      EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+      bool shouldDisableWarningsAsError         = false;
       for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
+        const cc_flags* flags = &(p->flags[ipc]);
+
         // TODO ordering and combination so that more specific flags can override general ones
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
         if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
 
-        for (unsigned pdi = 0; pdi < array_count(p->flags[ipc].defines); ++pdi) {
-          preprocessor_defines =
-              cc_printf("%s;%s", p->flags[ipc].defines[pdi], preprocessor_defines);
+        shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+        combined_warning_level       = flags->warningLevel;
+        for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
+          preprocessor_defines = cc_printf("%s;%s", flags->defines[pdi], preprocessor_defines);
         }
-        for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
+        for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
           additional_compiler_flags =
-              cc_printf("%s %s", p->flags[ipc].compile_options[cfi], additional_compiler_flags);
+              cc_printf("%s %s", flags->compile_options[cfi], additional_compiler_flags);
         }
-        for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
+        for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
           // Order matters here, so append
           additional_include_folders =
-              cc_printf("%s;%s", additional_include_folders, p->flags[ipc].include_folders[ifi]);
+              cc_printf("%s;%s", additional_include_folders, flags->include_folders[ifi]);
         }
       }
+
+      const char* warning_strings[] = {"Level4", "Level3", "Level2", "EnableAllWarnings",
+                                       "TurnOffAllWarnings"};
+      assert(EStateWarningLevelHigh == 0);
+      assert(EStateWarningLevelAll == 3);
+      assert(EStateWarningLevelNone == 4);
+
+      vs_compiler_setting warning_level_setting = {"WarningLevel",
+                                                   warning_strings[combined_warning_level]};
+      array_push(compiler_flags, warning_level_setting);
+
+      vs_compiler_setting warning_as_error_setting = {
+          "TreatWarningAsError", shouldDisableWarningsAsError ? "false" : "true"};
+      array_push(compiler_flags, warning_as_error_setting);
 
       if (is_debug_build) {
         preprocessor_defines = cc_printf("_DEBUG;%s", preprocessor_defines);

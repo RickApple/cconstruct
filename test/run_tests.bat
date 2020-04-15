@@ -5,6 +5,7 @@ echo on
 set COMPILE_CONSTRUCT_COMMAND=cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 
 
+
 rem Compile a single instance of cconstruct with C++ to check for more copmile issues
 pushd 01_hello_world
 cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
@@ -101,6 +102,15 @@ cconstruct.exe || exit /b
 devenv.com build\project_structure.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\my_binary.exe || exit /b
 popd
+
+
+pushd 09_warning_level
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
+rem Without doing something about warnings, the following builds would fail.
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+devenv.com build\workspace.sln /Build "Release|x64" || exit /b
 
 
 

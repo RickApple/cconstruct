@@ -116,6 +116,16 @@ xcodebuild -quiet -workspace build/project_structure.xcworkspace -scheme my_bina
 popd
 
 
+pushd 09_warning_level
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
+./cconstruct
+# Without doing something about warnings, the following builds would fail.
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -configuration Debug
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -configuration Release
+popd
+
+
 
 pushd ../tools
 rm -rf build

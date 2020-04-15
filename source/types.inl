@@ -100,6 +100,34 @@ void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flag
 void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {
   array_push(in_flags->defines, cc_printf("%s", in_define_string));
 }
+void cc_state_setWarningLevel(cc_flags* in_flags, EStateWarningLevel in_level) {
+  in_flags->warningLevel = in_level;
+  /*
+  clang:
+  -W -Wall
+  -W -Wall -Wextra -pedantic
+  -W -Wall -Wextra -pedantic -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization
+-Wformat=2 -Winit-self -Wlogical-op -Wmissing-include-dirs -Wnoexcept -Wold-style-cast
+-Woverloaded-virtual -Wredundant-decls -Wshadow -Wsign-promo -Wstrict-null-sentinel
+-Wstrict-overflow=5 -Wundef -Wno-unused -Wno-variadic-macros -Wno-parentheses
+-fdiagnostics-show-option
+
+-Weverything
+
+  -Werror warnings as errors
+
+  /W2
+  /W3
+  /W4
+
+  /Wall
+
+  /WX
+  */
+}
+void cc_state_disableWarningsAsErrors(cc_flags* in_flags) {
+  in_flags->disableWarningsAsErrors = true;
+}
 
 void addPostBuildAction(void* in_out_project, const char* in_action_command) {
   ((TProject*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
@@ -122,7 +150,7 @@ void cc_project_setFlagsLimited_(void* in_out_project, const cc_flags* in_flags,
                                  CCPlatformHandle in_platform,
                                  CCConfigurationHandle in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
-  cc_flags stored_flags        = {0};
+  cc_flags stored_flags        = *in_flags;
   stored_flags.defines         = string_array_clone(in_flags->defines);
   stored_flags.include_folders = string_array_clone(in_flags->include_folders);
   stored_flags.compile_options = string_array_clone(in_flags->compile_options);

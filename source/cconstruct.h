@@ -6,8 +6,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum { CCProjectTypeConsoleApplication = 0, CCProjectTypeStaticLibrary } EProjectType;
-typedef enum { EPlatformTypeX86 = 0, EPlatformTypeX64, EPlatformTypeARM } EPlatformType;
+typedef enum {
+  CCProjectTypeConsoleApplication = 0,
+  CCProjectTypeStaticLibrary,
+} EProjectType;
+typedef enum {
+  EPlatformTypeX86 = 0,
+  EPlatformTypeX64,
+  EPlatformTypeARM,
+} EPlatformType;
+typedef enum {
+  EStateWarningLevelDefault = 0,
+  EStateWarningLevelHigh    = EStateWarningLevelDefault,
+  EStateWarningLevelMedium,
+  EStateWarningLevelLow,
+  EStateWarningLevelAll,   // This really enables everything, not recommended for production use
+  EStateWarningLevelNone,  // This really disables everything, not recommended for production use
+} EStateWarningLevel;
 
 // Opaque handles at this point
 typedef struct cc_group_impl_t* cc_group_t;
@@ -32,6 +47,9 @@ typedef struct cc_flags {
   const char** include_folders;
   const char** compile_options;
   const char** link_options;
+  EStateWarningLevel
+      warningLevel;  // By default warnings are turned up to the highest level below all.
+  bool disableWarningsAsErrors;  // By default warnings are treated as errors.
 } cc_flags;
 
 typedef struct CConstruct {
@@ -60,6 +78,8 @@ typedef struct CConstruct {
   const struct {
     void (*reset)(cc_flags* out_flags);
     void (*addPreprocessorDefine)(cc_flags* in_flags, const char* in_define);
+    void (*setWarningLevel)(cc_flags* in_flags, EStateWarningLevel in_level);
+    void (*disableWarningsAsErrors)(cc_flags* in_flags);
   } state;
 
   const struct {
@@ -103,7 +123,8 @@ const CConstruct cc = {cc_autoRecompileFromConfig,
                        cc_platform_create,
                        cc_project_create_,
                        cc_createGroup,
-                       {cc_state_reset, cc_state_addPreprocessorDefine},
+                       {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
+                        cc_state_disableWarningsAsErrors},
                        {addFilesToProject, addInputProject, cc_project_setFlags_,
                         cc_project_setFlagsLimited_, addPostBuildAction},
                        {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
