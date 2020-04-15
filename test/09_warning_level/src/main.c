@@ -6,6 +6,6 @@
 //  Copyright © 2020 Daedalus Development. All rights reserved.
 //
 int main(int argc, const char* argv[]) {
-  float f = 1.1;
+  float f;
   return 0;
 }

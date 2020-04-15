@@ -3,10 +3,11 @@
 A tool to make IDE project files, using C as a description language.
 
 ## TODO
-
+- XCode remove hardcoded debug and release configurations
+- Rename platform to architexture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
+- Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
-- Visual Studio warns that both /WX- (warnings not as errors) and /WX are defined. Need to properly integrate the setting.
-- Allow setting generic flags like warning level, warnings as errors in non-general way so can properly set the flag in VS2019
+
 - Allow for a way to add files in a specific folder so user doesn't have to manually give complete path to every single file
 - Create test for hierarchical folder structure
 - Make tests for cconstruct build out of tree
@@ -14,6 +15,7 @@ A tool to make IDE project files, using C as a description language.
 - simplify output folders taking into account that VS gives warning if multiple projects have same output/intermediate folder
 - support pre build actions (post already works)
 - have option to create project to debug cconstruct binary?
+- Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
 
 ## Done
 

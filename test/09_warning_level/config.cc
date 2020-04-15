@@ -16,7 +16,7 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
-  // Debug build give warnings which are by default turned into errors.
+  // Debug build gives warnings which are by default turned into errors.
   // Disabling warnings as errors still shows the warnings during compile, but no errors.
   cc.state.disableWarningsAsErrors(&flags);
   cc.project.setFlagsLimited(p, &flags, platform_x64, configuration_debug);

@@ -270,18 +270,20 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
   fprintf(f, "%s", p->name);
   fprintf(f,
-          "\" */;\n			buildPhases = (\n				"
-          "403CC53723EB479400558E07 /* Sources */,\n				"
-          "403CC53823EB479400558E07 /* Frameworks */,\n				"
-          "403CC53923EB479400558E07 /* CopyFiles */,\n				");
+          "\" */;\n"
+          "			buildPhases = (\n"
+          "				403CC53723EB479400558E07 /* Sources */,\n"
+          "				403CC53823EB479400558E07 /* Frameworks */,\n"
+          "				403CC53923EB479400558E07 /* CopyFiles */,\n");
   if (has_post_build_action) {
-    fprintf(f, "40C3D9692440AC2500C8EB40 /* ShellScript */,\n			");
+    fprintf(f, "				40C3D9692440AC2500C8EB40 /* ShellScript */,\n");
   }
   fprintf(f,
-          ");\n			"
-          "buildRules = (\n			);\n			dependencies = (\n	"
-          "		);\n");
-
+          "			);\n"
+          "			buildRules = (\n"
+          "			);\n"
+          "			dependencies = (\n"
+          "			);\n");
   fprintf(f, "			name = %s;\n", p->name);
   fprintf(f, "			productName = %s;\n", p->name);
   fprintf(f, "			productReference = %s /* %s */;\n",
@@ -292,8 +294,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   } else {
     fprintf(f, "\"com.apple.product-type.library.static\"");
   }
+  fprintf(f, ";\n		};\n/* End PBXNativeTarget section */\n\n");
+
   fprintf(f,
-          ";\n		};\n/* End PBXNativeTarget section */\n\n/* Begin PBXProject section "
+          "/* Begin PBXProject section "
           "*/\n		403CC53323EB479400558E07 /* Project object */ = {\n			"
           "isa = PBXProject;\n			attributes = {\n				"
           "LastUpgradeCheck = 1130;\n				ORGANIZATIONNAME = \"Daedalus "
@@ -362,94 +366,181 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			);\n			runOnlyForDeploymentPostprocessing = "
           "0;\n		};\n/* End PBXSourcesBuildPhase section */\n\n");
 
-  xcode_uuid* configuration_ids = {0};
-  configuration_ids = (xcode_uuid*)array_reserve(configuration_ids, sizeof(*configuration_ids),
-                                                 array_count(privateData.configurations));
-  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
+  const unsigned num_configurations = array_count(privateData.configurations);
+  xcode_uuid* configuration_ids     = {0};
+  for (unsigned i = 0; i < num_configurations; ++i) {
     array_push(configuration_ids, xCodeGenerateUUID());
   }
+  xcode_compiler_setting** config_datas = {0};
 
-  const char* preprocessor_defines =
-      "					"
-      "\"$(inherited)\",\n";
-  const char* additional_compiler_flags  = "";
-  const char* additional_include_folders = "(\n";
+  for (unsigned i = 0; i < num_configurations; ++i) {
+    const TConfiguration* config = privateData.configurations[i];
 
-  for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
-    // TODO ordering and combination so that more specific flags can override general ones
-    // if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
-    // if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
+    const char* preprocessor_defines =
+        "					"
+        "\"$(inherited)\",\n";
+    const char* additional_compiler_flags  = "";
+    const char* additional_include_folders = "(\n";
 
-    for (unsigned pdi = 0; pdi < array_count(p->flags[ipc].defines); ++pdi) {
-      preprocessor_defines = cc_printf("					\"%s\",\n%s",
-                                       p->flags[ipc].defines[pdi], preprocessor_defines);
+    EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+    bool shouldDisableWarningsAsError         = false;
+    for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
+      const cc_flags* flags = &(p->flags[ipc]);
+
+      // TODO ordering and combination so that more specific flags can override general ones
+      if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+      // if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
+
+      shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+      combined_warning_level       = flags->warningLevel;
+      printf("Should disable %i\n", shouldDisableWarningsAsError);
+
+      for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
+        preprocessor_defines = cc_printf("					\"%s\",\n%s",
+                                         flags->defines[pdi], preprocessor_defines);
+      }
+
+      for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
+        additional_compiler_flags =
+            cc_printf("%s					  \"%s\",\n",
+                      additional_compiler_flags, flags->compile_options[cfi]);
+      }
+      for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
+        // Order matters here, so append
+        additional_include_folders =
+            cc_printf("%s					  \"%s\",\n",
+                      additional_include_folders, flags->include_folders[ifi]);
+      }
     }
+    additional_include_folders = cc_printf("%s               )", additional_include_folders);
+    assert(array_count(privateData.platforms) == 1);
+    assert(privateData.platforms[0]->type == EPlatformTypeX64);
+    const char* substitution_keys[]   = {"configuration", "platform"};
+    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+    const char* resolved_output_folder =
+        cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
+                      countof(substitution_keys));
 
-    for (unsigned cfi = 0; cfi < array_count(p->flags[ipc].compile_options); ++cfi) {
-      additional_compiler_flags =
-          cc_printf("%s					  \"%s\",\n", additional_compiler_flags,
-                    p->flags[ipc].compile_options[cfi]);
+    const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
+
+    const char* combined_preprocessor   = NULL;
+    xcode_compiler_setting* config_data = {0};
+    if (strcmp(config->label, "Debug") == 0) {
+      combined_preprocessor = cc_printf(
+          "(\n					\"DEBUG=1\",\n%s				)",
+          preprocessor_defines);
+      add_setting(config_data, "DEBUG_INFORMATION_FORMAT", "dwarf");
+      add_setting(config_data, "ENABLE_TESTABILITY", "YES");
+      add_setting(config_data, "GCC_OPTIMIZATION_LEVEL", "0");
+    } else {
+      combined_preprocessor = cc_printf("(\n%s				)", preprocessor_defines);
+      add_setting(config_data, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
+      add_setting(config_data, "ENABLE_NS_ASSERTIONS", "NO");
     }
-    for (unsigned ifi = 0; ifi < array_count(p->flags[ipc].include_folders); ++ifi) {
-      // Order matters here, so append
-      additional_include_folders =
-          cc_printf("%s					  \"%s\",\n", additional_include_folders,
-                    p->flags[ipc].include_folders[ifi]);
+    add_setting(config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor);
+
+    if (!shouldDisableWarningsAsError) {
+      add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");
+    } else {
+      add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "NO");
     }
+    const char* default_enabled_warnings[] = {
+        "CLANG_WARN_DELETE_NON_VIRTUAL_DTOR",
+        "CLANG_WARN_DIRECT_OBJC_ISA_USAGE",
+        "CLANG_WARN_MISSING_NOESCAPE",
+        "CLANG_WARN_OBJC_ROOT_CLASS",
+        "CLANG_WARN_PRAGMA_PACK",
+        "CLANG_WARN_PRIVATE_MODULE",
+        "CLANG_WARN_UNGUARDED_AVAILABILITY",
+        "CLANG_WARN_VEXING_PARSE",
+        "CLANG_WARN__ARC_BRIDGE_CAST_NONARC",
+        "GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS",
+        "GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO",
+        "GCC_WARN_ABOUT_POINTER_SIGNEDNESS",
+        "GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL",
+        "GCC_WARN_CHECK_SWITCH_STATEMENTS",
+        "GCC_WARN_MISSING_PARENTHESES",
+        "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
+    };
+    const char* high_enabled_warnings[] = {
+        "CLANG_WARN_EMPTY_BODY",
+        "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
+        "CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY",
+        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+        "CLANG_WARN_UNREACHABLE_CODE",
+        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+        "CLANG_WARN_EMPTY_BODY",
+        "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
+        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+        "CLANG_WARN_UNREACHABLE_CODE",
+        "GCC_WARN_64_TO_32_BIT_CONVERSION",
+        "GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS",
+        "GCC_WARN_ABOUT_MISSING_NEWLINE",
+        "GCC_WARN_ABOUT_RETURN_TYPE",
+        "GCC_WARN_CHECK_SWITCH_STATEMENTS",
+        "GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS",
+        "GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED",
+        "GCC_WARN_MISSING_PARENTHESES",
+        "GCC_WARN_PEDANTIC",
+        "GCC_WARN_SHADOW",
+        "GCC_WARN_SIGN_COMPARE",
+        "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
+        "GCC_WARN_UNINITIALIZED_AUTOS",
+        "GCC_WARN_UNKNOWN_PRAGMAS",
+        "GCC_WARN_UNUSED_VALUE",
+        "GCC_WARN_UNUSED_FUNCTION",
+        "GCC_WARN_UNUSED_LABEL",
+        "GCC_WARN_UNUSED_VARIABLE",
+        "RUN_CLANG_STATIC_ANALYZER",
+    };
+    if (combined_warning_level == EStateWarningLevelHigh) {
+      for (unsigned i = 0; i < countof(high_enabled_warnings); ++i) {
+        add_setting(config_data, high_enabled_warnings[i], "YES");
+      }
+      for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
+        add_setting(config_data, default_enabled_warnings[i], "YES");
+      }
+
+      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
+                                            additional_compiler_flags, "-Wformat=2");
+      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
+                                            additional_compiler_flags, "-Wextra");
+      // disabling unused parameters needs to be done after -Wextra
+      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
+                                            additional_compiler_flags, "-Wno-unused-parameter");
+
+      // https://github.com/boredzo/Warnings-xcconfig/wiki/Warnings-Explained
+
+    } else if (combined_warning_level == EStateWarningLevelNone) {
+      add_setting(config_data, "GCC_WARN_INHIBIT_ALL_WARNINGS", "YES");
+    } else if (combined_warning_level == EStateWarningLevelMedium) {
+      for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
+        add_setting(config_data, default_enabled_warnings[i], "YES");
+      }
+    }
+    // if (additional_compiler_flags[0] != 0)
+    { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
+    add_setting(config_data, "OTHER_CFLAGS", additional_compiler_flags);
+
+    add_setting(config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
+    add_setting(config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
+    add_setting(config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
+    add_setting(config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+    add_setting(config_data, "ONLY_ACTIVE_ARCH", "YES");
+    add_setting(config_data, "SDKROOT", "macosx");
+
+    array_push(config_datas, config_data);
   }
-  // if (additional_compiler_flags[0] != 0)
-  { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
-  additional_include_folders = cc_printf("%s               )", additional_include_folders);
-  assert(array_count(privateData.platforms) == 1);
-  assert(privateData.platforms[0]->type == EPlatformTypeX64);
-  const char* substitution_keys[]   = {"configuration", "platform"};
-  const char* substitution_values[] = {"$CONFIGURATION", "x64"};
-  const char* resolved_output_folder =
-      cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
-                    countof(substitution_keys));
 
-  const char* safe_output_folder          = cc_printf("\"%s\"", resolved_output_folder);
-  const char* combined_preprocessor_debug = cc_printf(
-      "(\n					\"DEBUG=1\",\n%s				)",
-      preprocessor_defines);
-  const char* combined_preprocessor_release =
-      cc_printf("(\n%s				)", preprocessor_defines);
-  xcode_compiler_setting* debug_config_data = {0};
-  add_setting(debug_config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
-  add_setting(debug_config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
-  add_setting(debug_config_data, "DEBUG_INFORMATION_FORMAT", "dwarf");
-  add_setting(debug_config_data, "ENABLE_TESTABILITY", "YES");
-  add_setting(debug_config_data, "GCC_OPTIMIZATION_LEVEL", "0");
-  add_setting(debug_config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_debug);
-  add_setting(debug_config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
-  add_setting(debug_config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
-  add_setting(debug_config_data, "ONLY_ACTIVE_ARCH", "YES");
-  add_setting(debug_config_data, "OTHER_CFLAGS", additional_compiler_flags);
-  add_setting(debug_config_data, "SDKROOT", "macosx");
-  xcode_compiler_setting* release_config_data = {0};
-  add_setting(release_config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
-  add_setting(release_config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
-  add_setting(release_config_data, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
-  add_setting(release_config_data, "ENABLE_NS_ASSERTIONS", "NO");
-  add_setting(release_config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor_release);
-  add_setting(release_config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
-  add_setting(release_config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
-  add_setting(release_config_data, "ONLY_ACTIVE_ARCH", "YES");
-  add_setting(release_config_data, "OTHER_CFLAGS", additional_compiler_flags);
-  add_setting(release_config_data, "SDKROOT", "macosx");
-
-  xcode_compiler_setting** config_data = {0};
-  array_push(config_data, debug_config_data);
-  array_push(config_data, release_config_data);
   fprintf(f, "/* Begin XCBuildConfiguration section */\n");
-  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
+  for (unsigned i = 0; i < num_configurations; ++i) {
     const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
 
     fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(config_id), config_name);
     fprintf(f, "			isa = XCBuildConfiguration;\n");
     fprintf(f, "			buildSettings = {\n");
-    const xcode_compiler_setting* config = config_data[i];
+    const xcode_compiler_setting* config = config_datas[i];
     for (unsigned ic = 0; ic < array_count(config); ++ic) {
       fprintf(f, "				%s = %s;\n", config[ic].key, config[ic].value);
     }
@@ -457,42 +548,66 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f, "			name = %s;\n", config_name);
     fprintf(f, "		};\n");
   }
-  fprintf(f,
-          "		403CC54323EB479400558E07 /* Debug */ = {\n			isa = "
-          "XCBuildConfiguration;\n			buildSettings = {\n			"
-          "	CODE_SIGN_STYLE = Automatic;\n				PRODUCT_NAME = "
-          "\"$(TARGET_NAME)\";\n			};\n			name = Debug;\n	"
-          "	};\n		403CC54423EB479400558E07 /* Release */ = {\n			"
-          "isa = XCBuildConfiguration;\n			buildSettings = {\n		"
-          "		CODE_SIGN_STYLE = Automatic;\n				PRODUCT_NAME = "
-          "\"$(TARGET_NAME)\";\n			};\n			name = "
-          "Release;\n		};\n/* End XCBuildConfiguration section */\n\n");
+
+  const char** native_target_ids = {0};
+  for (unsigned i = 0; i < num_configurations; ++i) {
+    array_push(native_target_ids, xCodeUUID2String(xCodeGenerateUUID()));
+  }
+  for (unsigned i = 0; i < num_configurations; ++i) {
+    fprintf(f,
+            "		%s /* %s */ = {\n"
+            "			isa = XCBuildConfiguration;\n"
+            "			buildSettings = {\n"
+            "				CODE_SIGN_STYLE = Automatic;\n"
+            "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
+            "			};\n"
+            "			name = %s;\n"
+            "		};\n",
+            native_target_ids[i], privateData.configurations[i]->label,
+            privateData.configurations[i]->label);
+  }
+  fprintf(f, "/* End XCBuildConfiguration section */\n\n");
 
   fprintf(f,
-          "/* Begin XCConfigurationList section */\n		403CC53623EB479400558E07 /* Build "
+          "/* Begin XCConfigurationList section */\n"
+          "		403CC53623EB479400558E07 /* Build "
           "configuration list for PBXProject \"");
   fprintf(f, "%s", p->name);
   fprintf(f,
           "\" */ = {\n			isa = XCConfigurationList;\n			"
           "buildConfigurations = (\n");
-  for (unsigned i = 0; i < array_count(privateData.configurations); ++i) {
+  for (unsigned i = 0; i < num_configurations; ++i) {
     const char* config_name = privateData.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
     fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
             config_name);
   }
   fprintf(f,
-          "			);\n			defaultConfigurationIsVisible = 0;\n	"
-          "		defaultConfigurationName = Release;\n		};\n		"
-          "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
-  fprintf(f, "%s", p->name);
+          "			);\n"
+          "			defaultConfigurationIsVisible = 0;\n"
+          "			defaultConfigurationName = Release;\n"
+          "		};\n");
   fprintf(f,
-          "\" */ = {\n			isa = XCConfigurationList;\n			"
-          "buildConfigurations = (\n				403CC54323EB479400558E07 /* Debug "
-          "*/,\n				403CC54423EB479400558E07 /* Release */,\n	"
-          "		);\n			defaultConfigurationIsVisible = 0;\n		"
-          "	defaultConfigurationName = Release;\n		};\n/* End XCConfigurationList "
-          "section */\n	};\n	rootObject = 403CC53323EB479400558E07 /* Project object */;\n}\n");
+          "		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget "
+          "\"%s\" */ = {\n",
+          p->name);
+  fprintf(f,
+          "			isa = XCConfigurationList;\n"
+          "			buildConfigurations = (\n");
+  for (unsigned i = 0; i < num_configurations; ++i) {
+    const char* config_name = privateData.configurations[i]->label;
+    fprintf(f, "				%s /* %s */,\n", native_target_ids[i],
+            config_name);
+  }
+  fprintf(f,
+          "			);\n"
+          "			defaultConfigurationIsVisible = 0;\n"
+          "			defaultConfigurationName = Release;\n"
+          "		};\n"
+          "/* End XCConfigurationList section */\n"
+          "	};\n"
+          "	rootObject = 403CC53323EB479400558E07 /* Project object */;\n"
+          "}\n");
 }
 
 void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
