@@ -1,3 +1,6 @@
 tools/build/
 **/cconstruct
 return_value.inl
+test/**/build
+.vs
+build/cconstruct.h

@@ -1,10 +1,17 @@
 # cconstruct
 
-A tool to make IDE project files, using C as a description language.
+A tool to make IDE project files, using C as a 'description' language.
+
+## Warnings
+
+Warnings are set to a high level by default, and treated as errors by default. Some choices of warnings are set such that that fixing them reduces the amount of code (eg, unused parameters are ok, unused variables need to be solved by removing the variables).
+
+Currently there is no way to prevent CConstruct from setting the warnings it wants to, but you could disable those warnings again with regular compiler flags, as they are applied after the chosen warning level is applied.
 
 ## TODO
+
 - XCode remove hardcoded debug and release configurations
-- Rename platform to architexture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
+- Rename platform to architecture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
 - Should we expose the language dialect
