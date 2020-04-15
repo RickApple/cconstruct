@@ -393,7 +393,6 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
       shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
       combined_warning_level       = flags->warningLevel;
-      printf("Should disable %i\n", shouldDisableWarningsAsError);
 
       for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
         preprocessor_defines = cc_printf("					\"%s\",\n%s",

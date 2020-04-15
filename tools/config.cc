@@ -14,6 +14,9 @@ int main() {
   cc_flags flags = {0};
   cc.state.reset(&flags);
   cc.state.addPreprocessorDefine(&flags, "_CRT_SECURE_NO_WARNINGS");
+#if defined(__APPLE__)
+  array_push(flags.compile_options, "-std=c++11");
+#endif
   cc.project.setFlags(p, &flags);
 
   cc_default_generator("build");

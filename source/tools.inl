@@ -61,7 +61,7 @@ int make_folder(const char* folder_path) {
 
   const char* next_sep = folder_path;
   while ((next_sep = strchr(next_sep, '/')) != NULL) {
-    strncpy(buffer, folder_path, next_sep - folder_path);
+    strncpy(buffer, folder_path, (size_t)(next_sep - folder_path));
     int result = mkdir(buffer, 0777);
     if (result != 0) {
       if (errno != EEXIST) return errno;
@@ -166,6 +166,10 @@ void* array_reserve(void* a, unsigned element_size, unsigned new_capacity) {
   }
 }
 
+#if !defined(_MSC_VER)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
 const char* cc_printf(const char* format, ...) {
   unsigned length = (unsigned)strlen(format);
 
@@ -187,6 +191,9 @@ const char* cc_printf(const char* format, ...) {
   out[alloc_size - 1] = 0;
   return out;
 }
+#if !defined(_MSC_VER)
+#pragma clang diagnostic pop
+#endif
 
 const char* cc_substitute(const char* in_original, const char** keys, const char** values,
                           unsigned num_keys) {

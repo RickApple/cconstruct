@@ -34,13 +34,13 @@ int copyFileContents(const char* in_file_path, FILE* out_file) {
     return 1;
   }
 
-  long in_size = 0;
+  size_t in_size = 0;
 
   fseek(in_file, 0, SEEK_END);
-  in_size = ftell(in_file);
+  in_size = (size_t)ftell(in_file);
   fseek(in_file, 0, SEEK_SET);
 
-  char* in_data = (char*)cc_alloc_(in_size);
+  char* in_data = (char*)cc_alloc_((unsigned)in_size);
   fread(in_data, 1, in_size, in_file);
   fclose(in_file);
 
@@ -80,15 +80,15 @@ int main(int argc, const char* argv[]) {
     in_size = ftell(in_file);
     fseek(in_file, 0, SEEK_SET);
 
-    in_data = (char*)malloc(in_size + 1);
-    fread(in_data, 1, in_size, in_file);
+    in_data = (char*)cc_alloc_((unsigned)(in_size + 1));
+    fread(in_data, 1, (size_t)(in_size), in_file);
     in_data[in_size] = 0;
     fclose(in_file);
   }
 
   const char* in_file_only  = strip_path(in_file_path);
   char in_folder_path[2048] = {0};
-  memcpy(in_folder_path, in_file_path, in_file_only - in_file_path);
+  memcpy(in_folder_path, in_file_path, (size_t)(in_file_only - in_file_path));
   printf("root path '%s'\n", in_folder_path);
 
   char* next_include                  = NULL;
@@ -97,11 +97,11 @@ int main(int argc, const char* argv[]) {
 
   while ((next_include = strstr(in_data, k_include_search)) != NULL) {
     // Write out string before the include
-    fwrite(in_data, 1, next_include - in_data, out_file);
+    fwrite(in_data, 1, (size_t)(next_include - in_data), out_file);
 
     in_data           = next_include + strlen(k_include_search);
     char* end_include = strchr(in_data, '"');
-    memcpy(include_file_path_buffer, in_data, end_include - in_data);
+    memcpy(include_file_path_buffer, in_data, (size_t)(end_include - in_data));
     include_file_path_buffer[end_include - in_data] = 0;
 
     in_data = end_include + 1;

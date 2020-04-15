@@ -41,15 +41,25 @@ xcodebuild -quiet -workspace build/xcode/library_dependency.xcworkspace -scheme 
 popd
 
 
+set +e
 pushd 04_preprocessor
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
 ./cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Debug
 ./build/x64/Debug/preprocessor
+if [ $? -ne 0 ]
+then
+  exit 1
+fi
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Release
 ./build/x64/Release/preprocessor   
+if [ $? -eq 0 ]
+then
+  exit 1
+fi
 popd
+set -e
 
 
 set +e
