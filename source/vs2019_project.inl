@@ -137,9 +137,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
 
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
   FILE* project_file            = fopen(project_file_path, "wb");
-  fprintf(project_file,
-          "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project DefaultTargets=\"Build\" "
-          "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+  fprintf(
+      project_file,
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project DefaultTargets=\"Build\" "
+      "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
   for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
@@ -383,7 +384,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
     if (strstr(f, ".h")) {
       fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", f);
     } else {
-      fprintf(project_file, "    <ClCompile Include=\"%s\" />\n", f);
+      fprintf(project_file, "    <ClCompile Include=\"%s\">\n", f);
+      fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
+              ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
+      fprintf(project_file, "    </ClCompile>");
     }
     fprintf(project_file, "  </ItemGroup>\n");
   }
