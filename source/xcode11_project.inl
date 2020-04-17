@@ -149,8 +149,10 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
     fprintf(f,
             "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
             "lastKnownFileType "
-            "= sourcecode.cpp.cpp; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
-            fileReferenceUUID[fi], strip_path(filename), strip_path(filename), file_ref_paths[fi]);
+            "= %s; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
+            fileReferenceUUID[fi], strip_path(filename),
+            (strstr(filename, ".cpp") != NULL ? "sourcecode.cpp.cpp" : "sourcecode.c.c"),
+            strip_path(filename), file_ref_paths[fi]);
     printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
   }
   fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
@@ -437,6 +439,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       add_setting(config_data, "ENABLE_NS_ASSERTIONS", "NO");
     }
     add_setting(config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor);
+    add_setting(config_data, "GCC_C_LANGUAGE_STANDARD", "c11");  // TODO:Expose this?
 
     if (!shouldDisableWarningsAsError) {
       add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");

@@ -5,6 +5,7 @@ set -x
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
 
 
+
 # Compile a single instance with C++ to check compatiblity of cconstruct
 pushd 01_hello_world
 clang -x c++ config.cc -o cconstruct
@@ -135,6 +136,14 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -configuration Release
 popd
 
+
+pushd 10_mixing_c_and_cpp
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme mixing_c_and_cpp
+./build/x64/Debug/mixing_c_and_cpp
+popd
 
 
 pushd ../tools

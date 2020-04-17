@@ -7,7 +7,7 @@ A tool to make IDE project files, using C as a description language.
 - Rename platform to architexture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
-
+- Should we expose the language dialect
 - Allow for a way to add files in a specific folder so user doesn't have to manually give complete path to every single file
 - Create test for hierarchical folder structure
 - Make tests for cconstruct build out of tree
