@@ -14,7 +14,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - Rename platform to architecture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
-- Should we expose the language dialect
+- Should the language dialect be exposed?
 - Allow for a way to add files in a specific folder so user doesn't have to manually give complete path to every single file
 - Create test for hierarchical folder structure
 - Make tests for cconstruct build out of tree
@@ -23,6 +23,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - support pre build actions (post already works)
 - have option to create project to debug cconstruct binary?
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
+- Allow projects to have different configurations/platforms, instead of automatically having all created ones.
 
 ## Done
 

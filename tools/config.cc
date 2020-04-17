@@ -1,13 +1,13 @@
 #include "../source/cconstruct.h"
 
 int main() {
-  CCPlatformHandle platform           = cc.createPlatform(EPlatformTypeX64);
-  CCConfigurationHandle configuration = cc.createConfiguration("Debug");
+  cc_platform_t platform           = cc.createPlatform(EPlatformTypeX64);
+  cc_configuration_t configuration = cc.createConfiguration("Debug");
 
   cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration);
 
-  void* p = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication, NULL);
+  cc_project_t p = cc.createProject("cconstruct_release", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"cconstruct_release.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
@@ -16,7 +16,7 @@ int main() {
 #if defined(_WIN32)
   cc.state.addPreprocessorDefine(&flags, "_CRT_SECURE_NO_WARNINGS");
 #endif
-  cc.project.setFlags(p, &flags);
+  cc.project.setFlags(p, &flags, NULL, NULL);
 
   cc_default_generator("build");
 

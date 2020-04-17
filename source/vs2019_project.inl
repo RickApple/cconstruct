@@ -7,9 +7,9 @@ const char* vs_generateUUID() {
   return buffer;
 };
 
-const char* vs_findUUIDForProject(const char** uuids, const TProject* project) {
+const char* vs_findUUIDForProject(const char** uuids, const cc_project_impl_t* project) {
   unsigned i = 0;
-  while (privateData.projects[i] != project) {
+  while (cc_data_.projects[i] != project) {
     ++i;
   }
 
@@ -42,7 +42,7 @@ typedef struct vs_compiler_setting {
   const char* value;
 } vs_compiler_setting;
 
-void vs2019_createFilters(const TProject* in_project, int folder_depth) {
+void vs2019_createFilters(const cc_project_impl_t* in_project, int folder_depth) {
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
     prepend_path = cc_printf("%s../", prepend_path);
@@ -57,7 +57,7 @@ void vs2019_createFilters(const TProject* in_project, int folder_depth) {
           "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   // Create list of groups needed.
-  const TProject* p                     = (TProject*)in_project;
+  const cc_project_impl_t* p            = (cc_project_impl_t*)in_project;
   const cc_group_impl_t** unique_groups = {0};
   for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
     const cc_group_impl_t* g = p->groups[ig];
@@ -128,8 +128,8 @@ void vs2019_createFilters(const TProject* in_project, int folder_depth) {
   fprintf(filter_file, "</Project>\n");
 }
 
-void vs2019_createProjectFile(const TProject* p, const char* project_id, const char** project_ids,
-                              int folder_depth) {
+void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
+                              const char** project_ids, int folder_depth) {
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
     prepend_path = cc_printf("%s../", prepend_path);
@@ -143,10 +143,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const char* c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const char* c = cc_data_.configurations[ci]->label;
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n", platform_label);
@@ -168,10 +168,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
   fprintf(project_file,
           "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n");
 
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const char* c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const char* c = cc_data_.configurations[ci]->label;
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
@@ -195,10 +195,10 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
           "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />\n  <ImportGroup "
           "Label=\"ExtensionSettings\">\n  </ImportGroup>\n  <ImportGroup Label=\"Shared\">\n  "
           "</ImportGroup>\n");
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const char* c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const char* c = cc_data_.configurations[ci]->label;
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
@@ -211,14 +211,14 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
     }
   }
 
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const char* c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const char* c = cc_data_.configurations[ci]->label;
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const char* platform_label        = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       const char* substitution_keys[]   = {"configuration", "platform"};
       const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
       const char* resolved_output_folder =
-          cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
+          cc_substitute(cc_data_.outputFolder, substitution_keys, substitution_values,
                         countof(substitution_keys));
       vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
@@ -244,12 +244,12 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
     }
   }
 
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const TConfiguration* config    = privateData.configurations[ci];
-    const char* configuration_label = config->label;
-    const bool is_debug_build       = (strcmp(configuration_label, "Debug") == 0);
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const TPlatform* platform = privateData.platforms[pi];
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const cc_configuration_impl_t* config = cc_data_.configurations[ci];
+    const char* configuration_label       = config->label;
+    const bool is_debug_build             = (strcmp(configuration_label, "Debug") == 0);
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const cc_platform_impl_t* platform = cc_data_.platforms[pi];
 
       vs_compiler_setting* compiler_flags = {0};
       {
@@ -327,7 +327,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
       } else {
         preprocessor_defines = cc_printf("NDEBUG;%s", preprocessor_defines);
       }
-      const bool is_win32 = (privateData.platforms[pi]->type == EPlatformTypeX86);
+      const bool is_win32 = (cc_data_.platforms[pi]->type == EPlatformTypeX86);
       if (is_win32) {
         preprocessor_defines = cc_printf("WIN32;%s", preprocessor_defines);
       }
@@ -345,7 +345,7 @@ void vs2019_createProjectFile(const TProject* p, const char* project_id, const c
         array_push(compiler_flags, additionalincludes_setting);
       }
 
-      const char* platform_label = vs_projectPlatform2String_(privateData.platforms[pi]->type);
+      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
               configuration_label, platform_label);

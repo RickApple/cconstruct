@@ -1,41 +1,41 @@
-typedef struct TProject TProject;
+typedef struct cc_project_impl_t cc_project_impl_t;
 
-typedef struct TPlatform {
+typedef struct cc_platform_impl_t {
   EPlatformType type;
-} TPlatform;
-typedef struct TConfiguration {
+} cc_platform_impl_t;
+typedef struct cc_configuration_impl_t {
   int placeholder;  // Else get errors in C
   const char label[];
-} TConfiguration;
+} cc_configuration_impl_t;
 
 typedef struct cc_group_impl_t {
   const char* name;
   const struct cc_group_impl_t* parent_group;
 } cc_group_impl_t;
 
-typedef struct TProject {
+typedef struct cc_project_impl_t {
   EProjectType type;
   const char* name;
-  const char** files;
-  const cc_group_impl_t** groups;
-  TProject** dependantOn;
+  const char** files;              /* stretch array */
+  const cc_group_impl_t** groups;  /* stretch array */
+  cc_project_impl_t** dependantOn; /* stretch array */
 
-  cc_flags* flags;
-  TConfiguration** configs;
-  TPlatform** platforms;
+  cc_flags* flags;                   /* stretch array */
+  cc_configuration_impl_t** configs; /* stretch array */
+  cc_platform_impl_t** platforms;    /* stretch array */
   const char* postBuildAction;
 
   const cc_group_impl_t* parent_group;
-} TProject;
+} cc_project_impl_t;
 
 struct {
   const char* outputFolder;
   const char* workspaceLabel;
-  TProject** projects;
-  const TConfiguration** configurations;
-  const TPlatform** platforms;
-  const cc_group_impl_t* groups;
-} privateData;
+  cc_project_impl_t** projects;                   /* stretch array */
+  const cc_configuration_impl_t** configurations; /* stretch array */
+  const cc_platform_impl_t** platforms;           /* stretch array */
+  const cc_group_impl_t* groups;                  /* stretch array */
+} cc_data_;
 
 cc_group_t cc_createGroup(const char* in_group_name, const cc_group_t in_parent_group) {
   cc_group_impl_t* group = (cc_group_impl_t*)cc_alloc_(sizeof(cc_group_impl_t));
@@ -44,18 +44,18 @@ cc_group_t cc_createGroup(const char* in_group_name, const cc_group_t in_parent_
   return (cc_group_t)group;
 }
 
-void* cc_project_create_(const char* in_project_name, EProjectType in_project_type,
-                         const cc_group_t in_parent_group) {
+cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_project_type,
+                                const cc_group_t in_parent_group) {
   // TODO: having no workspace label crashes on XCode generator
-  if (privateData.workspaceLabel == 0) {
-    privateData.workspaceLabel = "workspace";
+  if (cc_data_.workspaceLabel == 0) {
+    cc_data_.workspaceLabel = "workspace";
   }
-  if (privateData.outputFolder == 0) {
-    privateData.outputFolder = "${platform}/${configuration}";
+  if (cc_data_.outputFolder == 0) {
+    cc_data_.outputFolder = "${platform}/${configuration}";
   }
 
-  TProject* p = (TProject*)malloc(sizeof(TProject));
-  memset(p, 0, sizeof(TProject));
+  cc_project_impl_t* p = (cc_project_impl_t*)malloc(sizeof(cc_project_impl_t));
+  memset(p, 0, sizeof(cc_project_impl_t));
   p->type              = in_project_type;
   unsigned name_length = strlen(in_project_name);
 
@@ -63,7 +63,7 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
   memcpy(name_copy, in_project_name, name_length);
   name_copy[name_length] = 0;
   p->name                = name_copy;
-  array_push(privateData.projects, p);
+  array_push(cc_data_.projects, p);
 
   p->parent_group = (const cc_group_impl_t*)in_parent_group;
   return p;
@@ -74,27 +74,28 @@ void* cc_project_create_(const char* in_project_name, EProjectType in_project_ty
  *
  * @param in_parent_group may be NULL
  */
-void addFilesToProject(void* in_project, unsigned num_files, const char* in_file_names[],
-                       const cc_group_t in_parent_group) {
+void addFilesToProject(cc_project_t in_out_project, unsigned num_files,
+                       const char* in_file_names[], const cc_group_t in_parent_group) {
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
-    array_push(((TProject*)in_project)->files, cc_printf("%s", *in_file_names));
-    array_push(((TProject*)in_project)->groups, (const cc_group_impl_t*)in_parent_group);
+    array_push(((cc_project_impl_t*)in_out_project)->files, cc_printf("%s", *in_file_names));
+    array_push(((cc_project_impl_t*)in_out_project)->groups,
+               (const cc_group_impl_t*)in_parent_group);
   }
 }
 
-void addInputProject(void* target_project, const void* on_project) {
-  array_push(((TProject*)target_project)->dependantOn, (TProject*)on_project);
+void addInputProject(cc_project_t target_project, const cc_project_t on_project) {
+  array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
 }
 
-void addConfiguration(const CCConfigurationHandle in_configuration) {
-  array_push(privateData.configurations, (const TConfiguration*)in_configuration);
+void addConfiguration(const cc_configuration_t in_configuration) {
+  array_push(cc_data_.configurations, (const cc_configuration_impl_t*)in_configuration);
 }
-void addPlatform(const CCPlatformHandle in_platform) {
-  array_push(privateData.platforms, (const TPlatform*)in_platform);
+void addPlatform(const cc_platform_t in_platform) {
+  array_push(cc_data_.platforms, (const cc_platform_impl_t*)in_platform);
 }
 
-void setOutputFolder(const char* of) { privateData.outputFolder = of; }
-void setWorkspaceLabel(const char* label) { privateData.workspaceLabel = label; }
+void setOutputFolder(const char* of) { cc_data_.outputFolder = of; }
+void setWorkspaceLabel(const char* label) { cc_data_.workspaceLabel = label; }
 
 void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flags)); }
 void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {
@@ -129,26 +130,12 @@ void cc_state_disableWarningsAsErrors(cc_flags* in_flags) {
   in_flags->disableWarningsAsErrors = true;
 }
 
-void addPostBuildAction(void* in_out_project, const char* in_action_command) {
-  ((TProject*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
+void addPostBuildAction(cc_project_t in_out_project, const char* in_action_command) {
+  ((cc_project_impl_t*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
 }
 
-const char** string_array_clone(const char** in) {
-  char** out                   = {0};
-  const array_header_t* header = array_header(in);
-  if (header && header->count_ > 0) {
-    array_header_t* out_header =
-        (array_header_t*)cc_alloc_(sizeof(array_header_t) + sizeof(const char*) * header->count_);
-    out_header->count_ = out_header->capacity_ = header->count_;
-    out                                        = (char**)(out_header + 1);
-    memcpy(out, in, sizeof(const char*) * header->count_);
-  }
-  return (const char**)out;
-}
-
-void cc_project_setFlagsLimited_(void* in_out_project, const cc_flags* in_flags,
-                                 CCPlatformHandle in_platform,
-                                 CCConfigurationHandle in_configuration) {
+void cc_project_setFlags_(cc_project_t in_out_project, const cc_flags* in_flags,
+                          cc_platform_t in_platform, cc_configuration_t in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
   cc_flags stored_flags        = *in_flags;
   stored_flags.defines         = string_array_clone(in_flags->defines);
@@ -156,24 +143,21 @@ void cc_project_setFlagsLimited_(void* in_out_project, const cc_flags* in_flags,
   stored_flags.compile_options = string_array_clone(in_flags->compile_options);
   stored_flags.link_options    = string_array_clone(in_flags->link_options);
 
-  array_push(((TProject*)in_out_project)->flags, stored_flags);
-  array_push(((TProject*)in_out_project)->platforms, (TPlatform*)in_platform);
-  array_push(((TProject*)in_out_project)->configs, (TConfiguration*)in_configuration);
+  array_push(((cc_project_impl_t*)in_out_project)->flags, stored_flags);
+  array_push(((cc_project_impl_t*)in_out_project)->platforms, (cc_platform_impl_t*)in_platform);
+  array_push(((cc_project_impl_t*)in_out_project)->configs,
+             (cc_configuration_impl_t*)in_configuration);
 }
 
-void cc_project_setFlags_(void* in_out_project, const cc_flags* in_flags) {
-  cc_project_setFlagsLimited_(in_out_project, in_flags, NULL, NULL);
-}
-
-CCPlatformHandle cc_platform_create(EPlatformType in_type) {
-  unsigned byte_count = sizeof(TPlatform);
-  TPlatform* p        = (TPlatform*)cc_alloc_(byte_count);
-  p->type             = in_type;
+cc_platform_t cc_platform_create(EPlatformType in_type) {
+  unsigned byte_count   = sizeof(cc_platform_impl_t);
+  cc_platform_impl_t* p = (cc_platform_impl_t*)cc_alloc_(byte_count);
+  p->type               = in_type;
   return p;
 }
-CCConfigurationHandle cc_configuration_create(const char* in_label) {
-  unsigned byte_count = strlen(in_label) + 1 + sizeof(TConfiguration);
-  TConfiguration* c   = (TConfiguration*)cc_alloc_(byte_count);
+cc_configuration_t cc_configuration_create(const char* in_label) {
+  unsigned byte_count        = strlen(in_label) + 1 + sizeof(cc_configuration_impl_t);
+  cc_configuration_impl_t* c = (cc_configuration_impl_t*)cc_alloc_(byte_count);
   strcpy((char*)c->label, in_label);
   return c;
 }

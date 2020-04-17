@@ -1,10 +1,6 @@
 #pragma warning(disable : 4996)
-#include <assert.h>
-#include <stdarg.h>
+
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef enum {
   CCProjectTypeConsoleApplication = 0,
@@ -24,31 +20,19 @@ typedef enum {
   EStateWarningLevelNone,  // This really disables everything, not recommended for production use
 } EStateWarningLevel;
 
-// Opaque handles at this point
+// Opaque handles in public interface
+typedef struct cc_project_impl_t* cc_project_t;
 typedef struct cc_group_impl_t* cc_group_t;
-typedef struct TPlatform* CCPlatformHandle;
-typedef struct TConfiguration* CCConfigurationHandle;
-
-cc_group_t cc_createGroup(const char* in_group_name, const cc_group_t in_parent);
-
-// Project functions
-void* createProject(const char* in_project_name, EProjectType in_project_type,
-                    const cc_group_t in_parent);
-void addInputProject(void* target_project, const void* on_project);
-void addPostBuildAction(void* target_project, const char* command);
-
-// Workspace functions
-void setOutputFolder(const char* of);
-void create();
-void addProject(const void* in_project);
+typedef struct cc_platform_impl_t* cc_platform_t;
+typedef struct cc_configuration_impl_t* cc_configuration_t;
 
 typedef struct cc_flags {
   const char** defines;
   const char** include_folders;
   const char** compile_options;
   const char** link_options;
-  EStateWarningLevel
-      warningLevel;  // By default warnings are turned up to the highest level below all.
+  // By default warnings are turned up to the highest level below _all_.
+  EStateWarningLevel warningLevel;
   bool disableWarningsAsErrors;  // By default warnings are treated as errors.
 } cc_flags;
 
@@ -63,12 +47,12 @@ typedef struct CConstruct {
   void (*autoRecompileFromConfig)(const char* cconstruct_config_file_path, int argc,
                                   const char* argv[]);
 
-  CCConfigurationHandle (*createConfiguration)(const char* in_label);
-  CCPlatformHandle (*createPlatform)(EPlatformType in_type);
-  void* (*createProject)(const char* in_project_name, EProjectType in_project_type,
-                         const cc_group_t in_parent_group);
+  cc_configuration_t (*createConfiguration)(const char* in_label);
+  cc_platform_t (*createPlatform)(EPlatformType in_type);
+  cc_project_t (*createProject)(const char* in_project_name, EProjectType in_project_type,
+                                const cc_group_t in_parent_group);
 
-  /* Create a group/folder in the project, at any level.
+  /* Create a group/folder in the workspace, at any level (files and projects can go into groups).
    *
    * @param in_parent may be NULL, the parent will then be whatever is applicable at that level
    * (workspace/project)
@@ -83,24 +67,59 @@ typedef struct CConstruct {
   } state;
 
   const struct {
-    void (*addFiles)(void* in_project, unsigned num_files, const char* in_file_names[],
+    /* Add files to a project. *.c/*.cpp files are automatically added to be compiled, everything
+     * else is treated as a header file.
+     */
+    void (*addFiles)(cc_project_t in_project, unsigned num_files, const char* in_file_names[],
                      const cc_group_t in_parent_group);
-    void (*addInputProject)(void* target_project, const void* on_project);
-    void (*setFlags)(void* in_project, const cc_flags* in_flags);
-    void (*setFlagsLimited)(void* in_out_project, const cc_flags* in_flags,
-                            CCPlatformHandle in_platform, CCConfigurationHandle in_configuration);
-    void (*addPostBuildAction)(void* in_out_project, const char* in_action_command);
+
+    /* Add dependency between projects. This will only link the dependency and set the build order
+     * in the IDE. It will *NOT* automatically add include-folders.
+     */
+    void (*addInputProject)(cc_project_t target_project, const cc_project_t on_project);
+
+    /* Set flags on a project.
+     *
+     * @param in_platform may be NULL if flags are for all platforms
+     * @param in_configuration may be NULL if flags are for all configurations
+     */
+    void (*setFlags)(cc_project_t in_out_project, const cc_flags* in_flags,
+                     cc_platform_t in_platform, cc_configuration_t in_configuration);
+
+    /* Add a command line instruction to execute after the build has finished successfully.
+     */
+    void (*addPostBuildAction)(cc_project_t in_out_project, const char* in_action_command);
   } project;
 
   const struct {
+    /* Label of the workspace, used for filename of the workspace.
+     */
     void (*setLabel)(const char* label);
+
+    /* Output folder for build results.
+     */
     void (*setOutputFolder)(const char* in_output_folder);
-    void (*addConfiguration)(const CCConfigurationHandle in_configuration);
-    void (*addPlatform)(const CCPlatformHandle in_platform);
+
+    /* Add a configuration
+     */
+    void (*addConfiguration)(const cc_configuration_t in_configuration);
+    void (*addPlatform)(const cc_platform_t in_platform);
 
   } workspace;
 
 } CConstruct;
+
+extern void (*cc_default_generator)(const char* workspace_folder);
+
+/***********************************************************************************************************************
+ *                                             Implementation starts here
+ ***********************************************************************************************************************/
+
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Tools
 #include "tools.inl"
@@ -118,16 +137,16 @@ typedef struct CConstruct {
 // For automatic updates to the config
 #include "builder.inl"
 
-const CConstruct cc = {cc_autoRecompileFromConfig,
-                       cc_configuration_create,
-                       cc_platform_create,
-                       cc_project_create_,
-                       cc_createGroup,
-                       {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
-                        cc_state_disableWarningsAsErrors},
-                       {addFilesToProject, addInputProject, cc_project_setFlags_,
-                        cc_project_setFlagsLimited_, addPostBuildAction},
-                       {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
+const CConstruct cc = {
+    cc_autoRecompileFromConfig,
+    cc_configuration_create,
+    cc_platform_create,
+    cc_project_create_,
+    cc_createGroup,
+    {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
+     cc_state_disableWarningsAsErrors},
+    {addFilesToProject, addInputProject, cc_project_setFlags_, addPostBuildAction},
+    {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
 
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)

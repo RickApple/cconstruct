@@ -11,7 +11,7 @@
 #define countof(a) sizeof(a) / sizeof(a[0])
 
 // TODO: allow this to be set from the command line
-bool is_verbose = true;
+bool is_verbose = false;
 
 #define LOG_ERROR_AND_QUIT(...)   \
   {                               \
@@ -221,4 +221,17 @@ const char* cc_substitute(const char* in_original, const char** keys, const char
   }
 
   return in;
+}
+
+const char** string_array_clone(const char** in) {
+  char** out                   = {0};
+  const array_header_t* header = array_header(in);
+  if (header && header->count_ > 0) {
+    array_header_t* out_header =
+        (array_header_t*)cc_alloc_(sizeof(array_header_t) + sizeof(const char*) * header->count_);
+    out_header->count_ = out_header->capacity_ = header->count_;
+    out                                        = (char**)(out_header + 1);
+    memcpy(out, in, sizeof(const char*) * header->count_);
+  }
+  return (const char**)out;
 }

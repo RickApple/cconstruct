@@ -44,15 +44,15 @@ void vs2019_generateInFolder(const char* workspace_path) {
   (void)chdir(workspace_path);
 
   const char** project_ids =
-      (const char**)cc_alloc_(sizeof(const char*) * array_count(privateData.projects));
+      (const char**)cc_alloc_(sizeof(const char*) * array_count(cc_data_.projects));
 
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     project_ids[i] = vs_generateUUID();
   }
 
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const TProject* p      = privateData.projects[i];
-    const char* project_id = project_ids[i];
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
+    const char* project_id     = project_ids[i];
     vs2019_createFilters(p, count_folder_depth);
     vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
 
@@ -63,9 +63,9 @@ void vs2019_generateInFolder(const char* workspace_path) {
   // Create list of groups needed.
   const cc_group_impl_t** unique_groups = {0};
   const char** unique_groups_id         = {0};
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const TProject* p        = privateData.projects[i];
-    const cc_group_impl_t* g = p->parent_group;
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
+    const cc_group_impl_t* g   = p->parent_group;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -82,7 +82,7 @@ void vs2019_generateInFolder(const char* workspace_path) {
   }
   const unsigned num_unique_groups = array_count(unique_groups);
 
-  const char* workspace_file_path = cc_printf("%s.sln", privateData.workspaceLabel);
+  const char* workspace_file_path = cc_printf("%s.sln", cc_data_.workspaceLabel);
   FILE* workspace                 = fopen(workspace_file_path, "wb");
   if (workspace == NULL) {
     fprintf(stderr, "Couldn't create workspace.sln\n");
@@ -93,9 +93,9 @@ void vs2019_generateInFolder(const char* workspace_path) {
           "Microsoft Visual Studio Solution File, Format Version 12.00\n# Visual Studio Version "
           "16\nVisualStudioVersion = 16.0.29709.97\nMinimumVisualStudioVersion = 10.0.40219.1\n");
 
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const char* projectId = project_ids[i];
-    const TProject* p     = privateData.projects[i];
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const char* projectId      = project_ids[i];
+    const cc_project_impl_t* p = cc_data_.projects[i];
     fprintf(workspace,
             "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s.vcxproj\", "
             "\"{%s}\"\n",
@@ -116,22 +116,22 @@ void vs2019_generateInFolder(const char* workspace_path) {
   fprintf(workspace, "Global\n");
 
   fprintf(workspace, "	GlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
-  for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-    const char* c = privateData.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-      const char* p = solutionPlatform2String(privateData.platforms[pi]->type);
+  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+    const char* c = cc_data_.configurations[ci]->label;
+    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+      const char* p = solutionPlatform2String(cc_data_.platforms[pi]->type);
       fprintf(workspace, "		%s|%s = %s|%s\n", c, p, c, p);
     }
   }
   fprintf(workspace, "	EndGlobalSection\n");
 
   fprintf(workspace, "	GlobalSection(ProjectConfigurationPlatforms) = postSolution\n");
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const char* projectId = project_ids[i];
-    for (unsigned ci = 0; ci < array_count(privateData.configurations); ++ci) {
-      const char* c = privateData.configurations[ci]->label;
-      for (unsigned pi = 0; pi < array_count(privateData.platforms); ++pi) {
-        const EPlatformType p      = privateData.platforms[pi]->type;
+    for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+      const char* c = cc_data_.configurations[ci]->label;
+      for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
+        const EPlatformType p      = cc_data_.platforms[pi]->type;
         const char* platform_label = vs_projectPlatform2String_(p);
         fprintf(workspace, "		{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
                 solutionPlatform2String(p), c, platform_label);
@@ -149,9 +149,9 @@ void vs2019_generateInFolder(const char* workspace_path) {
 
   if (num_unique_groups > 0) {
     fprintf(workspace, "	GlobalSection(NestedProjects) = preSolution\n");
-    for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-      const char* projectId = project_ids[i];
-      const TProject* p     = privateData.projects[i];
+    for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+      const char* projectId      = project_ids[i];
+      const cc_project_impl_t* p = cc_data_.projects[i];
       if (p->parent_group) {
         for (unsigned ig = 0; ig < num_unique_groups; ++ig) {
           if (p->parent_group == unique_groups[ig]) {

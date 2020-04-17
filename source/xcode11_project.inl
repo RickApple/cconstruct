@@ -22,9 +22,9 @@ const char* xCodeUUID2String(xcode_uuid uuid) {
   return cc_printf("%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
 }
 
-xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const TProject* project) {
+xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const cc_project_impl_t* project) {
   for (unsigned i = 0; i < array_count(uuids); ++i) {
-    if (privateData.projects[i] == project) return uuids[i];
+    if (cc_data_.projects[i] == project) return uuids[i];
   }
   xcode_uuid empty = {0};
   return empty;
@@ -49,9 +49,9 @@ const char* xCodeStringFromGroup(const cc_group_impl_t** unique_groups, const ch
   return "";
 }
 
-void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
+void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
-  const TProject* p = (TProject*)in_project;
+  const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
 
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
@@ -368,7 +368,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			);\n			runOnlyForDeploymentPostprocessing = "
           "0;\n		};\n/* End PBXSourcesBuildPhase section */\n\n");
 
-  const unsigned num_configurations = array_count(privateData.configurations);
+  const unsigned num_configurations = array_count(cc_data_.configurations);
   xcode_uuid* configuration_ids     = {0};
   for (unsigned i = 0; i < num_configurations; ++i) {
     array_push(configuration_ids, xCodeGenerateUUID());
@@ -376,7 +376,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
   xcode_compiler_setting** config_datas = {0};
 
   for (unsigned i = 0; i < num_configurations; ++i) {
-    const TConfiguration* config = privateData.configurations[i];
+    const cc_configuration_impl_t* config = cc_data_.configurations[i];
 
     const char* preprocessor_defines =
         "					"
@@ -414,13 +414,12 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
       }
     }
     additional_include_folders = cc_printf("%s               )", additional_include_folders);
-    assert(array_count(privateData.platforms) == 1);
-    assert(privateData.platforms[0]->type == EPlatformTypeX64);
-    const char* substitution_keys[]   = {"configuration", "platform"};
-    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
-    const char* resolved_output_folder =
-        cc_substitute(privateData.outputFolder, substitution_keys, substitution_values,
-                      countof(substitution_keys));
+    assert(array_count(cc_data_.platforms) == 1);
+    assert(cc_data_.platforms[0]->type == EPlatformTypeX64);
+    const char* substitution_keys[]    = {"configuration", "platform"};
+    const char* substitution_values[]  = {"$CONFIGURATION", "x64"};
+    const char* resolved_output_folder = cc_substitute(
+        cc_data_.outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 
     const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
 
@@ -536,7 +535,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
 
   fprintf(f, "/* Begin XCBuildConfiguration section */\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = privateData.configurations[i]->label;
+    const char* config_name = cc_data_.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
 
     fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(config_id), config_name);
@@ -565,8 +564,8 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
             "			};\n"
             "			name = %s;\n"
             "		};\n",
-            native_target_ids[i], privateData.configurations[i]->label,
-            privateData.configurations[i]->label);
+            native_target_ids[i], cc_data_.configurations[i]->label,
+            cc_data_.configurations[i]->label);
   }
   fprintf(f, "/* End XCBuildConfiguration section */\n\n");
 
@@ -579,7 +578,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "\" */ = {\n			isa = XCConfigurationList;\n			"
           "buildConfigurations = (\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = privateData.configurations[i]->label;
+    const char* config_name = cc_data_.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
     fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
             config_name);
@@ -597,7 +596,7 @@ void xCodeCreateProjectFile(FILE* f, const TProject* in_project,
           "			isa = XCConfigurationList;\n"
           "			buildConfigurations = (\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = privateData.configurations[i]->label;
+    const char* config_name = cc_data_.configurations[i]->label;
     fprintf(f, "				%s /* %s */,\n", native_target_ids[i],
             config_name);
   }
@@ -629,8 +628,8 @@ void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
     }
   }
 
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const TProject* p = privateData.projects[i];
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
     if (p->parent_group == parent_group) {
       fprintf(f, "%s  <FileRef\n", prepend_path);
       fprintf(f, "%s    location = \"group:%s.xcodeproj\">\n", prepend_path, p->name);
@@ -645,9 +644,9 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   // Create list of groups needed.
   const cc_group_impl_t** unique_groups = {0};
   const char** unique_groups_id         = {0};
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const TProject* p        = privateData.projects[i];
-    const cc_group_impl_t* g = p->parent_group;
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
+    const cc_group_impl_t* g   = p->parent_group;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -691,13 +690,13 @@ void xcode_generateInFolder(const char* generate_path) {
   xcode_uuid* projectFileReferenceUUIDs = 0;
   projectFileReferenceUUIDs =
       (xcode_uuid*)array_reserve(projectFileReferenceUUIDs, sizeof(*projectFileReferenceUUIDs),
-                                 array_count(privateData.projects));
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
+                                 array_count(cc_data_.projects));
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     array_push(projectFileReferenceUUIDs, xCodeGenerateUUID());
   }
 
-  for (unsigned i = 0; i < array_count(privateData.projects); ++i) {
-    const TProject* p = privateData.projects[i];
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
 
     const char* project_path = cc_printf("%s.xcodeproj", p->name);
     int result               = make_folder(project_path);
@@ -715,7 +714,7 @@ void xcode_generateInFolder(const char* generate_path) {
   }
 
   {
-    const char* workspace_path      = cc_printf("%s.xcworkspace", privateData.workspaceLabel);
+    const char* workspace_path      = cc_printf("%s.xcworkspace", cc_data_.workspaceLabel);
     int result                      = make_folder(workspace_path);
     const char* workspace_file_path = cc_printf("%s/contents.xcworkspacedata", workspace_path);
     FILE* f                         = fopen(workspace_file_path, "wb");

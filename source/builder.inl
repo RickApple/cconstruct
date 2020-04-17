@@ -126,6 +126,7 @@ void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const ch
   } else {
     cc_recompile_binary_(config_file_path);
     cc_swapBuilds_();
+    printf("Rebuilt CConstruct binary\n");
     RA_ActivateRestartProcess();
     exit(0);
   }
@@ -193,6 +194,7 @@ void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const ch
   } else {
     cc_recompile_binary_(config_file_path);
     cc_swapBuilds_();
+    printf("Rebuilt CConstruct binary\n");
     system(cc_printf("%s --generate-projects", argv[0]));
     exit(0);
   }
