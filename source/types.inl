@@ -29,6 +29,7 @@ typedef struct cc_project_impl_t {
 } cc_project_impl_t;
 
 struct {
+  const char* base_folder;
   const char* outputFolder;
   const char* workspaceLabel;
   cc_project_impl_t** projects;                   /* stretch array */
@@ -52,6 +53,9 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
   }
   if (cc_data_.outputFolder == 0) {
     cc_data_.outputFolder = "${platform}/${configuration}";
+  }
+  if (cc_data_.base_folder == 0) {
+    cc_data_.base_folder = "";
   }
 
   cc_project_impl_t* p = (cc_project_impl_t*)malloc(sizeof(cc_project_impl_t));
@@ -78,6 +82,17 @@ void addFilesToProject(cc_project_t in_out_project, unsigned num_files,
                        const char* in_file_names[], const cc_group_t in_parent_group) {
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
     array_push(((cc_project_impl_t*)in_out_project)->files, cc_printf("%s", *in_file_names));
+    array_push(((cc_project_impl_t*)in_out_project)->groups,
+               (const cc_group_impl_t*)in_parent_group);
+  }
+}
+void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder,
+                                 unsigned num_files, const char* in_file_names[],
+                                 const cc_group_t in_parent_group) {
+  char* relative_path = make_path_relative(cc_data_.base_folder, folder);
+  for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
+    const char* file = cc_printf("%s%s", relative_path, make_uri(*in_file_names));
+    array_push(((cc_project_impl_t*)in_out_project)->files, file);
     array_push(((cc_project_impl_t*)in_out_project)->groups,
                (const cc_group_impl_t*)in_parent_group);
   }
@@ -160,4 +175,49 @@ cc_configuration_t cc_configuration_create(const char* in_label) {
   cc_configuration_impl_t* c = (cc_configuration_impl_t*)cc_alloc_(byte_count);
   strcpy((char*)c->label, in_label);
   return c;
+}
+
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* const* argv);
+
+cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
+  bool is_path_absolute =
+      (in_absolute_config_file_path[0] == '/') || (in_absolute_config_file_path[1] == ':');
+  if (!is_path_absolute) {
+    fprintf(stderr,
+            "Error: config path passed to cc_init('%s', ...) is not an absolute path. If you are "
+            "using "
+            "__FILE__ check your compiler settings.\n",
+            in_absolute_config_file_path);
+#if defined(_MSC_VER)
+    fprintf(stderr,
+            "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
+            "an absolute path.\n");
+#endif
+
+    exit(1);
+  }
+
+  static bool is_inited = false;
+  if (is_inited) {
+    fprintf(stderr, "Error: calling cc_init() multiple times. Don't do this.\n");
+    exit(1);
+  }
+  is_inited = true;
+
+  cc_autoRecompileFromConfig(in_absolute_config_file_path, argc, argv);
+
+  cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
+
+  // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
+  cconstruct_t out = {cc_configuration_create,
+                      cc_platform_create,
+                      cc_project_create_,
+                      cc_createGroup,
+                      {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
+                       cc_state_disableWarningsAsErrors},
+                      {addFilesToProject, addFilesFromFolderToProject, addInputProject,
+                       cc_project_setFlags_, addPostBuildAction},
+                      {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
+
+  return out;
 }

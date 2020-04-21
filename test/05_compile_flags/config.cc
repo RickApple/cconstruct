@@ -1,6 +1,8 @@
 #include "../../source/cconstruct.h"
 
-int main() {
+int main(int argc, char** argv) {
+  cconstruct_t cc = cc_init(__FILE__, argc, argv);
+
   cc_platform_t platform_x64 = cc.createPlatform(EPlatformTypeX64);
   cc.workspace.addPlatform(platform_x64);
 
@@ -16,6 +18,7 @@ int main() {
 
   cc_flags flags;
   cc.state.reset(&flags);
+  // Beware, there are more general ways to set warning flags, see other test case.
 #ifdef WIN32
   array_push(flags.compile_options, "/WX");
 #else

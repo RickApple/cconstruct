@@ -1,4 +1,4 @@
-#include "../../source/cconstruct.h"
+#include "../../../source/cconstruct.h"
 
 int main(int argc, char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
@@ -11,17 +11,17 @@ int main(int argc, char** argv) {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  cc_project_t p      = cc.createProject("include_folders", CCProjectTypeConsoleApplication, NULL);
-  const char* files[] = {"src/main.c", "src/function.c", "src/include/function.h"};
+  cc_project_t p      = cc.createProject("config_folders", CCProjectTypeConsoleApplication, NULL);
+  const char* files[] = {"../src/main.c", "../src/function/function.h",
+                         "../src/function/function.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_flags flags;
   cc.state.reset(&flags);
-  // Include folders are assumed to be relative to main CConstruct config file
-  array_push(flags.include_folders, "src/include");
+  array_push(flags.include_folders, "../src/function");
   cc.project.setFlags(p, &flags, NULL, NULL);
 
-  cc_default_generator("build");
+  cc_default_generator("../build");
 
   return 0;
 }

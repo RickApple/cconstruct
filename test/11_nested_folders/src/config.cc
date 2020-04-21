@@ -1,4 +1,7 @@
-#include "../../source/cconstruct.h"
+#include "../../../source/cconstruct.h"
+
+// Subfolder includes
+#include "function/config.cc"
 
 int main(int argc, char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
@@ -11,17 +14,20 @@ int main(int argc, char** argv) {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  cc_project_t p      = cc.createProject("include_folders", CCProjectTypeConsoleApplication, NULL);
-  const char* files[] = {"src/main.c", "src/function.c", "src/include/function.h"};
+  cc_project_t p      = cc.createProject("nested_folders", CCProjectTypeConsoleApplication, NULL);
+  const char* files[] = {"main.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_flags flags;
   cc.state.reset(&flags);
-  // Include folders are assumed to be relative to main CConstruct config file
-  array_push(flags.include_folders, "src/include");
+  array_push(flags.include_folders, "function");
   cc.project.setFlags(p, &flags, NULL, NULL);
 
-  cc_default_generator("build");
+  add_function(cc, p);
+
+  // Note that the folder to generate the project is is relative to the main CConstruct config
+  // file.
+  cc_default_generator("../build");
 
   return 0;
 }

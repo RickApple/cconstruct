@@ -2,15 +2,14 @@
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat"
 echo on
 
-set COMPILE_CONSTRUCT_COMMAND=cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-
+set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 
 
 
 
 rem Compile a single instance of cconstruct with C++ to check for more copmile issues
 pushd 01_hello_world
-cl.exe /EHsc /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
+cl.exe /EHsc /FC /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
 popd
 
 
@@ -82,7 +81,7 @@ popd
 pushd 07_changed_config
 rd /S /Q build
 copy return_value1.inl return_value.inl
-cl.exe /EHsc /Fecconstruct.exe config.cc /nologo || exit /b
+cl.exe /EHsc /FC /Fecconstruct.exe config.cc /nologo || exit /b
 cconstruct.exe
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\changed_config.exe
@@ -122,6 +121,32 @@ rd /S /Q build
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\mixing_c_and_cpp.exe || exit /b
+popd
+
+
+pushd 11_nested_folders
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% src/config.cc || exit /b
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\nested_folders.exe || exit /b
+popd
+
+
+pushd 12_config_folders
+rd /S /Q build
+REM this test requires the build folder be there
+mkdir build 
+cl.exe /EHsc /Fo%TEMP% /FC /Febuild/cconstruct.exe /nologo /TC project/config.cc || exit /b
+pushd build
+cconstruct.exe || exit /b
+devenv.com workspace.sln /Build "Debug|x64" || exit /b
+x64\Debug\config_folders.exe || exit /b
+popd
+REM also check if it works when calling it from a different folder
+del build\config_folder.vcxproj.*
+build\cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 
 

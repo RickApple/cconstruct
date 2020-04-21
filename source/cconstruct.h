@@ -1,3 +1,6 @@
+#ifndef CC_CONSTRUCT_H
+#define CC_CONSTRUCT_H
+
 #pragma warning(disable : 4996)
 
 #include <stdbool.h>
@@ -36,17 +39,7 @@ typedef struct cc_flags {
   bool disableWarningsAsErrors;  // By default warnings are treated as errors.
 } cc_flags;
 
-typedef struct CConstruct {
-  /* If you want CConstruct to automatically pick up changes in your config files, then you need
-   * to call this function at the top of your main function, passing in the filename of your config
-   * file (you can use the __FILE__ macro).
-   * It will then rebuild the binary whenever you run it, replace the current binary, and then
-   * generate the projects. Since it's effectively only compiling a single file this is fast enough
-   * to do on each run.
-   */
-  void (*autoRecompileFromConfig)(const char* cconstruct_config_file_path, int argc,
-                                  const char* argv[]);
-
+typedef struct cconstruct_t {
   cc_configuration_t (*createConfiguration)(const char* in_label);
   cc_platform_t (*createPlatform)(EPlatformType in_type);
   cc_project_t (*createProject)(const char* in_project_name, EProjectType in_project_type,
@@ -72,6 +65,8 @@ typedef struct CConstruct {
      */
     void (*addFiles)(cc_project_t in_project, unsigned num_files, const char* in_file_names[],
                      const cc_group_t in_parent_group);
+    void (*addFilesFromFolder)(cc_project_t in_project, const char* folder, unsigned num_files,
+                               const char* in_file_names[], const cc_group_t in_parent_group);
 
     /* Add dependency between projects. This will only link the dependency and set the build order
      * in the IDE. It will *NOT* automatically add include-folders.
@@ -107,9 +102,14 @@ typedef struct CConstruct {
 
   } workspace;
 
-} CConstruct;
+} cconstruct_t;
 
 extern void (*cc_default_generator)(const char* workspace_folder);
+
+/* Call this once at the start of your main config file. You can usually call it with __FILE__, and
+ * simply forward argc and argv from the main function.
+ */
+cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv);
 
 /***********************************************************************************************************************
  *                                             Implementation starts here
@@ -137,20 +137,11 @@ extern void (*cc_default_generator)(const char* workspace_folder);
 // For automatic updates to the config
 #include "builder.inl"
 
-const CConstruct cc = {
-    cc_autoRecompileFromConfig,
-    cc_configuration_create,
-    cc_platform_create,
-    cc_project_create_,
-    cc_createGroup,
-    {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
-     cc_state_disableWarningsAsErrors},
-    {addFilesToProject, addInputProject, cc_project_setFlags_, addPostBuildAction},
-    {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
-
 // For ease of use set a default CConstruct generator for each platform
 #if defined(_MSC_VER)
 void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
 #else
 void (*cc_default_generator)(const char* workspace_folder) = xcode_generateInFolder;
 #endif
+
+#endif  // CC_CONSTRUCT_H

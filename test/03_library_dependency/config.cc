@@ -1,6 +1,8 @@
 #include "../../source/cconstruct.h"
 
-int main() {
+int main(int argc, char** argv) {
+  cconstruct_t cc = cc_init(__FILE__, argc, argv);
+
   cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("library_dependency");
 

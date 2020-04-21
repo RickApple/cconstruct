@@ -21,14 +21,6 @@ bool is_verbose = false;
 #define LOG_VERBOSE(...) \
   if (is_verbose) fprintf(stdout, __VA_ARGS__)
 
-const char* strip_path(const char* path) {
-  const char* last_slash = strrchr(path, '/');
-  if (last_slash)
-    return last_slash + 1;
-  else
-    return path;
-}
-
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
 
 #if defined(_MSC_VER)
@@ -185,7 +177,11 @@ const char* cc_printf(const char* format, ...) {
   va_end(args);
 
   if (output_length > alloc_size) {
-    assert(false && "Not implemented");
+    alloc_size = output_length + 1;
+    out        = (char*)cc_alloc_(alloc_size);
+    va_start(args, format);
+    vsprintf(out, format, args);
+    va_end(args);
   }
 
   out[alloc_size - 1] = 0;
@@ -234,4 +230,110 @@ const char** string_array_clone(const char** in) {
     memcpy(out, in, sizeof(const char*) * header->count_);
   }
   return (const char**)out;
+}
+
+const char* strip_path(const char* path) {
+  const char* last_slash = strrchr(path, '/');
+  if (last_slash)
+    return last_slash + 1;
+  else
+    return path;
+}
+
+char* make_uri(const char* in_path) {
+  char* uri = (char*)cc_printf("%s", in_path);
+  char* c   = uri;
+  while (*c) {
+    if (*c == '\\') {
+      *c = '/';
+    }
+    c++;
+  }
+
+  // Remove parent paths, start at offset 3 since can't do anything about a path starting with ../
+  if (uri[0] && uri[1] && uri[2]) {
+    char* uri_read  = uri + 3;
+    char* uri_write = uri + 3;
+    while (*uri_read) {
+      bool is_parent_path = *uri_read == '/' && *(uri_read + 1) == '.' && *(uri_read + 2) == '.' &&
+                            *(uri_read + 3) == '/';
+      if (is_parent_path) {
+        // Backtrack uri_write
+        uri_read = uri_read + 3;
+        uri_write--;
+        while (*uri_write != '/') {
+          uri_write--;
+        }
+      }
+      *uri_write = *uri_read;
+      uri_write++;
+      uri_read++;
+    }
+    *uri_write = 0;
+  }
+
+  return uri;
+}
+
+/* Remove filename from path, and return the folder
+ *
+ * @return guaranteed to end in '/', and data is copied so may be modified
+ */
+const char* folder_path_only(const char* in_path) {
+  char* uri        = make_uri(in_path);
+  char* last_slash = strrchr(uri, '/');
+  if (last_slash) {
+    *(last_slash + 1) = 0;
+    return uri;
+  } else {
+    return "./";
+  }
+}
+
+/* This function isn't yet super efficient
+ *
+ * @param in_base_folder is assumed to be an absolute folder path
+ */
+char* make_path_relative(const char* in_base_folder, const char* in_change_path) {
+  // Create copies of the paths so they can be modified
+  char* base_folder = make_uri(in_base_folder);
+  char* change_path = make_uri(in_change_path);
+
+  char* output = NULL;
+
+  bool is_absolute_path = (change_path[0] == '/') || (change_path[1] == ':');
+  if (!is_absolute_path) {
+    output = change_path;
+  } else {
+    // Find common root
+    char* end_common_root = base_folder;
+    while ((*end_common_root == *change_path) && *end_common_root && *change_path) {
+      end_common_root++;
+      change_path++;
+    }
+
+    // Count remaining / in end_common_root to determine levels to go up from base
+    unsigned num_folders = *end_common_root ? 1 : 0;
+    while (*end_common_root) {
+      if (*end_common_root == '/') {
+        num_folders++;
+      }
+      end_common_root++;
+    }
+    bool should_not_count_trailing_slash = num_folders > 0 && *(end_common_root - 1) == '/';
+    if (should_not_count_trailing_slash) {
+      num_folders--;
+    }
+
+    char* parent_folders = (char*)cc_alloc_(3 * num_folders + 1);
+    for (unsigned i = 0; i < num_folders; i++) {
+      parent_folders[3 * i + 0] = '.';
+      parent_folders[3 * i + 1] = '.';
+      parent_folders[3 * i + 2] = '/';
+    }
+    parent_folders[3 * num_folders] = 0;
+    output                          = (char*)cc_printf("%s%s", parent_folders, change_path);
+  }
+
+  return output;
 }

@@ -25,23 +25,39 @@ const char* solutionPlatform2String(EPlatformType platform) {
   return "";
 }
 
-void vs2019_generateInFolder(const char* workspace_path) {
-  printf("Generating Visual Studio 2019 solution and projects ...\n");
-  int count_folder_depth = 1;
-  {
-    const char* c = workspace_path;
-    while (*c) {
-      if (*c == '/') count_folder_depth += 1;
-      ++c;
+void vs2019_generateInFolder(const char* in_workspace_path) {
+  in_workspace_path = make_uri(in_workspace_path);
+  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
+
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
+
+  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+
+  for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
+    // Adjust all the files to be relative to the build output folder
+    cc_project_impl_t* project = cc_data_.projects[project_idx];
+    for (unsigned file_idx = 0; file_idx < array_count(project->files); file_idx++) {
+      project->files[file_idx] = cc_printf("%s%s", build_to_base_path, project->files[file_idx]);
     }
-    if (*(c - 1) == '/') count_folder_depth -= 1;
+    // Also all the include paths
+    for (unsigned state_idx = 0; state_idx < array_count(project->flags); state_idx++) {
+      cc_flags* state = project->flags + state_idx;
+      for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
+           includes_idx++) {
+        state->include_folders[includes_idx] =
+            cc_printf("%s%s", build_to_base_path, state->include_folders[includes_idx]);
+      }
+    }
   }
 
-  int result = make_folder(workspace_path);
+  printf("Generating Visual Studio 2019 solution and projects in '%s'...\n", output_folder);
+
+  int result = make_folder(output_folder);
   if (result != 0) {
-    fprintf(stderr, "Error %i creating path '%s'\n", result, workspace_path);
+    fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
   }
-  (void)chdir(workspace_path);
+  (void)chdir(output_folder);
 
   const char** project_ids =
       (const char**)cc_alloc_(sizeof(const char*) * array_count(cc_data_.projects));
@@ -53,11 +69,10 @@ void vs2019_generateInFolder(const char* workspace_path) {
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const cc_project_impl_t* p = cc_data_.projects[i];
     const char* project_id     = project_ids[i];
-    vs2019_createFilters(p, count_folder_depth);
-    vs2019_createProjectFile(p, project_id, project_ids, count_folder_depth);
+    vs2019_createFilters(p, output_folder);
+    vs2019_createProjectFile(p, project_id, project_ids, output_folder);
 
-    printf("Constructed VS2019 project '%s' at '%s/%s.vcxproj'\n", p->name, workspace_path,
-           p->name);
+    printf("Constructed VS2019 project '%s.vcxproj'\n", p->name);
   }
 
   // Create list of groups needed.
@@ -181,5 +196,5 @@ void vs2019_generateInFolder(const char* workspace_path) {
           "	EndGlobalSection\nEndGlobal\n");
 
   fclose(workspace);
-  printf("Constructed VS2019 workspace at '%s/%s'\n", workspace_path, workspace_file_path);
+  printf("Constructed VS2019 workspace at '%s'\n", workspace_file_path);
 }

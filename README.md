@@ -2,6 +2,14 @@
 
 A tool to make IDE project files, using C as a 'description' language.
 
+## Building your binary
+
+### Visual Studio
+
+When building using the Visual Studio command-line compiler cl.exe, you have to add the /FC switch so that CConstruct can reason about your file paths.
+Ref https://developercommunity.visualstudio.com/content/problem/364466/-file-macro-expands-to-absolute-path-when-used-fro.html
+Ref https://docs.microsoft.com/en-us/cpp/build/reference/fc-full-path-of-source-code-file-in-diagnostics?view=vs-2019
+
 ## Warnings
 
 Warnings are set to a high level by default, and treated as errors by default. Some choices of warnings are set such that that fixing them reduces the amount of code (eg, unused parameters are ok, unused variables need to be solved by removing the variables).
@@ -31,3 +39,11 @@ Run Jenkins service under standard user account
 https://issues.jenkins-ci.org/browse/JENKINS-49011
 
 devenv.exe didn't do anything (no output), but devenv.com reported outdated license. Solved by changing to standard account
+
+Requirement: cconstruct binary compiled from project root
+
+- config file in root folder, or other sub-folder
+  **FILE** if requirement is satisfied, this is a valid path to find the root of project.
+
+? cconstruct binary can be located in root, next to config, or in build folder
+? expected to be run from root folder, or build folder

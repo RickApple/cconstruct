@@ -42,12 +42,7 @@ typedef struct vs_compiler_setting {
   const char* value;
 } vs_compiler_setting;
 
-void vs2019_createFilters(const cc_project_impl_t* in_project, int folder_depth) {
-  const char* prepend_path = "";
-  for (int i = 0; i < folder_depth; ++i) {
-    prepend_path = cc_printf("%s../", prepend_path);
-  }
-
+void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_output_folder) {
   const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
   FILE* filter_file                    = fopen(projectfilters_file_path, "wb");
 
@@ -104,15 +99,16 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, int folder_depth)
 
   for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
     fprintf(filter_file, "  <ItemGroup>\n");
-    const char* f            = p->files[fi];
-    const cc_group_impl_t* g = p->groups[fi];
-    const char* group_name   = NULL;
+    const char* f                  = p->files[fi];
+    const cc_group_impl_t* g       = p->groups[fi];
+    const char* group_name         = NULL;
+    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     for (unsigned ug = 0; ug < num_unique_groups; ++ug) {
       if (unique_groups[ug] == g) {
         group_name = unique_group_names[ug];
       }
     }
-    const char* relative_file_path = cc_printf("%s%s", prepend_path, f);
     if (strstr(f, ".h")) {
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
@@ -129,12 +125,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, int folder_depth)
 }
 
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
-                              const char** project_ids, int folder_depth) {
-  const char* prepend_path = "";
-  for (int i = 0; i < folder_depth; ++i) {
-    prepend_path = cc_printf("%s../", prepend_path);
-  }
-
+                              const char** project_ids, const char* in_output_folder) {
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
   FILE* project_file            = fopen(project_file_path, "wb");
   fprintf(
@@ -340,6 +331,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       if (*additional_include_folders != 0) {
         // Skip the starting ;
+        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
         vs_compiler_setting additionalincludes_setting = {"AdditionalIncludeDirectories",
                                                           additional_include_folders + 1};
         array_push(compiler_flags, additionalincludes_setting);
@@ -380,11 +372,13 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
   for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
     fprintf(project_file, "  <ItemGroup>\n");
-    const char* f = cc_printf("%s%s", prepend_path, p->files[fi]);
+    const char* f                  = p->files[fi];
+    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     if (strstr(f, ".h")) {
-      fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", f);
+      fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", relative_file_path);
     } else {
-      fprintf(project_file, "    <ClCompile Include=\"%s\">\n", f);
+      fprintf(project_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
               ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
       fprintf(project_file, "    </ClCompile>");

@@ -119,7 +119,14 @@ void cc_deletePreviousBuild_() {
   }
 }
 
-void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* argv[]) {
+/* If you want CConstruct to automatically pick up changes in your config files, then you need
+ * to call this function at the top of your main function, passing in the filename of your config
+ * file (you can use the __FILE__ macro).
+ * It will then rebuild the binary whenever you run it, replace the current binary, and then
+ * generate the projects. Since it's effectively only compiling a single file this is fast enough
+ * to do on each run.
+ */
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* const* argv) {
   cc_deletePreviousBuild_();
   if (RA_CheckForRestartProcessStart()) {
     RA_WaitForPreviousProcessFinish();
@@ -179,7 +186,7 @@ void cc_swapBuilds_() {
   }
 }
 
-bool cc_should_generate_projects(int argc, const char* argv[]) {
+bool cc_should_generate_projects(int argc, const char* const* argv) {
   for (int i = 0; i < argc; ++i) {
     if (strcmp(argv[i], RA_CMDLINE_RESTART_PROCESS) == 0) {
       return true;
@@ -188,7 +195,7 @@ bool cc_should_generate_projects(int argc, const char* argv[]) {
   return false;
 }
 
-void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* argv[]) {
+void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* const* argv) {
   if (cc_should_generate_projects(argc, argv)) {
     // Do nothing
   } else {

@@ -1,6 +1,8 @@
 #include "../source/cconstruct.h"
 
-int main() {
+int main(int argc, char** argv) {
+  cconstruct_t cc = cc_init(__FILE__, argc, argv);
+
   cc_platform_t platform           = cc.createPlatform(EPlatformTypeX64);
   cc_configuration_t configuration = cc.createConfiguration("Debug");
 
