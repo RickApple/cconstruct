@@ -60,7 +60,7 @@ typedef struct cconstruct_t {
   } state;
 
   const struct {
-    /* Add files to a project. *.c/*.cpp files are automatically added to be compiled, everything
+    /* Add files to a project. .c/.cpp files are automatically added to be compiled, everything
      * else is treated as a header file.
      */
     void (*addFiles)(cc_project_t in_project, unsigned num_files, const char* in_file_names[],

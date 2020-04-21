@@ -192,6 +192,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     fprintf(stderr,
             "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
             "an absolute path.\n");
+#elif defined(__APPLE__)
+    fprintf(stderr,
+            "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
 #endif
 
     exit(1);

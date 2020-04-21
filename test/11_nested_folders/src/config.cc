@@ -3,7 +3,7 @@
 // Subfolder includes
 #include "function/config.cc"
 
-int main(int argc, char** argv) {
+int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
   cc_platform_t platform_x64 = cc.createPlatform(EPlatformTypeX64);

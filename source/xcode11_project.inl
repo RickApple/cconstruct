@@ -50,19 +50,15 @@ const char* xCodeStringFromGroup(const cc_group_impl_t** unique_groups, const ch
 }
 
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
-                            const xcode_uuid* projectFileReferenceUUIDs, int folder_depth) {
+                            const xcode_uuid* projectFileReferenceUUIDs,
+                            const char* build_to_base_path) {
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
-
-  const char* prepend_path = "";
-  for (int i = 0; i < folder_depth; ++i) {
-    prepend_path = cc_printf("%s../", prepend_path);
-  }
 
   unsigned files_count = array_count(p->files);
 
   const char** file_ref_paths = {0};
   for (unsigned i = 0; i < array_count(p->files); ++i) {
-    array_push(file_ref_paths, cc_printf("%s%s", prepend_path, p->files[i]));
+    array_push(file_ref_paths, cc_printf("%s%s", build_to_base_path, p->files[i]));
   }
 
   const char** fileReferenceUUID = {0};
@@ -409,8 +405,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
         // Order matters here, so append
         additional_include_folders =
-            cc_printf("%s					  \"%s\",\n",
-                      additional_include_folders, flags->include_folders[ifi]);
+            cc_printf("%s					  \"%s%s\",\n",
+                      additional_include_folders, build_to_base_path, flags->include_folders[ifi]);
       }
     }
     additional_include_folders = cc_printf("%s               )", additional_include_folders);
@@ -667,24 +663,22 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   fprintf(f, "</Workspace>");
 }
 
-void xcode_generateInFolder(const char* generate_path) {
-  printf("Generating XCode workspace and projects ...\n");
+void xcode_generateInFolder(const char* in_workspace_path) {
+  in_workspace_path = make_uri(in_workspace_path);
+  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
 
-  int count_folder_depth = 1;
-  {
-    const char* c = generate_path;
-    while (*c) {
-      if (*c == '/') count_folder_depth += 1;
-      ++c;
-    }
-    if (*(c - 1) == '/') count_folder_depth -= 1;
-  }
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
-  int result = make_folder(generate_path);
+  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+
+  printf("Generating XCode workspace and projects in '%s'...\n", output_folder);
+
+  int result = make_folder(output_folder);
   if (result != 0) {
-    fprintf(stderr, "Error %i creating path '%s'\n", result, generate_path);
+    fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
   }
-  (void)chdir(generate_path);
+  (void)chdir(output_folder);
 
   // Before doing anything, generate a UUID for each projects output file
   xcode_uuid* projectFileReferenceUUIDs = 0;
@@ -706,11 +700,11 @@ void xcode_generateInFolder(const char* generate_path) {
     FILE* f = fopen(project_file_path, "wb");
 
     if (f) {
-      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, count_folder_depth);
+      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, build_to_base_path);
       fclose(f);
     }
 
-    printf("Constructed XCode project '%s' at '%s/%s'\n", p->name, generate_path, project_path);
+    printf("Constructed XCode project '%s'\n", project_path);
   }
 
   {
@@ -721,7 +715,7 @@ void xcode_generateInFolder(const char* generate_path) {
     if (f) {
       xCodeCreateWorkspaceFile(f);
       fclose(f);
-      printf("Constructed XCode workspace at '%s/%s'\n", generate_path, workspace_path);
+      printf("Constructed XCode workspace at '%s'\n", workspace_path);
     }
   }
 }

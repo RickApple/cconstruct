@@ -54,9 +54,11 @@ int make_folder(const char* folder_path) {
   const char* next_sep = folder_path;
   while ((next_sep = strchr(next_sep, '/')) != NULL) {
     strncpy(buffer, folder_path, (size_t)(next_sep - folder_path));
-    int result = mkdir(buffer, 0777);
-    if (result != 0) {
-      if (errno != EEXIST) return errno;
+    if (buffer[0]) {
+      int result = mkdir(buffer, 0777);
+      if (result != 0) {
+        if (errno != EEXIST) return errno;
+      }
     }
     next_sep += 1;
   }
