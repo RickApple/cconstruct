@@ -18,6 +18,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
+- Support recompile as C++ file instead of C file
 - XCode remove hardcoded debug and release configurations
 - Rename platform to architecture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags

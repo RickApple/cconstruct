@@ -111,7 +111,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   fprintf(f, "/* Begin PBXBuildFile section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    if (!is_header_file(filename))
+    if (is_source_file(filename))
       fprintf(f,
               "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
               fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
@@ -347,22 +347,23 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   fprintf(f,
-          "/* Begin "
-          "PBXSourcesBuildPhase section */\n		403CC53723EB479400558E07 /* Sources */ = "
-          "{\n			isa = PBXSourcesBuildPhase;\n			buildActionMask = "
-          "2147483647;\n			files = (\n");
-
+          "/* Begin PBXSourcesBuildPhase section */\n"
+          "		403CC53723EB479400558E07 /* Sources */ = {\n"
+          "			isa = PBXSourcesBuildPhase;\n"
+          "			buildActionMask = 2147483647;\n"
+          "			files = (\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->files[fi];
-    if (!is_header_file(filename)) {
+    if (is_source_file(filename)) {
       fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
               strip_path(filename));
     }
   }
-
   fprintf(f,
-          "			);\n			runOnlyForDeploymentPostprocessing = "
-          "0;\n		};\n/* End PBXSourcesBuildPhase section */\n\n");
+          "			);\n"
+          "			runOnlyForDeploymentPostprocessing = 0;\n"
+          "		};\n"
+          "/* End PBXSourcesBuildPhase section */\n\n");
 
   const unsigned num_configurations = array_count(cc_data_.configurations);
   xcode_uuid* configuration_ids     = {0};
@@ -434,7 +435,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       add_setting(config_data, "ENABLE_NS_ASSERTIONS", "NO");
     }
     add_setting(config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor);
-    add_setting(config_data, "GCC_C_LANGUAGE_STANDARD", "c11");  // TODO:Expose this?
+    add_setting(config_data, "GCC_C_LANGUAGE_STANDARD", "c11");            // TODO:Expose this?
+    add_setting(config_data, "CLANG_CXX_LANGUAGE_STANDARD", "\"c++0x\"");  // TODO:Expose this?
 
     if (!shouldDisableWarningsAsError) {
       add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");

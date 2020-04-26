@@ -21,6 +21,7 @@ bool cc_is_verbose = false;
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
 
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
+bool is_source_file(const char* file_path) { return strstr(file_path, ".c") != 0; }
 
 #if defined(_MSC_VER)
 
