@@ -149,19 +149,32 @@ void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const ch
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   const char* cconstruct_internal_build_file_path = "cconstruct_internal_build";
 
-  const char* language =
 #if __cplusplus
-      "-x c++";
+  const char* language_revision =
+#if (__cplusplus > 201700)
+      "17";
+#elif (__cplusplus > 201400)
+      "14";
+#elif (__cplusplus > 201100)
+      "11";
 #else
-      "-x c";
+      "98";
 #endif
-  const char* compile_command = cc_printf("clang %s %s -o %s", cconstruct_config_file_path,
-                                          language, cconstruct_internal_build_file_path);
+  const char* recompile_command =
+      cc_printf("clang++ %s -x c++ -std=c++%s -o %s", cconstruct_config_file_path,
+                language_revision, cconstruct_internal_build_file_path);
 
-  FILE* pipe = popen(compile_command, "r");
+#else
+  const char* recompile_command = cc_printf("clang %s -x c -o %s", cconstruct_config_file_path,
+                                            cconstruct_internal_build_file_path);
+#endif
+  LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
+              recompile_command);
+
+  FILE* pipe = popen(recompile_command, "r");
 
   if (!pipe) {
-    LOG_ERROR_AND_QUIT("popen(%s) failed!", compile_command);
+    LOG_ERROR_AND_QUIT("popen(%s) failed!", recompile_command);
   }
 
   char buffer[128];

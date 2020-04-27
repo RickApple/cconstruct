@@ -508,6 +508,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
                                             additional_compiler_flags, "-Wno-unused-parameter");
       // This warning can complain about my_struct s = {0};
+      // Ref:
+      // https://stackoverflow.com/questions/13905200/is-it-wise-to-ignore-gcc-clangs-wmissing-braces-warning
       additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
                                             additional_compiler_flags, "-Wno-missing-braces");
 

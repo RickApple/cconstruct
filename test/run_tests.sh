@@ -3,7 +3,11 @@ set -e
 set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
-COMPILE_CCONSTRUCT_CPP_COMMAND='clang -x c++'
+COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
+
+
+
+
 
 
 
