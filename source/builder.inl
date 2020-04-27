@@ -48,7 +48,13 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       "\"%s\" > nul && cl.exe -EHsc "
       "/Fo%s\\cconstruct.obj "
       "/Fe%s %s "
-      "/nologo ",
+      "/nologo "
+#ifdef __cplusplus
+      "/TP "
+#else
+      "/TC "
+#endif
+      ,
       VsDevCmd_bat, temp_path, cconstruct_internal_build_file_path, cconstruct_config_file_path);
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
@@ -142,8 +148,15 @@ void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const ch
 #include <stdio.h>
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   const char* cconstruct_internal_build_file_path = "cconstruct_internal_build";
-  const char* compile_command = cc_printf("clang %s -o %s", cconstruct_config_file_path,
-                                          cconstruct_internal_build_file_path);
+
+  const char* language =
+#if __cplusplus
+      "-x c++";
+#else
+      "-x c";
+#endif
+  const char* compile_command = cc_printf("clang %s %s -o %s", cconstruct_config_file_path,
+                                          language, cconstruct_internal_build_file_path);
 
   FILE* pipe = popen(compile_command, "r");
 

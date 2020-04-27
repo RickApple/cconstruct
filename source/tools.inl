@@ -10,8 +10,7 @@
 
 #define countof(a) sizeof(a) / sizeof(a[0])
 
-// TODO: allow this to be set from the command line
-bool is_verbose = false;
+bool cc_is_verbose = false;
 
 #define LOG_ERROR_AND_QUIT(...)   \
   {                               \
@@ -19,7 +18,7 @@ bool is_verbose = false;
     exit(1);                      \
   }
 #define LOG_VERBOSE(...) \
-  if (is_verbose) fprintf(stdout, __VA_ARGS__)
+  if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
 
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
 

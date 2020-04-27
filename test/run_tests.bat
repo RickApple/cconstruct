@@ -3,14 +3,8 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Too
 echo on
 
 set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
-
-
-
-rem Compile a single instance of cconstruct with C++ to check for more copmile issues
-pushd 01_hello_world
-cl.exe /EHsc /FC /Fo%TEMP% /Fecconstruct.exe config.cc /nologo || exit /b
-popd
 
 
 
@@ -146,6 +140,22 @@ popd
 REM also check if it works when calling it from a different folder
 del build\config_folder.vcxproj.*
 build\cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+popd
+
+
+pushd 13_cpp_config
+rd /S /Q build
+%COMPILE_CONSTRUCT_CPP_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+popd
+
+
+pushd 14_c_config
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --verbose || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 

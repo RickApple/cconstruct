@@ -3,16 +3,7 @@ set -e
 set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
-
-
-
-
-
-
-# Compile a single instance with C++ to check compatiblity of cconstruct
-pushd 01_hello_world
-clang -x c++ $PWD/config.cc -o cconstruct
-popd
+COMPILE_CCONSTRUCT_CPP_COMMAND='clang -x c++'
 
 
 
@@ -173,6 +164,24 @@ rm -rf build/*.xc*
 ./build/cconstruct
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme config_folders
 popd
+
+
+pushd 13_cpp_config
+rm -rf build
+$COMPILE_CCONSTRUCT_CPP_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cpp_config
+popd
+
+
+pushd 14_c_config
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme c_config
+popd
+
+
 
 
 

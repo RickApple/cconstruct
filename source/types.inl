@@ -207,6 +207,12 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   }
   is_inited = true;
 
+  for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "--verbose") == 0) {
+      cc_is_verbose = true;
+    }
+  }
+
   cc_autoRecompileFromConfig(in_absolute_config_file_path, argc, argv);
 
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);

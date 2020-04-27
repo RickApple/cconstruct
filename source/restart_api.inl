@@ -85,6 +85,9 @@ BOOL RA_ActivateRestartProcess() {
   TCHAR szAppPath[MAX_PATH] = {0};
   GetModuleFileName(NULL, szAppPath, MAX_PATH);
   const char* quotedAppPath = cc_printf("\"%s\" %s", szAppPath, RA_CMDLINE_RESTART_PROCESS);
+  if (cc_is_verbose) {
+    quotedAppPath = cc_printf("%s --verbose", quotedAppPath);
+  }
 
   // Create another copy of process
   return CreateProcess(NULL, (LPSTR)quotedAppPath, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
