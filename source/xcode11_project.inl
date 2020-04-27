@@ -507,6 +507,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       // disabling unused parameters needs to be done after -Wextra
       additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
                                             additional_compiler_flags, "-Wno-unused-parameter");
+      // This warning can complain about my_struct s = {0};
+      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
+                                            additional_compiler_flags, "-Wno-missing-braces");
 
       // https://github.com/boredzo/Warnings-xcconfig/wiki/Warnings-Explained
 
