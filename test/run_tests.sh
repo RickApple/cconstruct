@@ -186,6 +186,13 @@ xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme c_config
 popd
 
 
+pushd 15_other_file_types
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme other_file_types
+popd
+
 
 
 
