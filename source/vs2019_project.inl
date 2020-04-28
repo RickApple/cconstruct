@@ -113,7 +113,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClInclude>\n");
-    } else if (is_source_file(f)){
+    } else if (is_source_file(f)) {
       fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClCompile>\n");
@@ -278,8 +278,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
       bool shouldDisableWarningsAsError         = false;
-      for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
-        const cc_flags* flags = &(p->flags[ipc]);
+      for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+        const cc_state_impl_t* flags = &(p->state[ipc]);
 
         // TODO ordering and combination so that more specific flags can override general ones
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
@@ -381,12 +381,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     if (is_header_file(f)) {
       fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", relative_file_path);
-    } else if (is_source_file(f)){
+    } else if (is_source_file(f)) {
       fprintf(project_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
               ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
       fprintf(project_file, "    </ClCompile>");
-    }else {
+    } else {
       fprintf(project_file, "    <None Include=\"%s\" />\n", relative_file_path);
     }
     fprintf(project_file, "  </ItemGroup>\n");

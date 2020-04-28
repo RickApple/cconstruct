@@ -1,1 +1,1 @@
-cc.state.addPreprocessorDefine(&flags, "RETURN_CODE=1");
+cc.state.addPreprocessorDefine(flags, "RETURN_CODE=1");

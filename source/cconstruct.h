@@ -28,16 +28,7 @@ typedef struct cc_project_impl_t* cc_project_t;
 typedef struct cc_group_impl_t* cc_group_t;
 typedef struct cc_platform_impl_t* cc_platform_t;
 typedef struct cc_configuration_impl_t* cc_configuration_t;
-
-typedef struct cc_flags {
-  const char** defines;
-  const char** include_folders;
-  const char** compile_options;
-  const char** link_options;
-  // By default warnings are turned up to the highest level below _all_.
-  EStateWarningLevel warningLevel;
-  bool disableWarningsAsErrors;  // By default warnings are treated as errors.
-} cc_flags;
+typedef struct cc_state_impl_t* cc_state_t;
 
 typedef struct cconstruct_t {
   cc_configuration_t (*createConfiguration)(const char* in_label);
@@ -52,11 +43,15 @@ typedef struct cconstruct_t {
    */
   cc_group_t (*createGroup)(const char* in_group_name, const cc_group_t in_parent_group);
 
+  cc_state_t (*createState)();
+
   const struct {
-    void (*reset)(cc_flags* out_flags);
-    void (*addPreprocessorDefine)(cc_flags* in_flags, const char* in_define);
-    void (*setWarningLevel)(cc_flags* in_flags, EStateWarningLevel in_level);
-    void (*disableWarningsAsErrors)(cc_flags* in_flags);
+    void (*reset)(cc_state_t out_state);
+    void (*addIncludeFolder)(cc_state_t in_state, const char* in_include_folder);
+    void (*addPreprocessorDefine)(cc_state_t in_state, const char* in_define);
+    void (*addCompilerFlag)(cc_state_t in_state, const char* in_compiler_flag);
+    void (*setWarningLevel)(cc_state_t in_state, EStateWarningLevel in_level);
+    void (*disableWarningsAsErrors)(cc_state_t in_state);
   } state;
 
   const struct {
@@ -73,12 +68,12 @@ typedef struct cconstruct_t {
      */
     void (*addInputProject)(cc_project_t target_project, const cc_project_t on_project);
 
-    /* Set flags on a project.
+    /* Set state on a project.
      *
-     * @param in_platform may be NULL if flags are for all platforms
-     * @param in_configuration may be NULL if flags are for all configurations
+     * @param in_platform may be NULL if state is for all platforms
+     * @param in_configuration may be NULL if state is for all configurations
      */
-    void (*setFlags)(cc_project_t in_out_project, const cc_flags* in_flags,
+    void (*setFlags)(cc_project_t in_out_project, const cc_state_t in_state,
                      cc_platform_t in_platform, cc_configuration_t in_configuration);
 
     /* Add a command line instruction to execute after the build has finished successfully.

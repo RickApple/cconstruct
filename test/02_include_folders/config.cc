@@ -15,11 +15,11 @@ int main(int argc, const char** argv) {
   const char* files[] = {"src/main.c", "src/function.c", "src/include/function.h"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc_flags flags;
-  cc.state.reset(&flags);
+  cc_state_t flags = cc.createState();
+  cc.state.reset(flags);
   // Include folders are assumed to be relative to main CConstruct config file
-  array_push(flags.include_folders, "src/include");
-  cc.project.setFlags(p, &flags, NULL, NULL);
+  cc.state.addIncludeFolder(flags, "src/include");
+  cc.project.setFlags(p, flags, NULL, NULL);
 
   cc_default_generator("build");
 

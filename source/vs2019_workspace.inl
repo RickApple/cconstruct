@@ -41,8 +41,8 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
       project->files[file_idx] = cc_printf("%s%s", build_to_base_path, project->files[file_idx]);
     }
     // Also all the include paths
-    for (unsigned state_idx = 0; state_idx < array_count(project->flags); state_idx++) {
-      cc_flags* state = project->flags + state_idx;
+    for (unsigned state_idx = 0; state_idx < array_count(project->state); state_idx++) {
+      const cc_state_impl_t* state = project->state + state_idx;
       for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
            includes_idx++) {
         state->include_folders[includes_idx] =

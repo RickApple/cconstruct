@@ -24,7 +24,6 @@ int main(int argc, const char** argv) {
   const char* readme[] = {"readme.md"};
   cc.project.addFiles(p, 1, readme, NULL);
 
-  // Folder to generate projects in is also relative to main CConstruct config file.
   cc_default_generator("build");
 
   return 0;

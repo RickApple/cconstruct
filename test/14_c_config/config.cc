@@ -23,7 +23,6 @@ int main(int argc, const char** argv) {
   const char* files[] = {"src/main.c", "src/function.c", "src/function.h"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  // Folder to generate projects in is also relative to main CConstruct config file.
   cc_default_generator("build");
 
   return 0;

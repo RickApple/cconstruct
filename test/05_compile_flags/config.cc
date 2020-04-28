@@ -16,16 +16,16 @@ int main(int argc, const char** argv) {
 
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc_flags flags;
-  cc.state.reset(&flags);
+  cc_state_t flags = cc.createState();
+  cc.state.reset(flags);
   // Beware, there are more general ways to set warning flags, see other test case.
 #ifdef WIN32
-  array_push(flags.compile_options, "/WX");
+  cc.state.addCompilerFlag(flags, "/WX");
 #else
-  array_push(flags.compile_options, "-Werror");
-  array_push(flags.compile_options, "-Wunused-variable");
+  cc.state.addCompilerFlag(flags, "-Werror");
+  cc.state.addCompilerFlag(flags, "-Wunused-variable");
 #endif
-  cc.project.setFlags(p, &flags, NULL, NULL);
+  cc.project.setFlags(p, flags, NULL, NULL);
 
   cc_default_generator("build");
 

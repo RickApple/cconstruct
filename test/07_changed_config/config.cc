@@ -11,14 +11,14 @@ int main(int argc, const char** argv) {
   cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration);
 
-  cc_flags flags      = {0};
+  cc_state_t flags    = cc.createState();
   cc_project_t p      = cc.createProject("changed_config", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc.state.reset(&flags);
+  cc.state.reset(flags);
 #include "return_value.inl"
-  cc.project.setFlags(p, &flags, platform, configuration);
+  cc.project.setFlags(p, flags, platform, configuration);
 
   cc_default_generator("build");
 

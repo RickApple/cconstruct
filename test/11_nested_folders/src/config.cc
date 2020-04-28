@@ -18,10 +18,10 @@ int main(int argc, const char** argv) {
   const char* files[] = {"main.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc_flags flags;
-  cc.state.reset(&flags);
-  array_push(flags.include_folders, "function");
-  cc.project.setFlags(p, &flags, NULL, NULL);
+  cc_state_t flags = cc.createState();
+  cc.state.reset(flags);
+  cc.state.addIncludeFolder(flags, "function");
+  cc.project.setFlags(p, flags, NULL, NULL);
 
   add_function(cc, p);
 

@@ -13,6 +13,16 @@ typedef struct cc_group_impl_t {
   const struct cc_group_impl_t* parent_group;
 } cc_group_impl_t;
 
+typedef struct cc_state_impl_t {
+  const char** defines;
+  const char** include_folders;
+  const char** compile_options;
+  const char** link_options;
+  // By default warnings are turned up to the highest level below _all_.
+  EStateWarningLevel warningLevel;
+  bool disableWarningsAsErrors;  // By default warnings are treated as errors.
+} cc_state_impl_t;
+
 typedef struct cc_project_impl_t {
   EProjectType type;
   const char* name;
@@ -20,7 +30,7 @@ typedef struct cc_project_impl_t {
   const cc_group_impl_t** groups;  /* stretch array */
   cc_project_impl_t** dependantOn; /* stretch array */
 
-  cc_flags* flags;                   /* stretch array */
+  cc_state_impl_t* state;            /* stretch array */
   cc_configuration_impl_t** configs; /* stretch array */
   cc_platform_impl_t** platforms;    /* stretch array */
   const char* postBuildAction;
@@ -38,12 +48,14 @@ struct {
   const cc_group_impl_t* groups;                  /* stretch array */
 } cc_data_;
 
-cc_group_t cc_createGroup(const char* in_group_name, const cc_group_t in_parent_group) {
+cc_group_t cc_group_create(const char* in_group_name, const cc_group_t in_parent_group) {
   cc_group_impl_t* group = (cc_group_impl_t*)cc_alloc_(sizeof(cc_group_impl_t));
   group->name            = cc_printf("%s", in_group_name);
   group->parent_group    = (const cc_group_impl_t*)in_parent_group;
   return (cc_group_t)group;
 }
+
+cc_state_t cc_state_create() { return (cc_state_t)cc_alloc_(sizeof(cc_state_impl_t)); }
 
 cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_project_type,
                                 const cc_group_t in_parent_group) {
@@ -112,12 +124,26 @@ void addPlatform(const cc_platform_t in_platform) {
 void setOutputFolder(const char* of) { cc_data_.outputFolder = of; }
 void setWorkspaceLabel(const char* label) { cc_data_.workspaceLabel = label; }
 
-void cc_state_reset(cc_flags* out_flags) { memset(out_flags, 0, sizeof(*out_flags)); }
-void cc_state_addPreprocessorDefine(cc_flags* in_flags, const char* in_define_string) {
-  array_push(in_flags->defines, cc_printf("%s", in_define_string));
+void cc_state_reset(cc_state_t out_flags) {
+  // TODO: free memory where needed
+  memset((cc_project_impl_t*)out_flags, 0, sizeof(cc_state_impl_t));
 }
-void cc_state_setWarningLevel(cc_flags* in_flags, EStateWarningLevel in_level) {
-  in_flags->warningLevel = in_level;
+
+void cc_state_addIncludeFolder(cc_state_t in_state, const char* in_include_folder) {
+  cc_state_impl_t* flags = ((cc_state_impl_t*)in_state);
+  array_push(flags->include_folders, make_uri(in_include_folder));
+}
+
+void cc_state_addPreprocessorDefine(cc_state_t in_state, const char* in_define_string) {
+  array_push(((cc_state_impl_t*)in_state)->defines, cc_printf("%s", in_define_string));
+}
+
+void cc_state_addCompilerFlag(cc_state_t in_state, const char* in_compiler_flag) {
+  array_push(((cc_state_impl_t*)in_state)->compile_options, cc_printf("%s", in_compiler_flag));
+}
+
+void cc_state_setWarningLevel(cc_state_t in_state, EStateWarningLevel in_level) {
+  ((cc_state_impl_t*)in_state)->warningLevel = in_level;
   /*
   clang:
   -W -Wall
@@ -141,24 +167,26 @@ void cc_state_setWarningLevel(cc_flags* in_flags, EStateWarningLevel in_level) {
   /WX
   */
 }
-void cc_state_disableWarningsAsErrors(cc_flags* in_flags) {
-  in_flags->disableWarningsAsErrors = true;
+void cc_state_disableWarningsAsErrors(cc_state_t in_state) {
+  ((cc_state_impl_t*)in_state)->disableWarningsAsErrors = true;
 }
 
 void addPostBuildAction(cc_project_t in_out_project, const char* in_action_command) {
   ((cc_project_impl_t*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
 }
 
-void cc_project_setFlags_(cc_project_t in_out_project, const cc_flags* in_flags,
+void cc_project_setFlags_(cc_project_t in_out_project, const cc_state_t in_state,
                           cc_platform_t in_platform, cc_configuration_t in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
-  cc_flags stored_flags        = *in_flags;
-  stored_flags.defines         = string_array_clone(in_flags->defines);
-  stored_flags.include_folders = string_array_clone(in_flags->include_folders);
-  stored_flags.compile_options = string_array_clone(in_flags->compile_options);
-  stored_flags.link_options    = string_array_clone(in_flags->link_options);
+  cc_state_impl_t stored_flags = *(const cc_state_impl_t*)in_state;
+  stored_flags.defines         = string_array_clone(((const cc_state_impl_t*)in_state)->defines);
+  stored_flags.include_folders =
+      string_array_clone(((const cc_state_impl_t*)in_state)->include_folders);
+  stored_flags.compile_options =
+      string_array_clone(((const cc_state_impl_t*)in_state)->compile_options);
+  stored_flags.link_options = string_array_clone(((const cc_state_impl_t*)in_state)->link_options);
 
-  array_push(((cc_project_impl_t*)in_out_project)->flags, stored_flags);
+  array_push(((cc_project_impl_t*)in_out_project)->state, stored_flags);
   array_push(((cc_project_impl_t*)in_out_project)->platforms, (cc_platform_impl_t*)in_platform);
   array_push(((cc_project_impl_t*)in_out_project)->configs,
              (cc_configuration_impl_t*)in_configuration);
@@ -218,15 +246,17 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
 
   // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
-  cconstruct_t out = {cc_configuration_create,
-                      cc_platform_create,
-                      cc_project_create_,
-                      cc_createGroup,
-                      {cc_state_reset, cc_state_addPreprocessorDefine, cc_state_setWarningLevel,
-                       cc_state_disableWarningsAsErrors},
-                      {addFilesToProject, addFilesFromFolderToProject, addInputProject,
-                       cc_project_setFlags_, addPostBuildAction},
-                      {setWorkspaceLabel, setOutputFolder, addConfiguration, addPlatform}};
+  cconstruct_t out = {
+      &cc_configuration_create,
+      &cc_platform_create,
+      &cc_project_create_,
+      &cc_group_create,
+      &cc_state_create,
+      {&cc_state_reset, &cc_state_addIncludeFolder, &cc_state_addPreprocessorDefine,
+       &cc_state_addCompilerFlag, &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
+      {&addFilesToProject, &addFilesFromFolderToProject, &addInputProject, &cc_project_setFlags_,
+       &addPostBuildAction},
+      {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addPlatform}};
 
   return out;
 }

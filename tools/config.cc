@@ -13,7 +13,7 @@ int main(int argc, const char** argv) {
   const char* files[] = {"cconstruct_release.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc_flags flags = {0};
+  cc_state_t flags = {0};
   cc.state.reset(&flags);
 #if defined(_WIN32)
   cc.state.addPreprocessorDefine(&flags, "_CRT_SECURE_NO_WARNINGS");

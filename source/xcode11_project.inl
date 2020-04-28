@@ -383,8 +383,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
     EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
     bool shouldDisableWarningsAsError         = false;
-    for (unsigned ipc = 0; ipc < array_count(p->flags); ++ipc) {
-      const cc_flags* flags = &(p->flags[ipc]);
+    for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+      const cc_state_impl_t* flags = &(p->state[ipc]);
 
       // TODO ordering and combination so that more specific flags can override general ones
       if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;

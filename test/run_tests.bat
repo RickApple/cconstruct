@@ -11,7 +11,7 @@ set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /
 pushd 01_hello_world
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\hello_world.exe || exit /b
 popd
@@ -20,7 +20,7 @@ popd
 pushd 02_include_folders
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\include_folders.exe || exit /b
 popd
@@ -29,7 +29,7 @@ popd
 pushd 03_library_dependency
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\msvc\library_dependency.sln /Build "Debug|x64" || exit /b
 build\msvc\x64\Debug\my_binary.exe || exit /b
 popd
@@ -38,7 +38,7 @@ popd
 pushd 04_preprocessor
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\preprocessor.exe
 rem Debug build has the expected value for the define, so should return 0
@@ -53,7 +53,7 @@ popd
 pushd 05_compile_flags
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Release|x64"
 if %errorlevel% neq 1 exit /b %errorlevel%
 REM building should cause an error because flag has been added to set warnings as errors
@@ -63,7 +63,7 @@ popd
 pushd 06_post_build_action
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64"
 rem The build is expected to give an error, since the post build action doesn't succeed ...
 if %errorlevel% equ 0 exit /b %errorlevel%
@@ -87,13 +87,19 @@ devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\changed_config.exe
 rem The second config builds the program so that it returns 2, so check for that specifically
 if %errorlevel% neq 2 exit /b %errorlevel%
+rem Now set back the first config, but don't rebuild
+copy return_value1.inl return_value.inl
+cconstruct.exe --generate-projects
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\changed_config.exe
+if %errorlevel% neq 2 exit /b %errorlevel%
 popd
 
 
 pushd 08_project_structure
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\project_structure.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\my_binary.exe || exit /b
 popd
@@ -102,7 +108,7 @@ popd
 pushd 09_warning_level
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 rem Without doing something about warnings, the following builds would fail.
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 devenv.com build\workspace.sln /Build "Release|x64" || exit /b
@@ -112,7 +118,7 @@ popd
 pushd 10_mixing_c_and_cpp
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\mixing_c_and_cpp.exe || exit /b
 popd
@@ -121,7 +127,7 @@ popd
 pushd 11_nested_folders
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% src/config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\nested_folders.exe || exit /b
 popd
@@ -133,7 +139,7 @@ REM this test requires the build folder be there
 mkdir build 
 cl.exe /EHsc /Fo%TEMP% /FC /Febuild/cconstruct.exe /nologo /TC project/config.cc || exit /b
 pushd build
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com workspace.sln /Build "Debug|x64" || exit /b
 x64\Debug\config_folders.exe || exit /b
 popd
@@ -147,7 +153,7 @@ popd
 pushd 13_cpp_config
 rd /S /Q build
 %COMPILE_CONSTRUCT_CPP_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 
@@ -155,7 +161,7 @@ popd
 pushd 14_c_config
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 
@@ -163,7 +169,7 @@ popd
 pushd 15_other_file_types
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
+cconstruct.exe --generate-projects || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 
