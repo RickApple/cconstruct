@@ -155,7 +155,15 @@ popd
 pushd 14_c_config
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe --verbose || exit /b
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+popd
+
+
+pushd 15_other_file_types
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 popd
 

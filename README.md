@@ -18,7 +18,8 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- Support recompile as C++ file instead of C file
+- if a project adds /Zi flag for VS, parse it and add it in the proper place in the interface to avoid warnings about /Zi overwriting /ZI
+  don't compile.
 - XCode remove hardcoded debug and release configurations
 - Rename platform to architecture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags
@@ -33,6 +34,9 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - have option to create project to debug cconstruct binary?
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
 - Allow projects to have different configurations/platforms, instead of automatically having all created ones.
+- Use existing function for path manipulation:
+  https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/makepath-wmakepath?view=vs-2019
+  https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/fullpath-wfullpath?view=vs-2019
 
 ## Done
 

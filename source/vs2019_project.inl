@@ -109,14 +109,18 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
         group_name = unique_group_names[ug];
       }
     }
-    if (strstr(f, ".h")) {
+    if (is_header_file(f)) {
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClInclude>\n");
-    } else {
+    } else if (is_source_file(f)){
       fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </ClCompile>\n");
+    } else {
+      fprintf(filter_file, "    <None Include=\"%s\">\n", relative_file_path);
+      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
+      fprintf(filter_file, "    </None>\n");
     }
     fprintf(filter_file, "  </ItemGroup>\n");
   }
@@ -375,13 +379,15 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     const char* f                  = p->files[fi];
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
-    if (strstr(f, ".h")) {
+    if (is_header_file(f)) {
       fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", relative_file_path);
-    } else {
+    } else if (is_source_file(f)){
       fprintf(project_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
               ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
       fprintf(project_file, "    </ClCompile>");
+    }else {
+      fprintf(project_file, "    <None Include=\"%s\" />\n", relative_file_path);
     }
     fprintf(project_file, "  </ItemGroup>\n");
   }
