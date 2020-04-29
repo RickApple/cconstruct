@@ -13,12 +13,12 @@ int main(int argc, const char** argv) {
   const char* files[] = {"cconstruct_release.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc_state_t flags = {0};
-  cc.state.reset(&flags);
+  cc_state_t flags = cc.createState();
+  cc.state.reset(flags);
 #if defined(_WIN32)
-  cc.state.addPreprocessorDefine(&flags, "_CRT_SECURE_NO_WARNINGS");
+  cc.state.addPreprocessorDefine(flags, "_CRT_SECURE_NO_WARNINGS");
 #endif
-  cc.project.setFlags(p, &flags, NULL, NULL);
+  cc.project.setFlags(p, flags, NULL, NULL);
 
   cc_default_generator("build");
 
