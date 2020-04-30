@@ -172,7 +172,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
               "Label=\"Configuration\">\n",
               c, platform_label);
       fprintf(project_file, "    <ConfigurationType>");
-      if (p->type == CCProjectTypeConsoleApplication) {
+      if ((p->type == CCProjectTypeConsoleApplication) ||
+          (p->type == CCProjectTypeWindowedApplication)) {
         fprintf(project_file, "Application");
       } else {
         fprintf(project_file, "StaticLibrary");
@@ -257,7 +258,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       }
 
       vs_compiler_setting* linker_flags     = {0};
-      vs_compiler_setting subsystem_setting = {"SubSystem", "Console"};
+      vs_compiler_setting subsystem_setting = {
+          "SubSystem", ((p->type == CCProjectTypeWindowedApplication) ? "Windows" : "Console")};
       vs_compiler_setting debuginfo_setting = {"GenerateDebugInformation", "true"};
       array_push(linker_flags, subsystem_setting);
       array_push(linker_flags, debuginfo_setting);
@@ -272,7 +274,20 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         array_push(compiler_flags, check_setting);
       }
 
-      const char* preprocessor_defines       = "_CONSOLE;%(PreprocessorDefinitions)";
+      const char* preprocessor_defines = "%(PreprocessorDefinitions)";
+      switch (p->type) {
+        case CCProjectTypeConsoleApplication:
+          preprocessor_defines = cc_printf("%s;%s", "_CONSOLE", preprocessor_defines);
+          break;
+        case CCProjectTypeWindowedApplication:
+          preprocessor_defines = cc_printf("%s;%s", "_WINDOWS", preprocessor_defines);
+          break;
+        case CCProjectTypeStaticLibrary:
+          preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
+          break;
+        default:
+          LOG_ERROR_AND_QUIT("Unknown project type for project '%s'\n", p->name);
+      }
       const char* additional_compiler_flags  = "%(AdditionalOptions)";
       const char* additional_include_folders = "";
 

@@ -4,3 +4,4 @@ return_value.inl
 test/**/build
 .vs
 build/cconstruct.h
+cconstruct.exe.old

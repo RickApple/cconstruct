@@ -7,6 +7,7 @@
 
 typedef enum {
   CCProjectTypeConsoleApplication = 0,
+  CCProjectTypeWindowedApplication,
   CCProjectTypeStaticLibrary,
 } EProjectType;
 typedef enum {
