@@ -181,7 +181,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       fprintf(project_file,
               "    <UseDebugLibraries>true</UseDebugLibraries>\n"
               "    <PlatformToolset>v142</PlatformToolset>\n"
-              "    <CharacterSet>Unicode</CharacterSet>\n"
+              "    <CharacterSet>MultiByte</CharacterSet>\n"
               "  </PropertyGroup>\n");
     }
   }
