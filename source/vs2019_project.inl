@@ -289,6 +289,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           LOG_ERROR_AND_QUIT("Unknown project type for project '%s'\n", p->name);
       }
       const char* additional_compiler_flags  = "%(AdditionalOptions)";
+      const char* additional_link_flags      = "%(AdditionalOptions)";
       const char* additional_include_folders = "";
 
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
@@ -308,6 +309,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
           additional_compiler_flags =
               cc_printf("%s %s", flags->compile_options[cfi], additional_compiler_flags);
+        }
+        for (unsigned lfi = 0; lfi < array_count(flags->link_options); ++lfi) {
+          additional_link_flags =
+              cc_printf("%s %s", flags->link_options[lfi], additional_link_flags);
         }
         for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
           // Order matters here, so append
@@ -355,6 +360,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                           additional_include_folders + 1};
         array_push(compiler_flags, additionalincludes_setting);
       }
+
+      vs_compiler_setting additionallinkoptions_setting = {"AdditionalOptions",
+                                                           additional_link_flags};
+      array_push(linker_flags, additionallinkoptions_setting);
 
       const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
       fprintf(project_file,

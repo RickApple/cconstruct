@@ -142,6 +142,10 @@ void cc_state_addCompilerFlag(cc_state_t in_state, const char* in_compiler_flag)
   array_push(((cc_state_impl_t*)in_state)->compile_options, cc_printf("%s", in_compiler_flag));
 }
 
+void cc_state_addLinkerFlag(cc_state_t in_state, const char* in_linker_flag) {
+  array_push(((cc_state_impl_t*)in_state)->link_options, cc_printf("%s", in_linker_flag));
+}
+
 void cc_state_setWarningLevel(cc_state_t in_state, EStateWarningLevel in_level) {
   ((cc_state_impl_t*)in_state)->warningLevel = in_level;
   /*
@@ -253,7 +257,8 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       &cc_group_create,
       &cc_state_create,
       {&cc_state_reset, &cc_state_addIncludeFolder, &cc_state_addPreprocessorDefine,
-       &cc_state_addCompilerFlag, &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
+       &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_setWarningLevel,
+       &cc_state_disableWarningsAsErrors},
       {&addFilesToProject, &addFilesFromFolderToProject, &addInputProject, &cc_project_setFlags_,
        &addPostBuildAction},
       {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addPlatform}};

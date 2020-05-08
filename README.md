@@ -18,6 +18,10 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
+- Custom commands on files (eg to compile GLSL)
+  [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
+- Allow config to set linker flags
+- Allow config to set environment and arguments for debug run?
 - if a project adds /Zi flag for VS, parse it and add it in the proper place in the interface to avoid warnings about /Zi overwriting /ZI
   don't compile.
 - XCode remove hardcoded debug and release configurations

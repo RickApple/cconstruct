@@ -51,6 +51,7 @@ typedef struct cconstruct_t {
     void (*addIncludeFolder)(cc_state_t in_state, const char* in_include_folder);
     void (*addPreprocessorDefine)(cc_state_t in_state, const char* in_define);
     void (*addCompilerFlag)(cc_state_t in_state, const char* in_compiler_flag);
+    void (*addLinkerFlag)(cc_state_t in_state, const char* in_linker_flag);
     void (*setWarningLevel)(cc_state_t in_state, EStateWarningLevel in_level);
     void (*disableWarningsAsErrors)(cc_state_t in_state);
   } state;

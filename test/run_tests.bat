@@ -183,7 +183,15 @@ build\x64\Debug\windowed_application.exe || exit /b
 popd
 
 
-
+pushd 17_link_flags
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generate-projects || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+if not exist build\x64\Debug\link_flags_named.pdb (
+  exit 1
+)
+popd
 
 
 
