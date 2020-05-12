@@ -14,7 +14,6 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_state_t flags = cc.createState();
-  cc.state.reset(flags);
 #if defined(_WIN32)
   cc.state.addPreprocessorDefine(flags, "_CRT_SECURE_NO_WARNINGS");
 #endif

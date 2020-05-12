@@ -75,7 +75,11 @@ cc_group_t cc_group_create(const char* in_group_name, const cc_group_t in_parent
   return (cc_group_t)group;
 }
 
-cc_state_t cc_state_create() { return (cc_state_t)cc_alloc_(sizeof(cc_state_impl_t)); }
+cc_state_t cc_state_create() {
+  cc_state_impl_t* out = cc_alloc_(sizeof(cc_state_impl_t));
+  memset(out, 0, sizeof(cc_state_impl_t));
+  return (cc_state_t)out;
+}
 
 cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_project_type,
                                 const cc_group_t in_parent_group) {

@@ -17,7 +17,6 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_state_t flags = cc.createState();
-  cc.state.reset(flags);
 #ifdef WIN32
   cc.state.addLinkerFlag(flags, "/PDB:\"$(OutDir)/link_flags_named.pdb");
 #else

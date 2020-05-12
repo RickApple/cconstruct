@@ -16,7 +16,6 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_state_t flags = cc.createState();
-  cc.state.reset(flags);
   // Include folders are assumed to be relative to main CConstruct config file
   cc.state.addIncludeFolder(flags, "src/include");
   cc.project.setFlags(p, flags, NULL, NULL);

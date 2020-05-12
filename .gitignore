@@ -5,3 +5,4 @@ test/**/build
 .vs
 build/cconstruct.h
 cconstruct.exe.old
+test/18_custom_commands/src/*.txt

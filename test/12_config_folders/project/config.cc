@@ -17,7 +17,6 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_state_t flags = cc.createState();
-  cc.state.reset(flags);
   cc.state.addIncludeFolder(flags, "../src/function");
   cc.project.setFlags(p, flags, NULL, NULL);
 

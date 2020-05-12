@@ -17,7 +17,6 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc_state_t flags = cc.createState();
-  cc.state.reset(flags);
   // Beware, there are more general ways to set warning flags, see other test case.
 #ifdef WIN32
   cc.state.addCompilerFlag(flags, "/WX");

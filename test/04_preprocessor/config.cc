@@ -18,7 +18,6 @@ int main(int argc, const char** argv) {
   const char* files[] = {"src/main.c"};
   cc.project.addFiles(p, countof(files), files, NULL);
 
-  cc.state.reset(flags);
   cc.state.addPreprocessorDefine(flags, "TEST_VALUE=5");
   cc.project.setFlags(p, flags, platform, configuration_debug);
   // Modifying flags after it has been set on a project does not affect the project anymore
