@@ -52,21 +52,14 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
           "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
   // Create list of groups needed.
-  const cc_project_impl_t* p            = (cc_project_impl_t*)in_project;
-  const cc_group_impl_t** unique_groups = {0};
-  for (unsigned ig = 0; ig < array_count(p->file_data); ++ig) {
-    const cc_group_impl_t* g = p->file_data[ig]->parent_group;
-    while (g) {
-      bool already_contains_group = false;
-      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (g == unique_groups[i]) {
-          already_contains_group = true;
-        }
-      }
-      if (!already_contains_group) {
-        array_push(unique_groups, g);
-      }
-      g = g->parent_group;
+  const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
+  bool* groups_needed        = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
+  memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
+  for (unsigned fi = 0; fi < array_count(p->file_data); fi++) {
+    unsigned gi = p->file_data[fi]->parent_group_idx;
+    while (gi) {
+      groups_needed[gi] = true;
+      gi                = cc_data_.groups[gi].parent_group_idx;
     }
   }
 
@@ -74,26 +67,28 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   //    Group A
   //    Group A\Nested Group
   //    Group B
-  const unsigned num_unique_groups = array_count(unique_groups);
-  const char** unique_group_names  = {0};
-  for (unsigned i = 0; i < num_unique_groups; ++i) {
-    const cc_group_impl_t* g = unique_groups[i];
-    assert(g);
-    const char* name = g->name[0] ? g->name : "<group>";
-    while (g->parent_group) {
-      g    = g->parent_group;
-      name = cc_printf("%s\\%s", g->name[0] ? g->name : "<group>", name);
+  const char** unique_group_names = {0};
+  for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
+    const char* name = "<group>";
+    if (groups_needed[gi]) {
+      const cc_group_impl_t* g = &cc_data_.groups[gi];
+      name                     = g->name[0] ? g->name : "<group>";
+      while (g->parent_group_idx) {
+        g    = &cc_data_.groups[g->parent_group_idx];
+        name = cc_printf("%s\\%s", g->name[0] ? g->name : "<group>", name);
+      }
     }
     array_push(unique_group_names, name);
   }
 
   fprintf(filter_file, "  <ItemGroup>\n");
-  for (unsigned i = 0; i < num_unique_groups; ++i) {
-    const cc_group_impl_t* g = unique_groups[i];
-    const char* group_name   = unique_group_names[i];
-    fprintf(filter_file, "    <Filter Include=\"%s\">\n", group_name);
-    fprintf(filter_file, "      <UniqueIdentifier>{%s}</UniqueIdentifier>\n", vs_generateUUID());
-    fprintf(filter_file, "    </Filter>\n");
+  for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
+    if (groups_needed[gi]) {
+      const char* group_name = unique_group_names[gi];
+      fprintf(filter_file, "    <Filter Include=\"%s\">\n", group_name);
+      fprintf(filter_file, "      <UniqueIdentifier>{%s}</UniqueIdentifier>\n", vs_generateUUID());
+      fprintf(filter_file, "    </Filter>\n");
+    }
   }
   fprintf(filter_file, "  </ItemGroup>\n");
 
@@ -102,15 +97,11 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
 
     fprintf(filter_file, "  <ItemGroup>\n");
     const char* f                  = file->path;
-    const cc_group_impl_t* g       = file->parent_group;
+    const unsigned gi              = file->parent_group_idx;
     const char* group_name         = NULL;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
-    for (unsigned ug = 0; ug < num_unique_groups; ++ug) {
-      if (unique_groups[ug] == g) {
-        group_name = unique_group_names[ug];
-      }
-    }
+    group_name = unique_group_names[gi];
 
     if (is_header_file(f)) {
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
@@ -133,15 +124,11 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
 
     fprintf(filter_file, "  <ItemGroup>\n");
     const char* f                  = file->path;
-    const cc_group_impl_t* g       = file->parent_group;
+    const unsigned gi              = file->parent_group_idx;
     const char* group_name         = NULL;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
-    for (unsigned ug = 0; ug < num_unique_groups; ++ug) {
-      if (unique_groups[ug] == g) {
-        group_name = unique_group_names[ug];
-      }
-    }
+    group_name = unique_group_names[gi];
 
     fprintf(filter_file, "    <CustomBuild Include=\"%s\">\n", relative_file_path);
     fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);

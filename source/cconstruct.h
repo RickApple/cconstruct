@@ -26,7 +26,7 @@ typedef enum {
 
 // Opaque handles in public interface
 typedef struct cc_project_impl_t* cc_project_t;
-typedef struct cc_group_impl_t* cc_group_t;
+typedef void* cc_group_t;
 typedef struct cc_platform_impl_t* cc_platform_t;
 typedef struct cc_configuration_impl_t* cc_configuration_t;
 typedef struct cc_state_impl_t* cc_state_t;

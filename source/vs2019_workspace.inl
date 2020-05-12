@@ -87,26 +87,15 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   }
 
   // Create list of groups needed.
-  const cc_group_impl_t** unique_groups = {0};
-  const char** unique_groups_id         = {0};
-  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-    const cc_project_impl_t* p = cc_data_.projects[i];
-    const cc_group_impl_t* g   = p->parent_group;
+  bool* groups_needed = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
+  memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
+  for (unsigned i = 0; i < array_count(cc_data_.projects); i++) {
+    unsigned g = cc_data_.projects[i]->parent_group_idx;
     while (g) {
-      bool already_contains_group = false;
-      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (g == unique_groups[i]) {
-          already_contains_group = true;
-        }
-      }
-      if (!already_contains_group) {
-        array_push(unique_groups, g);
-        array_push(unique_groups_id, vs_generateUUID());
-      }
-      g = g->parent_group;
+      groups_needed[g] = true;
+      g                = cc_data_.groups[g].parent_group_idx;
     }
   }
-  const unsigned num_unique_groups = array_count(unique_groups);
 
   const char* workspace_file_path = cc_printf("%s.sln", cc_data_.workspaceLabel);
   FILE* workspace                 = fopen(workspace_file_path, "wb");
@@ -130,13 +119,19 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   }
 
   // Add solution folders
-  for (unsigned i = 0; i < num_unique_groups; ++i) {
-    const cc_group_impl_t* g = unique_groups[i];
-    fprintf(workspace,
-            "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%s\", \"%s\", "
-            "\"{%s}\"\n",
-            g->name, g->name, unique_groups_id[i]);
-    fprintf(workspace, "EndProject\n");
+  const char** unique_groups_id = {0};
+  for (unsigned i = 0; i < array_count(cc_data_.groups); i++) {
+    const char* id = NULL;
+    if (groups_needed[i]) {
+      id                       = vs_generateUUID();
+      const cc_group_impl_t* g = &cc_data_.groups[i];
+      fprintf(workspace,
+              "Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"%s\", \"%s\", "
+              "\"{%s}\"\n",
+              g->name, g->name, id);
+      fprintf(workspace, "EndProject\n");
+    }
+    array_push(unique_groups_id, id);
   }
 
   fprintf(workspace, "Global\n");
@@ -173,32 +168,25 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
           "		HideSolutionNode = FALSE\n"
           "	EndGlobalSection\n");
 
-  if (num_unique_groups > 0) {
-    fprintf(workspace, "	GlobalSection(NestedProjects) = preSolution\n");
-    for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-      const char* projectId      = project_ids[i];
-      const cc_project_impl_t* p = cc_data_.projects[i];
-      if (p->parent_group) {
-        for (unsigned ig = 0; ig < num_unique_groups; ++ig) {
-          if (p->parent_group == unique_groups[ig]) {
-            fprintf(workspace, "		{%s} = {%s}\n", projectId, unique_groups_id[ig]);
-          }
-        }
-      }
+  fprintf(workspace, "	GlobalSection(NestedProjects) = preSolution\n");
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const char* projectId      = project_ids[i];
+    const cc_project_impl_t* p = cc_data_.projects[i];
+    if (p->parent_group_idx) {
+      fprintf(workspace, "		{%s} = {%s}\n", projectId,
+              unique_groups_id[p->parent_group_idx]);
     }
-    for (unsigned i = 0; i < num_unique_groups; ++i) {
-      const cc_group_impl_t* g = unique_groups[i];
-      if (g->parent_group) {
-        for (unsigned ig = 0; ig < num_unique_groups; ++ig) {
-          if (g->parent_group == unique_groups[ig]) {
-            fprintf(workspace, "		{%s} = {%s}\n", unique_groups_id[i],
-                    unique_groups_id[ig]);
-          }
-        }
-      }
-    }
-    fprintf(workspace, "	EndGlobalSection\n");
   }
+  for (unsigned i = 0; i < array_count(cc_data_.groups); i++) {
+    if (groups_needed[i]) {
+      const cc_group_impl_t* g = &cc_data_.groups[i];
+      if (g->parent_group_idx) {
+        fprintf(workspace, "		{%s} = {%s}\n", unique_groups_id[i],
+                unique_groups_id[g->parent_group_idx]);
+      }
+    }
+  }
+  fprintf(workspace, "	EndGlobalSection\n");
 
   fprintf(workspace,
           "	GlobalSection(ExtensibilityGlobals) = postSolution\n"

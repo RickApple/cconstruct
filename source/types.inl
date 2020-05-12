@@ -17,20 +17,20 @@ enum EFileType {
 struct cc_file_t_ {
   enum EFileType file_type;
   const char* path;
-  const struct cc_group_impl_t* parent_group;
+  unsigned parent_group_idx;
 };
 
 struct cc_file_custom_command_t_ {
   enum EFileType file_type;
   const char* path;
-  const struct cc_group_impl_t* parent_group;
+  unsigned parent_group_idx;
   const char* output_file;
   const char* command;
 };
 
 typedef struct cc_group_impl_t {
   const char* name;
-  const struct cc_group_impl_t* parent_group;
+  unsigned parent_group_idx;
 } cc_group_impl_t;
 
 typedef struct cc_state_impl_t {
@@ -55,24 +55,26 @@ typedef struct cc_project_impl_t {
   cc_platform_impl_t** platforms;    /* stretch array */
   const char* postBuildAction;
 
-  const cc_group_impl_t* parent_group;
+  unsigned parent_group_idx;
 } cc_project_impl_t;
 
 struct {
+  bool is_inited;
   const char* base_folder;
   const char* outputFolder;
   const char* workspaceLabel;
   cc_project_impl_t** projects;                   /* stretch array */
   const cc_configuration_impl_t** configurations; /* stretch array */
   const cc_platform_impl_t** platforms;           /* stretch array */
-  const cc_group_impl_t* groups;                  /* stretch array */
-} cc_data_;
+  cc_group_impl_t* groups;                        /* stretch array */
+} cc_data_ = {0};
 
 cc_group_t cc_group_create(const char* in_group_name, const cc_group_t in_parent_group) {
-  cc_group_impl_t* group = (cc_group_impl_t*)cc_alloc_(sizeof(cc_group_impl_t));
-  group->name            = cc_printf("%s", in_group_name);
-  group->parent_group    = (const cc_group_impl_t*)in_parent_group;
-  return (cc_group_t)group;
+  cc_group_impl_t group;
+  group.name             = cc_printf("%s", in_group_name);
+  group.parent_group_idx = (unsigned)in_parent_group;
+  array_push(cc_data_.groups, group);
+  return (cc_group_t)(array_count(cc_data_.groups) - 1);
 }
 
 cc_state_t cc_state_create() {
@@ -105,7 +107,7 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
   p->name                = name_copy;
   array_push(cc_data_.projects, p);
 
-  p->parent_group = (const cc_group_impl_t*)in_parent_group;
+  p->parent_group_idx = (unsigned)in_parent_group;
   return p;
 }
 
@@ -121,7 +123,7 @@ void addFilesToProject(cc_project_t in_out_project, unsigned num_files,
     struct cc_file_t_* file_data = (struct cc_file_t_*)cc_alloc_(sizeof(struct cc_file_t_));
     file_data->file_type         = FileTypeCustomCommand;
     file_data->path              = cc_printf("%s", *in_file_names);
-    file_data->parent_group      = (const cc_group_impl_t*)in_parent_group;
+    file_data->parent_group_idx  = (unsigned)in_parent_group;
     array_push(project->file_data, file_data);
   }
 }
@@ -137,7 +139,7 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
     struct cc_file_t_* file_data = (struct cc_file_t_*)cc_alloc_(sizeof(struct cc_file_t_));
     file_data->file_type         = FileTypeCustomCommand;
     file_data->path              = file_path;
-    file_data->parent_group      = (const cc_group_impl_t*)in_parent_group;
+    file_data->parent_group_idx  = (unsigned)in_parent_group;
     array_push(project->file_data, file_data);
   }
 }
@@ -150,11 +152,11 @@ void cc_project_addFileWithCustomCommand(cc_project_t in_out_project, const char
 
   struct cc_file_custom_command_t_* file_data =
       (struct cc_file_custom_command_t_*)cc_alloc_(sizeof(struct cc_file_custom_command_t_));
-  file_data->file_type    = FileTypeCustomCommand;
-  file_data->path         = cc_printf("%s", in_file_name);
-  file_data->parent_group = (const cc_group_impl_t*)in_parent_group;
-  file_data->command      = cc_printf("%s", in_custom_command);
-  file_data->output_file  = cc_printf("%s", in_output_file_name);
+  file_data->file_type        = FileTypeCustomCommand;
+  file_data->path             = cc_printf("%s", in_file_name);
+  file_data->parent_group_idx = (unsigned)in_parent_group;
+  file_data->command          = cc_printf("%s", in_custom_command);
+  file_data->output_file      = cc_printf("%s", in_output_file_name);
   array_push(project->file_data_custom_command, file_data);
 }
 
@@ -280,18 +282,21 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     exit(1);
   }
 
-  static bool is_inited = false;
-  if (is_inited) {
+  if (cc_data_.is_inited) {
     fprintf(stderr, "Error: calling cc_init() multiple times. Don't do this.\n");
     exit(1);
   }
-  is_inited = true;
+  cc_data_.is_inited = true;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--verbose") == 0) {
       cc_is_verbose = true;
     }
   }
+
+  // First group is no group
+  cc_group_impl_t null_group = {0};
+  array_push(cc_data_.groups, null_group);
 
   cc_autoRecompileFromConfig(in_absolute_config_file_path, argc, argv);
 

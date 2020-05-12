@@ -87,19 +87,19 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   const cc_group_impl_t** unique_groups = {0};
   const char** unique_groups_id         = {0};
   for (unsigned ig = 0; ig < array_count(p->file_data); ++ig) {
-    const cc_group_impl_t* g = p->file_data[ig]->parent_group;
+    unsigned g = p->file_data[ig]->parent_group_idx;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (g == unique_groups[i]) {
+        if (&cc_data_.groups[g] == unique_groups[i]) {
           already_contains_group = true;
         }
       }
       if (!already_contains_group) {
-        array_push(unique_groups, g);
+        array_push(unique_groups, &cc_data_.groups[g]);
         array_push(unique_groups_id, xCodeUUID2String(xCodeGenerateUUID()));
       }
-      g = g->parent_group;
+      g = cc_data_.groups[g].parent_group_idx;
     }
   }
   const unsigned num_unique_groups = array_count(unique_groups);
@@ -189,13 +189,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "			isa = PBXGroup;\n"
           "			children = (\n");
   for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    if (unique_groups[i]->parent_group == NULL) {
+    if (unique_groups[i]->parent_group_idx == 0) {
       fprintf(f, "				%s,\n",
               xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
     }
   }
   for (unsigned i = 0; i < array_count(p->file_data); ++i) {
-    if (p->file_data[i]->parent_group == NULL) {
+    if (p->file_data[i]->parent_group_idx == 0) {
       fprintf(f, "				%s /* %s */,\n", fileReferenceUUID[i],
               strip_path(p->file_data[i]->path));
     }
@@ -217,7 +217,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             xCodeStringFromGroup(unique_groups, unique_groups_id, g));
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename              = p->file_data[fi]->path;
-      const cc_group_impl_t* file_group = p->file_data[fi]->parent_group;
+      const cc_group_impl_t* file_group = &cc_data_.groups[p->file_data[fi]->parent_group_idx];
       if (file_group == g) {
         fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
                 strip_path(filename));
@@ -225,7 +225,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
     for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
       const cc_group_impl_t* child_group = unique_groups[gi];
-      if (child_group->parent_group == g) {
+      if (&cc_data_.groups[child_group->parent_group_idx] == g) {
         fprintf(f, "			    %s,\n",
                 xCodeStringFromGroup(unique_groups, unique_groups_id, child_group));
       }
@@ -622,7 +622,7 @@ void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
   }
 
   for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    if (unique_groups[i]->parent_group == parent_group) {
+    if (&cc_data_.groups[unique_groups[i]->parent_group_idx] == parent_group) {
       fprintf(f, "%s  <Group\n", prepend_path);
       fprintf(f, "%s    location = \"container:\"\n", prepend_path);
       fprintf(f, "%s    name = \"%s\">\n", prepend_path, unique_groups[i]->name);
@@ -633,7 +633,7 @@ void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
 
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const cc_project_impl_t* p = cc_data_.projects[i];
-    if (p->parent_group == parent_group) {
+    if (&cc_data_.groups[p->parent_group_idx] == parent_group) {
       fprintf(f, "%s  <FileRef\n", prepend_path);
       fprintf(f, "%s    location = \"group:%s.xcodeproj\">\n", prepend_path, p->name);
       fprintf(f, "%s  </FileRef>\n", prepend_path);
@@ -649,19 +649,19 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   const char** unique_groups_id         = {0};
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const cc_project_impl_t* p = cc_data_.projects[i];
-    const cc_group_impl_t* g   = p->parent_group;
+    unsigned g                 = p->parent_group_idx;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (g == unique_groups[i]) {
+        if (&cc_data_.groups[g] == unique_groups[i]) {
           already_contains_group = true;
         }
       }
       if (!already_contains_group) {
-        array_push(unique_groups, g);
+        array_push(unique_groups, &cc_data_.groups[g]);
         array_push(unique_groups_id, vs_generateUUID());
       }
-      g = g->parent_group;
+      g = cc_data_.groups[g].parent_group_idx;
     }
   }
 
