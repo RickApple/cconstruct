@@ -8,6 +8,26 @@ typedef struct cc_configuration_impl_t {
   const char label[];
 } cc_configuration_impl_t;
 
+enum EFileType {
+  FileTypeNone = 0,      /* added to the project, but not compiled in any way */
+  FileTypeCompileable,   /* should be compiled by the C/C++ compiler */
+  FileTypeCustomCommand, /* has a custom build command, will not be included in the linking step */
+};
+
+struct cc_file_t_ {
+  enum EFileType file_type;
+  const char* path;
+  const struct cc_group_impl_t* parent_group;
+};
+
+struct cc_file_custom_command_t_ {
+  enum EFileType file_type;
+  const char* path;
+  const struct cc_group_impl_t* parent_group;
+  const char* output_file;
+  const char* command;
+};
+
 typedef struct cc_group_impl_t {
   const char* name;
   const struct cc_group_impl_t* parent_group;
@@ -26,9 +46,9 @@ typedef struct cc_state_impl_t {
 typedef struct cc_project_impl_t {
   EProjectType type;
   const char* name;
-  const char** files;              /* stretch array */
-  const cc_group_impl_t** groups;  /* stretch array */
-  cc_project_impl_t** dependantOn; /* stretch array */
+  struct cc_file_t_** file_data;                               /* stretch array */
+  struct cc_file_custom_command_t_** file_data_custom_command; /* stretch array */
+  cc_project_impl_t** dependantOn;                             /* stretch array */
 
   cc_state_impl_t* state;            /* stretch array */
   cc_configuration_impl_t** configs; /* stretch array */
@@ -92,22 +112,46 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
  */
 void addFilesToProject(cc_project_t in_out_project, unsigned num_files,
                        const char* in_file_names[], const cc_group_t in_parent_group) {
+  cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
-    array_push(((cc_project_impl_t*)in_out_project)->files, cc_printf("%s", *in_file_names));
-    array_push(((cc_project_impl_t*)in_out_project)->groups,
-               (const cc_group_impl_t*)in_parent_group);
+    struct cc_file_t_* file_data = (struct cc_file_t_*)cc_alloc_(sizeof(struct cc_file_t_));
+    file_data->file_type         = FileTypeCustomCommand;
+    file_data->path              = cc_printf("%s", *in_file_names);
+    file_data->parent_group      = (const cc_group_impl_t*)in_parent_group;
+    array_push(project->file_data, file_data);
   }
 }
+
 void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder,
                                  unsigned num_files, const char* in_file_names[],
                                  const cc_group_t in_parent_group) {
-  char* relative_path = make_path_relative(cc_data_.base_folder, folder);
+  cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
+  char* relative_path        = make_path_relative(cc_data_.base_folder, folder);
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
-    const char* file = cc_printf("%s%s", relative_path, make_uri(*in_file_names));
-    array_push(((cc_project_impl_t*)in_out_project)->files, file);
-    array_push(((cc_project_impl_t*)in_out_project)->groups,
-               (const cc_group_impl_t*)in_parent_group);
+    const char* file_path = cc_printf("%s%s", relative_path, make_uri(*in_file_names));
+
+    struct cc_file_t_* file_data = (struct cc_file_t_*)cc_alloc_(sizeof(struct cc_file_t_));
+    file_data->file_type         = FileTypeCustomCommand;
+    file_data->path              = file_path;
+    file_data->parent_group      = (const cc_group_impl_t*)in_parent_group;
+    array_push(project->file_data, file_data);
   }
+}
+
+void cc_project_addFileWithCustomCommand(cc_project_t in_out_project, const char* in_file_name,
+                                         const cc_group_t in_parent_group,
+                                         const char* in_custom_command,
+                                         const char* in_output_file_name) {
+  cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
+
+  struct cc_file_custom_command_t_* file_data =
+      (struct cc_file_custom_command_t_*)cc_alloc_(sizeof(struct cc_file_custom_command_t_));
+  file_data->file_type    = FileTypeCustomCommand;
+  file_data->path         = cc_printf("%s", in_file_name);
+  file_data->parent_group = (const cc_group_impl_t*)in_parent_group;
+  file_data->command      = cc_printf("%s", in_custom_command);
+  file_data->output_file  = cc_printf("%s", in_output_file_name);
+  array_push(project->file_data_custom_command, file_data);
 }
 
 void addInputProject(cc_project_t target_project, const cc_project_t on_project) {
@@ -259,8 +303,8 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       {&cc_state_reset, &cc_state_addIncludeFolder, &cc_state_addPreprocessorDefine,
        &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_setWarningLevel,
        &cc_state_disableWarningsAsErrors},
-      {&addFilesToProject, &addFilesFromFolderToProject, &addInputProject, &cc_project_setFlags_,
-       &addPostBuildAction},
+      {&addFilesToProject, &addFilesFromFolderToProject, &cc_project_addFileWithCustomCommand,
+       &addInputProject, &cc_project_setFlags_, &addPostBuildAction},
       {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addPlatform}};
 
   return out;

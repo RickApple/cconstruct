@@ -37,8 +37,16 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
     // Adjust all the files to be relative to the build output folder
     cc_project_impl_t* project = cc_data_.projects[project_idx];
-    for (unsigned file_idx = 0; file_idx < array_count(project->files); file_idx++) {
-      project->files[file_idx] = cc_printf("%s%s", build_to_base_path, project->files[file_idx]);
+    for (unsigned file_idx = 0; file_idx < array_count(project->file_data); file_idx++) {
+      project->file_data[file_idx]->path =
+          cc_printf("%s%s", build_to_base_path, project->file_data[file_idx]->path);
+    }
+    for (unsigned file_idx = 0; file_idx < array_count(project->file_data_custom_command);
+         file_idx++) {
+      project->file_data_custom_command[file_idx]->path =
+          cc_printf("%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->path);
+      project->file_data_custom_command[file_idx]->output_file = cc_printf(
+          "%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->output_file);
     }
     // Also all the include paths
     for (unsigned state_idx = 0; state_idx < array_count(project->state); state_idx++) {

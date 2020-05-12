@@ -65,6 +65,10 @@ typedef struct cconstruct_t {
     void (*addFilesFromFolder)(cc_project_t in_project, const char* folder, unsigned num_files,
                                const char* in_file_names[], const cc_group_t in_parent_group);
 
+    void (*addFileWithCustomCommand)(cc_project_t in_project, const char* in_file_names,
+                                     const cc_group_t in_parent_group, const char* command,
+                                     const char* in_output_file_path);
+
     /* Add dependency between projects. This will only link the dependency and set the build order
      * in the IDE. It will *NOT* automatically add include-folders.
      */

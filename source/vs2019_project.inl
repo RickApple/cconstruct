@@ -54,8 +54,8 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   // Create list of groups needed.
   const cc_project_impl_t* p            = (cc_project_impl_t*)in_project;
   const cc_group_impl_t** unique_groups = {0};
-  for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
-    const cc_group_impl_t* g = p->groups[ig];
+  for (unsigned ig = 0; ig < array_count(p->file_data); ++ig) {
+    const cc_group_impl_t* g = p->file_data[ig]->parent_group;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -97,10 +97,12 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   }
   fprintf(filter_file, "  </ItemGroup>\n");
 
-  for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
+  for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
+    const struct cc_file_t_* file = p->file_data[fi];
+
     fprintf(filter_file, "  <ItemGroup>\n");
-    const char* f                  = p->files[fi];
-    const cc_group_impl_t* g       = p->groups[fi];
+    const char* f                  = file->path;
+    const cc_group_impl_t* g       = file->parent_group;
     const char* group_name         = NULL;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
@@ -109,6 +111,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
         group_name = unique_group_names[ug];
       }
     }
+
     if (is_header_file(f)) {
       fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
@@ -122,6 +125,28 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
       fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
       fprintf(filter_file, "    </None>\n");
     }
+    fprintf(filter_file, "  </ItemGroup>\n");
+  }
+
+  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
+    const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
+
+    fprintf(filter_file, "  <ItemGroup>\n");
+    const char* f                  = file->path;
+    const cc_group_impl_t* g       = file->parent_group;
+    const char* group_name         = NULL;
+    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
+    for (unsigned ug = 0; ug < num_unique_groups; ++ug) {
+      if (unique_groups[ug] == g) {
+        group_name = unique_group_names[ug];
+      }
+    }
+
+    fprintf(filter_file, "    <CustomBuild Include=\"%s\">\n", relative_file_path);
+    fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
+    fprintf(filter_file, "    </CustomBuild>\n");
+
     fprintf(filter_file, "  </ItemGroup>\n");
   }
 
@@ -398,9 +423,9 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     }
   }
 
-  for (unsigned fi = 0; fi < array_count(p->files); ++fi) {
+  for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     fprintf(project_file, "  <ItemGroup>\n");
-    const char* f                  = p->files[fi];
+    const char* f                  = p->file_data[fi]->path;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     if (is_header_file(f)) {
@@ -409,10 +434,28 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       fprintf(project_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
       fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
               ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
-      fprintf(project_file, "    </ClCompile>");
+      fprintf(project_file, "    </ClCompile>\n");
     } else {
       fprintf(project_file, "    <None Include=\"%s\" />\n", relative_file_path);
     }
+    fprintf(project_file, "  </ItemGroup>\n");
+  }
+
+  const char* build_to_base_path = make_path_relative(in_output_folder, cc_data_.base_folder);
+  vs_replaceForwardSlashWithBackwardSlashInPlace((char*)build_to_base_path);
+  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
+    const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
+    const char* relative_in_file_path = make_path_relative(in_output_folder, file->path);
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_in_file_path);
+    const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
+
+    fprintf(project_file, "  <ItemGroup>\n");
+    fprintf(project_file, "    <CustomBuild Include=\"%s\">\n", relative_in_file_path);
+    fprintf(project_file, "      <Command>cd %s &amp;&amp; %s</Command>\n", build_to_base_path,
+            file->command);
+    fprintf(project_file, "      <Outputs>%s</Outputs>\n", relative_out_file_path);
+    fprintf(project_file, "    </CustomBuild>\n");
     fprintf(project_file, "  </ItemGroup>\n");
   }
 

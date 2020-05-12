@@ -54,11 +54,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const char* build_to_base_path) {
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
 
-  unsigned files_count = array_count(p->files);
+  const unsigned files_count = array_count(p->file_data);
 
   const char** file_ref_paths = {0};
-  for (unsigned i = 0; i < array_count(p->files); ++i) {
-    array_push(file_ref_paths, cc_printf("%s%s", build_to_base_path, p->files[i]));
+  for (unsigned i = 0; i < files_count; ++i) {
+    array_push(file_ref_paths, cc_printf("%s%s", build_to_base_path, p->file_data[i]->path));
   }
 
   const char** fileReferenceUUID = {0};
@@ -86,8 +86,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   // Create list of groups needed.
   const cc_group_impl_t** unique_groups = {0};
   const char** unique_groups_id         = {0};
-  for (unsigned ig = 0; ig < array_count(p->groups); ++ig) {
-    const cc_group_impl_t* g = p->groups[ig];
+  for (unsigned ig = 0; ig < array_count(p->file_data); ++ig) {
+    const cc_group_impl_t* g = p->file_data[ig]->parent_group;
     while (g) {
       bool already_contains_group = false;
       for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -110,7 +110,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
   fprintf(f, "/* Begin PBXBuildFile section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->files[fi];
+    const char* filename = p->file_data[fi]->path;
     if (is_source_file(filename))
       fprintf(f,
               "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
@@ -141,7 +141,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
   fprintf(f, "/* Begin PBXFileReference section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->files[fi];
+    const char* filename = p->file_data[fi]->path;
     fprintf(f,
             "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
             "lastKnownFileType "
@@ -194,10 +194,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
               xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
     }
   }
-  for (unsigned i = 0; i < array_count(p->files); ++i) {
-    if (p->groups[i] == NULL) {
+  for (unsigned i = 0; i < array_count(p->file_data); ++i) {
+    if (p->file_data[i]->parent_group == NULL) {
       fprintf(f, "				%s /* %s */,\n", fileReferenceUUID[i],
-              strip_path(p->files[i]));
+              strip_path(p->file_data[i]->path));
     }
   }
   fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
@@ -216,8 +216,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "			children = (\n",
             xCodeStringFromGroup(unique_groups, unique_groups_id, g));
     for (unsigned fi = 0; fi < files_count; ++fi) {
-      const char* filename              = p->files[fi];
-      const cc_group_impl_t* file_group = p->groups[fi];
+      const char* filename              = p->file_data[fi]->path;
+      const cc_group_impl_t* file_group = p->file_data[fi]->parent_group;
       if (file_group == g) {
         fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
                 strip_path(filename));
@@ -353,7 +353,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "			buildActionMask = 2147483647;\n"
           "			files = (\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->files[fi];
+    const char* filename = p->file_data[fi]->path;
     if (is_source_file(filename)) {
       fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
               strip_path(filename));
