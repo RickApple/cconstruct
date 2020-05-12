@@ -444,10 +444,15 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
 
+    /*
+    Apparently VS2019 Custom Build Tool does not reset paths between multiple invocations of Custom
+    Build Tool. That's why there needs to be an absolute path here, instead of only the simpler
+    relative build_to_base_path.
+    */
     fprintf(project_file, "  <ItemGroup>\n");
     fprintf(project_file, "    <CustomBuild Include=\"%s\">\n", relative_in_file_path);
-    fprintf(project_file, "      <Command>cd %s &amp;&amp; %s</Command>\n", build_to_base_path,
-            file->command);
+    fprintf(project_file, "      <Command>cd $(ProjectDir)%s &amp;&amp; %s</Command>\n",
+            build_to_base_path, file->command);
     fprintf(project_file, "      <Outputs>%s</Outputs>\n", relative_out_file_path);
     fprintf(project_file, "    </CustomBuild>\n");
     fprintf(project_file, "  </ItemGroup>\n");
