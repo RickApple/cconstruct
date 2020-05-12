@@ -9,28 +9,6 @@ set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /
 
 
 
-
-
-pushd 18_custom_commands
-rd /S /Q build
-del src\test.txt
-%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe --generate-projects || exit /b
-set TEST_TIME=%time%
-echo %TEST_TIME%>src\test_source.txt
-devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
-rem copy src\test_source.txt src\test.txt
-rem Get output into variable
-FOR /F "tokens=* USEBACKQ" %%F IN (`build\x64\Debug\custom_commands.exe`) DO (
-SET CMD_OUTPUT=%%F
-)
-if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
-popd
-
-
-exit 0
-
-
 pushd 01_hello_world
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
@@ -214,6 +192,23 @@ devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 if not exist build\x64\Debug\link_flags_named.pdb (
   exit 1
 )
+popd
+
+
+pushd 18_custom_commands
+rd /S /Q build
+del src\test.txt
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generate-projects || exit /b
+set TEST_TIME=%time%
+echo %TEST_TIME%>src\test_source.txt
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+rem copy src\test_source.txt src\test.txt
+rem Get output into variable
+FOR /F "tokens=* USEBACKQ" %%F IN (`build\x64\Debug\custom_commands.exe`) DO (
+SET CMD_OUTPUT=%%F
+)
+if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
 popd
 
 
