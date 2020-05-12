@@ -614,18 +614,18 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "}\n");
 }
 
-void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
-                              const cc_group_impl_t* parent_group, int folder_depth) {
+void xCode_addWorkspaceFolder(FILE* f, const size_t* unique_groups, const size_t parent_group,
+                              int folder_depth) {
   const char* prepend_path = "";
   for (int i = 0; i < folder_depth; ++i) {
     prepend_path = cc_printf("%s  ", prepend_path);
   }
 
   for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    if (&cc_data_.groups[unique_groups[i]->parent_group_idx] == parent_group) {
+    if (cc_data_.groups[unique_groups[i]].parent_group_idx == parent_group) {
       fprintf(f, "%s  <Group\n", prepend_path);
       fprintf(f, "%s    location = \"container:\"\n", prepend_path);
-      fprintf(f, "%s    name = \"%s\">\n", prepend_path, unique_groups[i]->name);
+      fprintf(f, "%s    name = \"%s\">\n", prepend_path, cc_data_.groups[unique_groups[i]].name);
       xCode_addWorkspaceFolder(f, unique_groups, unique_groups[i], folder_depth + 1);
       fprintf(f, "%s  </Group>\n", prepend_path);
     }
@@ -633,7 +633,7 @@ void xCode_addWorkspaceFolder(FILE* f, const cc_group_impl_t** unique_groups,
 
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const cc_project_impl_t* p = cc_data_.projects[i];
-    if (&cc_data_.groups[p->parent_group_idx] == parent_group) {
+    if (p->parent_group_idx == parent_group) {
       fprintf(f, "%s  <FileRef\n", prepend_path);
       fprintf(f, "%s    location = \"group:%s.xcodeproj\">\n", prepend_path, p->name);
       fprintf(f, "%s  </FileRef>\n", prepend_path);
@@ -645,27 +645,25 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Workspace\n   version = \"1.0\">\n");
 
   // Create list of groups needed.
-  const cc_group_impl_t** unique_groups = {0};
-  const char** unique_groups_id         = {0};
-  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-    const cc_project_impl_t* p = cc_data_.projects[i];
-    unsigned g                 = p->parent_group_idx;
+  bool* groups_needed = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
+  memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
+  for (unsigned i = 0; i < array_count(cc_data_.projects); i++) {
+    size_t g = cc_data_.projects[i]->parent_group_idx;
     while (g) {
-      bool already_contains_group = false;
-      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-        if (&cc_data_.groups[g] == unique_groups[i]) {
-          already_contains_group = true;
-        }
-      }
-      if (!already_contains_group) {
-        array_push(unique_groups, &cc_data_.groups[g]);
-        array_push(unique_groups_id, vs_generateUUID());
-      }
-      g = cc_data_.groups[g].parent_group_idx;
+      groups_needed[g] = true;
+      g                = cc_data_.groups[g].parent_group_idx;
     }
   }
 
-  xCode_addWorkspaceFolder(f, unique_groups, NULL, 0);
+  // Create list of groups needed.
+  size_t* unique_groups = {0};
+  for (unsigned i = 0; i < array_count(cc_data_.groups); i++) {
+    if (groups_needed[i]) {
+      array_push(unique_groups, i);
+    }
+  }
+
+  xCode_addWorkspaceFolder(f, unique_groups, 0, 0);
 
   fprintf(f, "</Workspace>");
 }
