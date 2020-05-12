@@ -2,6 +2,7 @@
 call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat"
 echo on
 
+set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /DEBUG /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
