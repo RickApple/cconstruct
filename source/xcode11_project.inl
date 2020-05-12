@@ -102,6 +102,22 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       g = cc_data_.groups[g].parent_group_idx;
     }
   }
+  for (unsigned ig = 0; ig < array_count(p->file_data_custom_command); ++ig) {
+    unsigned g = p->file_data_custom_command[ig]->parent_group_idx;
+    while (g) {
+      bool already_contains_group = false;
+      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+        if (&cc_data_.groups[g] == unique_groups[i]) {
+          already_contains_group = true;
+        }
+      }
+      if (!already_contains_group) {
+        array_push(unique_groups, &cc_data_.groups[g]);
+        array_push(unique_groups_id, xCodeUUID2String(xCodeGenerateUUID()));
+      }
+      g = cc_data_.groups[g].parent_group_idx;
+    }
+  }
   const unsigned num_unique_groups = array_count(unique_groups);
 
   fprintf(f,
@@ -655,7 +671,6 @@ void xCodeCreateWorkspaceFile(FILE* f) {
     }
   }
 
-  // Create list of groups needed.
   size_t* unique_groups = {0};
   for (unsigned i = 0; i < array_count(cc_data_.groups); i++) {
     if (groups_needed[i]) {

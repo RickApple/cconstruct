@@ -62,6 +62,13 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
       gi                = cc_data_.groups[gi].parent_group_idx;
     }
   }
+  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
+    unsigned gi = p->file_data_custom_command[fi]->parent_group_idx;
+    while (gi) {
+      groups_needed[gi] = true;
+      gi                = cc_data_.groups[gi].parent_group_idx;
+    }
+  }
 
   // Create names for the needed groups. Nested groups append their name in the filter file
   //    Group A
@@ -69,7 +76,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   //    Group B
   const char** unique_group_names = {0};
   for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
-    const char* name = "<group>";
+    const char* name = "";
     if (groups_needed[gi]) {
       const cc_group_impl_t* g = &cc_data_.groups[gi];
       name                     = g->name[0] ? g->name : "<group>";
