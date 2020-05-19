@@ -10,7 +10,7 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setOutputFolder("${platform}/${configuration}");
 
-  cc_platform_t platform           = cc.createPlatform(EPlatformTypeX64);
+  cc_architecture_t platform       = cc.createPlatform(EArchitectureX64);
   cc_configuration_t configuration = cc.createConfiguration("Debug");
 
   cc.workspace.addPlatform(platform);

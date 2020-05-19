@@ -13,13 +13,13 @@ const char* replaceSpacesWithUnderscores(const char* in) {
   return in;
 }
 
-const char* solutionPlatform2String(EPlatformType platform) {
-  switch (platform) {
-    case EPlatformTypeX86:
+const char* solutionArch2String_(EArchitecture arch) {
+  switch (arch) {
+    case EArchitectureX86:
       return "x86";
-    case EPlatformTypeX64:
+    case EArchitectureX64:
       return "x64";
-    case EPlatformTypeARM:
+    case EArchitectureARM:
       return "ARM";
   }
   return "";
@@ -139,8 +139,8 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   fprintf(workspace, "	GlobalSection(SolutionConfigurationPlatforms) = preSolution\n");
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const char* p = solutionPlatform2String(cc_data_.platforms[pi]->type);
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const char* p = solutionArch2String_(cc_data_.architectures[pi]->type);
       fprintf(workspace, "		%s|%s = %s|%s\n", c, p, c, p);
     }
   }
@@ -151,13 +151,13 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
     const char* projectId = project_ids[i];
     for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
       const char* c = cc_data_.configurations[ci]->label;
-      for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-        const EPlatformType p      = cc_data_.platforms[pi]->type;
-        const char* platform_label = vs_projectPlatform2String_(p);
+      for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+        const EArchitecture p  = cc_data_.architectures[pi]->type;
+        const char* arch_label = vs_projectArch2String_(p);
         fprintf(workspace, "		{%s}.%s|%s.ActiveCfg = %s|%s\n", projectId, c,
-                solutionPlatform2String(p), c, platform_label);
+                solutionArch2String_(p), c, arch_label);
         fprintf(workspace, "		{%s}.%s|%s.Build.0 = %s|%s\n", projectId, c,
-                solutionPlatform2String(p), c, platform_label);
+                solutionArch2String_(p), c, arch_label);
       }
     }
   }

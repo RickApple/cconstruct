@@ -1,12 +1,15 @@
 typedef struct cc_project_impl_t cc_project_impl_t;
 
-typedef struct cc_platform_impl_t {
-  EPlatformType type;
-} cc_platform_impl_t;
 typedef struct cc_configuration_impl_t {
   int placeholder;  // Else get errors in C
   const char label[];
 } cc_configuration_impl_t;
+typedef struct cc_architecture_impl_t {
+  EArchitecture type;
+} cc_architecture_impl_t;
+typedef struct cc_platform_impl_t {
+  EPlatform type;
+} cc_platform_impl_t;
 
 enum EFileType {
   FileTypeNone = 0,      /* added to the project, but not compiled in any way */
@@ -50,9 +53,9 @@ typedef struct cc_project_impl_t {
   struct cc_file_custom_command_t_** file_data_custom_command; /* stretch array */
   cc_project_impl_t** dependantOn;                             /* stretch array */
 
-  cc_state_impl_t* state;            /* stretch array */
-  cc_configuration_impl_t** configs; /* stretch array */
-  cc_platform_impl_t** platforms;    /* stretch array */
+  cc_state_impl_t* state;                 /* stretch array */
+  cc_configuration_impl_t** configs;      /* stretch array */
+  cc_architecture_impl_t** architectures; /* stretch array */
   const char* postBuildAction;
 
   size_t parent_group_idx;
@@ -65,6 +68,7 @@ struct {
   const char* workspaceLabel;
   cc_project_impl_t** projects;                   /* stretch array */
   const cc_configuration_impl_t** configurations; /* stretch array */
+  const cc_architecture_impl_t** architectures;   /* stretch array */
   const cc_platform_impl_t** platforms;           /* stretch array */
   cc_group_impl_t* groups;                        /* stretch array */
 } cc_data_ = {0};
@@ -132,7 +136,10 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
                                  unsigned num_files, const char* in_file_names[],
                                  const cc_group_t in_parent_group) {
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
-  char* relative_path        = make_path_relative(cc_data_.base_folder, folder);
+  const char* relative_path  = make_path_relative(cc_data_.base_folder, folder);
+  if (relative_path[strlen(relative_path) - 1] != '/') {
+    relative_path = cc_printf("%s/", relative_path);
+  }
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
     const char* file_path = cc_printf("%s%s", relative_path, make_uri(*in_file_names));
 
@@ -166,6 +173,9 @@ void addInputProject(cc_project_t target_project, const cc_project_t on_project)
 
 void addConfiguration(const cc_configuration_t in_configuration) {
   array_push(cc_data_.configurations, (const cc_configuration_impl_t*)in_configuration);
+}
+void addArchitecture(const cc_architecture_t in_architecture) {
+  array_push(cc_data_.architectures, (const cc_architecture_impl_t*)in_architecture);
 }
 void addPlatform(const cc_platform_t in_platform) {
   array_push(cc_data_.platforms, (const cc_platform_impl_t*)in_platform);
@@ -230,7 +240,7 @@ void addPostBuildAction(cc_project_t in_out_project, const char* in_action_comma
 }
 
 void cc_project_setFlags_(cc_project_t in_out_project, const cc_state_t in_state,
-                          cc_platform_t in_platform, cc_configuration_t in_configuration) {
+                          cc_architecture_t in_platform, cc_configuration_t in_configuration) {
   // Clone the flags, so later changes aren't applied to this version
   cc_state_impl_t stored_flags = *(const cc_state_impl_t*)in_state;
   stored_flags.defines         = string_array_clone(((const cc_state_impl_t*)in_state)->defines);
@@ -241,16 +251,23 @@ void cc_project_setFlags_(cc_project_t in_out_project, const cc_state_t in_state
   stored_flags.link_options = string_array_clone(((const cc_state_impl_t*)in_state)->link_options);
 
   array_push(((cc_project_impl_t*)in_out_project)->state, stored_flags);
-  array_push(((cc_project_impl_t*)in_out_project)->platforms, (cc_platform_impl_t*)in_platform);
+  array_push(((cc_project_impl_t*)in_out_project)->architectures,
+             (cc_architecture_impl_t*)in_platform);
   array_push(((cc_project_impl_t*)in_out_project)->configs,
              (cc_configuration_impl_t*)in_configuration);
 }
 
-cc_platform_t cc_platform_create(EPlatformType in_type) {
+cc_architecture_t cc_architecture_create(EArchitecture in_type) {
+  unsigned byte_count       = sizeof(cc_architecture_impl_t);
+  cc_architecture_impl_t* p = (cc_architecture_impl_t*)cc_alloc_(byte_count);
+  p->type                   = in_type;
+  return p;
+}
+cc_platform_t cc_platform_create(EPlatform in_type) {
   unsigned byte_count   = sizeof(cc_platform_impl_t);
   cc_platform_impl_t* p = (cc_platform_impl_t*)cc_alloc_(byte_count);
   p->type               = in_type;
-  return p;
+  return (cc_platform_t)p;
 }
 cc_configuration_t cc_configuration_create(const char* in_label) {
   unsigned byte_count        = strlen(in_label) + 1 + sizeof(cc_configuration_impl_t);
@@ -305,6 +322,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
   cconstruct_t out = {
       &cc_configuration_create,
+      &cc_architecture_create,
       &cc_platform_create,
       &cc_project_create_,
       &cc_group_create,
@@ -314,7 +332,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
        &cc_state_disableWarningsAsErrors},
       {&addFilesToProject, &addFilesFromFolderToProject, &cc_project_addFileWithCustomCommand,
        &addInputProject, &cc_project_setFlags_, &addPostBuildAction},
-      {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addPlatform}};
+      {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addArchitecture, &addPlatform}};
 
   return out;
 }

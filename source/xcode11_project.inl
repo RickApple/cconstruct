@@ -303,10 +303,16 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   fprintf(f, "			productReference = %s /* %s */;\n",
           xCodeUUID2String(outputFileReferenceUIID), outputName);
   fprintf(f, "			productType = ");
-  if (p->type == CCProjectTypeConsoleApplication) {
-    fprintf(f, "\"com.apple.product-type.tool\"");
-  } else {
-    fprintf(f, "\"com.apple.product-type.library.static\"");
+  switch (p->type) {
+    case CCProjectTypeConsoleApplication:
+      fprintf(f, "\"com.apple.product-type.tool\"");
+      break;
+    case CCProjectTypeWindowedApplication:
+      fprintf(f, "\"com.apple.product-type.application\"");
+      break;
+    case CCProjectTypeStaticLibrary:
+      fprintf(f, "\"com.apple.product-type.library.static\"");
+      break;
   }
   fprintf(f, ";\n		};\n/* End PBXNativeTarget section */\n\n");
 
@@ -410,7 +416,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
       // TODO ordering and combination so that more specific flags can override general ones
       if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
-      // if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
+      // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
 
       shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
       combined_warning_level       = flags->warningLevel;
@@ -433,8 +439,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       }
     }
     additional_include_folders = cc_printf("%s               )", additional_include_folders);
-    assert(array_count(cc_data_.platforms) == 1);
-    assert(cc_data_.platforms[0]->type == EPlatformTypeX64);
+    assert(array_count(cc_data_.architectures) == 1);
+    assert(cc_data_.architectures[0]->type == EArchitectureX64);
     const char* substitution_keys[]    = {"configuration", "platform"};
     const char* substitution_values[]  = {"$CONFIGURATION", "x64"};
     const char* resolved_output_folder = cc_substitute(

@@ -20,8 +20,13 @@ bool cc_is_verbose = false;
 #define LOG_VERBOSE(...) \
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
 
+const char* file_extension(const char* file_path) { return strrchr(file_path, '.'); }
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
-bool is_source_file(const char* file_path) { return strstr(file_path, ".c") != 0; }
+bool is_source_file(const char* file_path) {
+  return (strstr(file_path, ".c") != 0) || (strcmp(file_extension(file_path), ".m") == 0) ||
+         (strcmp(file_extension(file_path), ".metal") == 0) ||
+         (strcmp(file_extension(file_path), ".mm") == 0);
+}
 
 #if defined(_MSC_VER)
 

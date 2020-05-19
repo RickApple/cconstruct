@@ -16,13 +16,13 @@ const char* vs_findUUIDForProject(const char** uuids, const cc_project_impl_t* p
   return uuids[i];
 }
 
-const char* vs_projectPlatform2String_(EPlatformType platform) {
-  switch (platform) {
-    case EPlatformTypeX86:
+const char* vs_projectArch2String_(EArchitecture arch) {
+  switch (arch) {
+    case EArchitectureX86:
       return "Win32";
-    case EPlatformTypeX64:
+    case EArchitectureX64:
       return "x64";
-    case EPlatformTypeARM:
+    case EArchitectureARM:
       return "ARM";
   }
   return "";
@@ -159,8 +159,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
   fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
       fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
       fprintf(project_file, "      <Platform>%s</Platform>\n", platform_label);
@@ -184,8 +184,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       fprintf(project_file,
               "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
               "Label=\"Configuration\">\n",
@@ -212,8 +212,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           "</ImportGroup>\n");
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       fprintf(project_file,
               "  <ImportGroup Label=\"PropertySheets\" "
               "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
@@ -228,8 +228,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const char* platform_label        = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const char* platform_label        = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       const char* substitution_keys[]   = {"configuration", "platform"};
       const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
       const char* resolved_output_folder =
@@ -263,8 +263,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     const cc_configuration_impl_t* config = cc_data_.configurations[ci];
     const char* configuration_label       = config->label;
     const bool is_debug_build             = (strcmp(configuration_label, "Debug") == 0);
-    for (unsigned pi = 0; pi < array_count(cc_data_.platforms); ++pi) {
-      const cc_platform_impl_t* platform = cc_data_.platforms[pi];
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const cc_architecture_impl_t* arch = cc_data_.architectures[pi];
 
       vs_compiler_setting* compiler_flags = {0};
       {
@@ -318,7 +318,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
         // TODO ordering and combination so that more specific flags can override general ones
         if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
-        if ((p->platforms[ipc] != platform) && (p->platforms[ipc] != NULL)) continue;
+        if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
 
         shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
         combined_warning_level       = flags->warningLevel;
@@ -361,7 +361,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       } else {
         preprocessor_defines = cc_printf("NDEBUG;%s", preprocessor_defines);
       }
-      const bool is_win32 = (cc_data_.platforms[pi]->type == EPlatformTypeX86);
+      const bool is_win32 = (cc_data_.architectures[pi]->type == EArchitectureX86);
       if (is_win32) {
         preprocessor_defines = cc_printf("WIN32;%s", preprocessor_defines);
       }
@@ -384,7 +384,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                            additional_link_flags};
       array_push(linker_flags, additionallinkoptions_setting);
 
-      const char* platform_label = vs_projectPlatform2String_(cc_data_.platforms[pi]->type);
+      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
               configuration_label, platform_label);

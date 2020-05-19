@@ -5,11 +5,13 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setOutputFolder("${platform}/${configuration}");
 
-  cc_platform_t platform                   = cc.createPlatform(EPlatformTypeX64);
+  cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
+  cc_platform_t platform = cc.createPlatform(EPlatformDesktop);
+  cc.workspace.addArchitecture(arch);
+  cc.workspace.addPlatform(platform);
+
   cc_configuration_t configuration_debug   = cc.createConfiguration("Debug");
   cc_configuration_t configuration_release = cc.createConfiguration("Release");
-
-  cc.workspace.addPlatform(platform);
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 

@@ -6,8 +6,10 @@ int main(int argc, const char** argv) {
   cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("project_structure");
 
-  cc_platform_t platform_x64 = cc.createPlatform(EPlatformTypeX64);
-  cc.workspace.addPlatform(platform_x64);
+  cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
+  cc_platform_t platform = cc.createPlatform(EPlatformDesktop);
+  cc.workspace.addArchitecture(arch);
+  cc.workspace.addPlatform(platform);
 
   cc_configuration_t configuration_debug   = cc.createConfiguration("Debug");
   cc_configuration_t configuration_release = cc.createConfiguration("Release");

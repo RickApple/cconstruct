@@ -18,6 +18,8 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 - addInputProject crashes when project to add to is empty. add error output
+- Make selection of compilable files more flexible
+- Architecture and platform should be set at project level
 - Custom commands on files (eg to compile GLSL)
   [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported
@@ -26,7 +28,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - if a project adds /Zi flag for VS, parse it and add it in the proper place in the interface to avoid warnings about /Zi overwriting /ZI
   don't compile.
 - XCode remove hardcoded debug and release configurations
-- Rename platform to architecture. MacOS is a platform, as is Windows, iOS, tvOS, Linux etc. x86_32, x86_64, arm64 are architectures
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
 - Should the language dialect be exposed?
@@ -38,7 +39,8 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - support pre build actions (post already works)
 - have option to create project to debug cconstruct binary?
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
-- Allow projects to have different configurations/platforms, instead of automatically having all created ones.
+- Better name for CCProjectTypeWindowedApplication as that is also the type used for iOS applications
+    Maybe just CCProjectTypeApplication
 - Use existing function for path manipulation:
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/makepath-wmakepath?view=vs-2019
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/fullpath-wfullpath?view=vs-2019

@@ -11,10 +11,14 @@ typedef enum {
   CCProjectTypeStaticLibrary,
 } EProjectType;
 typedef enum {
-  EPlatformTypeX86 = 0,
-  EPlatformTypeX64,
-  EPlatformTypeARM,
-} EPlatformType;
+  EArchitectureX86 = 0,
+  EArchitectureX64,
+  EArchitectureARM,
+} EArchitecture;
+typedef enum {
+  EPlatformDesktop = 0, /* MacOS, Windows */
+  EPlatformPhone,       /* iOS */
+} EPlatform;
 typedef enum {
   EStateWarningLevelDefault = 0,
   EStateWarningLevelHigh    = EStateWarningLevelDefault,
@@ -27,13 +31,15 @@ typedef enum {
 // Opaque handles in public interface
 typedef struct cc_project_impl_t* cc_project_t;
 typedef void* cc_group_t;
-typedef struct cc_platform_impl_t* cc_platform_t;
+typedef struct cc_architecture_impl_t* cc_architecture_t;
+typedef struct cc_architecture_impl_t* cc_platform_t;
 typedef struct cc_configuration_impl_t* cc_configuration_t;
 typedef struct cc_state_impl_t* cc_state_t;
 
 typedef struct cconstruct_t {
   cc_configuration_t (*createConfiguration)(const char* in_label);
-  cc_platform_t (*createPlatform)(EPlatformType in_type);
+  cc_architecture_t (*createArchitecture)(EArchitecture in_type);
+  cc_platform_t (*createPlatform)(EPlatform in_type);
   cc_project_t (*createProject)(const char* in_project_name, EProjectType in_project_type,
                                 const cc_group_t in_parent_group);
 
@@ -76,11 +82,11 @@ typedef struct cconstruct_t {
 
     /* Set state on a project.
      *
-     * @param in_platform may be NULL if state is for all platforms
+     * @param in_platform may be NULL if state is for all architectures
      * @param in_configuration may be NULL if state is for all configurations
      */
     void (*setFlags)(cc_project_t in_out_project, const cc_state_t in_state,
-                     cc_platform_t in_platform, cc_configuration_t in_configuration);
+                     cc_architecture_t in_platform, cc_configuration_t in_configuration);
 
     /* Add a command line instruction to execute after the build has finished successfully.
      */
@@ -99,6 +105,7 @@ typedef struct cconstruct_t {
     /* Add a configuration
      */
     void (*addConfiguration)(const cc_configuration_t in_configuration);
+    void (*addArchitecture)(const cc_architecture_t in_architecture);
     void (*addPlatform)(const cc_platform_t in_platform);
 
   } workspace;
@@ -138,7 +145,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 // For automatic updates to the config
 #include "builder.inl"
 
-// For ease of use set a default CConstruct generator for each platform
+// For ease of use set a default CConstruct generator for each OS
 #if defined(_MSC_VER)
 void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
 #else
