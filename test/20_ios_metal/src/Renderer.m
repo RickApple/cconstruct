@@ -14,7 +14,7 @@
 // Include header shared between C code here, which executes Metal API commands, and .metal files
 #import "ShaderTypes.h"
 
-static const NSUInteger MaxBuffersInFlight = 3;
+enum { MaxBuffersInFlight = 3};
 
 @implementation Renderer
 {

@@ -20,12 +20,32 @@ bool cc_is_verbose = false;
 #define LOG_VERBOSE(...) \
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
 
-const char* file_extension(const char* file_path) { return strrchr(file_path, '.'); }
+const char* file_extension(const char* file_path) { return strrchr(file_path, '.') + 1; }
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
 bool is_source_file(const char* file_path) {
-  return (strstr(file_path, ".c") != 0) || (strcmp(file_extension(file_path), ".m") == 0) ||
-         (strcmp(file_extension(file_path), ".metal") == 0) ||
-         (strcmp(file_extension(file_path), ".mm") == 0);
+  const char* ext = file_extension(file_path);
+
+  const char* const source_extensions[] = {
+      "c",     "cc", "cpp", /* C variant source files*/
+      "m",     "mm",        /* Objective-C source files */
+      "metal",              /* Apples Metal shading language */
+  };
+  for (unsigned i = 0; i < countof(source_extensions); i++) {
+    if (strcmp(ext, source_extensions[i]) == 0) return true;
+  }
+  return false;
+}
+bool is_buildable_resource_file(const char* file_path) {
+  const char* ext = file_extension(file_path);
+
+  const char* const resource_extensions[] = {
+      "storyboard",
+      "xcassets",
+  };
+  for (unsigned i = 0; i < countof(resource_extensions); i++) {
+    if (strcmp(ext, resource_extensions[i]) == 0) return true;
+  }
+  return false;
 }
 
 #if defined(_MSC_VER)

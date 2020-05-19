@@ -49,6 +49,26 @@ const char* xCodeStringFromGroup(const cc_group_impl_t** unique_groups, const ch
   return "";
 }
 
+const char* xcodeFileTypeFromExtension(const char* ext) {
+  if (strcmp(ext, "cpp") == 0) {
+    return "sourcecode.cpp.cpp";
+  } else if (strcmp(ext, "h") == 0) {
+    return "sourcecode.c.h";
+  } else if (strcmp(ext, "m") == 0) {
+    return "sourcecode.c.objc";
+  } else if (strcmp(ext, "metal") == 0) {
+    return "sourcecode.metal";
+  } else if (strcmp(ext, "plist") == 0) {
+    return "text.plist.xml";
+  } else if (strcmp(ext, "storyboard") == 0) {
+    return "file.storyboard";
+  } else if (strcmp(ext, "xcassets") == 0) {
+    return "folder.assetcatalog";
+  } else {
+    return "sourcecode.c.c";
+  }
+}
+
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
                             const char* build_to_base_path) {
@@ -127,10 +147,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   fprintf(f, "/* Begin PBXBuildFile section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->file_data[fi]->path;
-    if (is_source_file(filename))
+    if (is_source_file(filename) || is_buildable_resource_file(filename)) {
       fprintf(f,
               "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
               fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
+    }
   }
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id            = dependencyFileReferenceUUID[i];
@@ -146,25 +167,29 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   bool has_post_build_action = (p->postBuildAction != 0);
   if (p->type == CCProjectTypeConsoleApplication) {
     fprintf(f,
-            "/* Begin PBXCopyFilesBuildPhase section */\n		403CC53923EB479400558E07 "
-            "/* CopyFiles */ = {\n			isa = PBXCopyFilesBuildPhase;\n		"
-            "	buildActionMask = 2147483647;\n			dstPath = "
-            "/usr/share/man/man1/;\n			dstSubfolderSpec = 0;\n			"
-            "files = (\n			);\n			"
-            "runOnlyForDeploymentPostprocessing = 1;\n		};\n/* End PBXCopyFilesBuildPhase "
-            "section */\n\n");
+            "/* Begin PBXCopyFilesBuildPhase section */\n"
+            "		403CC53923EB479400558E07 /* CopyFiles */ = {\n"
+            "			isa = PBXCopyFilesBuildPhase;\n"
+            "			buildActionMask = 2147483647;\n"
+            "			dstPath = /usr/share/man/man1/;\n"
+            "			dstSubfolderSpec = 0;\n"
+            "			files = (\n"
+            "			);\n"
+            "			runOnlyForDeploymentPostprocessing = 1;\n"
+            "		};\n"
+            "/* End PBXCopyFilesBuildPhase section */\n\n");
   }
 
   fprintf(f, "/* Begin PBXFileReference section */\n");
   for (unsigned fi = 0; fi < files_count; ++fi) {
     const char* filename = p->file_data[fi]->path;
+    const char* fileType = xcodeFileTypeFromExtension(file_extension(filename));
     fprintf(f,
             "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
             "lastKnownFileType "
             "= %s; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
-            fileReferenceUUID[fi], strip_path(filename),
-            (strstr(filename, ".cpp") != NULL ? "sourcecode.cpp.cpp" : "sourcecode.c.c"),
-            strip_path(filename), file_ref_paths[fi]);
+            fileReferenceUUID[fi], strip_path(filename), fileType, strip_path(filename),
+            file_ref_paths[fi]);
     printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
   }
   fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
@@ -288,6 +313,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "			buildPhases = (\n"
           "				403CC53723EB479400558E07 /* Sources */,\n"
           "				403CC53823EB479400558E07 /* Frameworks */,\n"
+          "				40AC3DC22473B4B20054CF0F /* Resources */,\n"
           "				403CC53923EB479400558E07 /* CopyFiles */,\n");
   if (has_post_build_action) {
     fprintf(f, "				40C3D9692440AC2500C8EB40 /* ShellScript */,\n");
@@ -373,6 +399,27 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "/* End PBXShellScriptBuildPhase section */\n\n",
             postBuildAction);
   }
+
+  fprintf(f,
+          "/* Begin PBXResourcesBuildPhase section */\n"
+          "		40AC3DC22473B4B20054CF0F /* Resources */ = {\n"
+          "			isa = PBXResourcesBuildPhase;\n"
+          "			buildActionMask = 2147483647;\n"
+          "			files = (\n");
+  //"				40AC3DF22473B4FB0054CF0F /* Assets.xcassets in Resources
+  //*/,\n"
+  for (unsigned fi = 0; fi < files_count; ++fi) {
+    const char* filename = p->file_data[fi]->path;
+    if (is_buildable_resource_file(filename)) {
+      fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
+              strip_path(filename));
+    }
+  }
+  fprintf(f,
+          "			);\n"
+          "			runOnlyForDeploymentPostprocessing = 0;\n"
+          "		};\n"
+          "/* End PBXResourcesBuildPhase section */\n\n");
 
   fprintf(f,
           "/* Begin PBXSourcesBuildPhase section */\n"
@@ -557,9 +604,22 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     add_setting(config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
     add_setting(config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
     add_setting(config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
-    add_setting(config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
     add_setting(config_data, "ONLY_ACTIVE_ARCH", "YES");
-    add_setting(config_data, "SDKROOT", "macosx");
+    assert(array_count(cc_data_.platforms) == 1);
+    switch (cc_data_.platforms[0]->type) {
+      case EPlatformDesktop:
+        add_setting(config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+        add_setting(config_data, "SDKROOT", "macosx");
+        break;
+      case EPlatformPhone:
+        add_setting(config_data, "IPHONEOS_DEPLOYMENT_TARGET", "13.2");
+        add_setting(config_data, "SDKROOT", "iphoneos");
+        add_setting(config_data, "CLANG_ENABLE_MODULES", "YES");
+        add_setting(config_data, "CLANG_ENABLE_OBJC_ARC", "YES");
+        add_setting(config_data, "CLANG_ENABLE_OBJC_WEAK", "YES");
+
+        break;
+    }
 
     array_push(config_datas, config_data);
   }
@@ -586,17 +646,42 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     array_push(native_target_ids, xCodeUUID2String(xCodeGenerateUUID()));
   }
   for (unsigned i = 0; i < num_configurations; ++i) {
-    fprintf(f,
-            "		%s /* %s */ = {\n"
-            "			isa = XCBuildConfiguration;\n"
-            "			buildSettings = {\n"
-            "				CODE_SIGN_STYLE = Automatic;\n"
-            "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
-            "			};\n"
-            "			name = %s;\n"
-            "		};\n",
-            native_target_ids[i], cc_data_.configurations[i]->label,
-            cc_data_.configurations[i]->label);
+    switch (cc_data_.platforms[0]->type) {
+      case EPlatformDesktop:
+        fprintf(f,
+                "		%s /* %s */ = {\n"
+                "			isa = XCBuildConfiguration;\n"
+                "			buildSettings = {\n"
+                "				CODE_SIGN_STYLE = Automatic;\n"
+                "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
+                "			};\n"
+                "			name = %s;\n"
+                "		};\n",
+                native_target_ids[i], cc_data_.configurations[i]->label,
+                cc_data_.configurations[i]->label);
+        break;
+      case EPlatformPhone:
+        fprintf(f,
+                "		%s /* %s */ = {\n"
+                "			isa = XCBuildConfiguration;\n"
+                "			buildSettings = {\n"
+                "				CODE_SIGN_STYLE = Automatic;\n"
+                "				INFOPLIST_FILE = ../src/Info.plist;\n"
+                "				LD_RUNPATH_SEARCH_PATHS = (\n"
+                "					\"$(inherited)\",\n"
+                "					\"@executable_path/Frameworks\",\n"
+                "				);\n"
+                "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
+                "				PRODUCT_BUNDLE_IDENTIFIER = "
+                "\"net.daedalus-development.TestGame\";\n"
+                "			};\n"
+                "			name = %s;\n"
+                "		};\n",
+                native_target_ids[i], cc_data_.configurations[i]->label,
+                cc_data_.configurations[i]->label);
+
+        break;
+    }
   }
   fprintf(f, "/* End XCBuildConfiguration section */\n\n");
 
