@@ -20,6 +20,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 - Custom commands on files (eg to compile GLSL)
   [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
+- For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported
 - Allow config to set linker flags
 - Allow config to set environment and arguments for debug run?
 - if a project adds /Zi flag for VS, parse it and add it in the proper place in the interface to avoid warnings about /Zi overwriting /ZI

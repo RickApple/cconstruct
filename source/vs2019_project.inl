@@ -408,6 +408,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
         const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
+        const char* substitution_keys[]    = {"configuration", "platform"};
+        const char* substitution_values[]  = {"$(Configuration)", "$(Platform)"};
+        windowsPostBuildAction = cc_substitute(windowsPostBuildAction, substitution_keys,
+                                               substitution_values, countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
         fprintf(project_file, "    <PostBuildEvent>\n");
         fprintf(project_file, "      <Command>%s</Command>\n", windowsPostBuildAction);
