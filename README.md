@@ -17,7 +17,7 @@ Warnings are set to a high level by default, and treated as errors by default. S
 Currently there is no way to prevent CConstruct from setting the warnings it wants to, but you could disable those warnings again with regular compiler flags, as they are applied after the chosen warning level is applied.
 
 ## TODO
-
+- addInputProject crashes when project to add to is empty. add error output
 - Custom commands on files (eg to compile GLSL)
   [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported

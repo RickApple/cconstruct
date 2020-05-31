@@ -73,18 +73,21 @@ then
   exit 1
 fi
 popd
+set -e
 
 
 pushd 06_post_build_action
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
+set +e
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme post_build_action
 # building should fail due to the unknown post build command
 if [ $? -eq 0 ]
 then
   exit 1
 fi
+set -e
 # but the binary should still have been built and be runnable
 ./build/x64/Debug/post_build_action
 popd

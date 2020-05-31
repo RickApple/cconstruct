@@ -339,6 +339,12 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
 
   if (has_post_build_action) {
+    const char* postBuildAction     = cc_printf("%s", p->postBuildAction);
+    const char* substitution_keys[] = {"configuration", "platform"};
+    // For MacOS currently the only allowed platform is  64-bit
+    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+    postBuildAction = cc_substitute(postBuildAction, substitution_keys, substitution_values,
+                                    countof(substitution_keys));
     fprintf(f,
             "/* Begin PBXShellScriptBuildPhase section */\n		40C3D9692440AC2500C8EB40 "
             "/* ShellScript */ = {\n"
@@ -359,7 +365,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "			shellScript = \"%s\";\n"
             "		};\n"
             "/* End PBXShellScriptBuildPhase section */\n\n",
-            p->postBuildAction);
+            postBuildAction);
   }
 
   fprintf(f,
