@@ -56,6 +56,8 @@ const char* xcodeFileTypeFromExtension(const char* ext) {
     return "sourcecode.c.h";
   } else if (strcmp(ext, "m") == 0) {
     return "sourcecode.c.objc";
+  } else if (strcmp(ext, "mm") == 0) {
+    return "sourcecode.cpp.objcpp";
   } else if (strcmp(ext, "metal") == 0) {
     return "sourcecode.metal";
   } else if (strcmp(ext, "plist") == 0) {
