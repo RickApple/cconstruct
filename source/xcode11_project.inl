@@ -66,7 +66,16 @@ const char* xcodeFileTypeFromExtension(const char* ext) {
     return "file.storyboard";
   } else if (strcmp(ext, "xcassets") == 0) {
     return "folder.assetcatalog";
-  } else {
+
+    // Library file types
+  } else if (strcmp(ext, "a") == 0) {
+    return "archive.ar";
+  } else if (strcmp(ext, "framework") == 0) {
+    return "wrapper.framework";
+  }
+
+  // Else simply assume C file
+  else {
     return "sourcecode.c.c";
   }
 }
@@ -95,6 +104,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   for (unsigned fi = 0; fi < array_count(p->dependantOn); ++fi) {
     array_push(dependencyFileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
     array_push(dependencyBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
+  }
+
+  const char** dependencyExternalLibraryFileReferenceUUID = {0};
+  const char** dependencyExternalLibraryBuildUUID         = {0};
+  for (unsigned fi = 0; fi < array_count(p->dependantOnExternalLibrary); ++fi) {
+    array_push(dependencyExternalLibraryFileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
+    array_push(dependencyExternalLibraryBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
   xcode_uuid outputFileReferenceUIID = findUUIDForProject(projectFileReferenceUUIDs, p);
@@ -164,6 +180,15 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "};\n",
             buildID, dependantName, id, dependantName);
   }
+  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+    const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
+    const char* buildID       = dependencyExternalLibraryBuildUUID[i];
+    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    fprintf(f,
+            "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
+            "};\n",
+            buildID, dependantName, id, dependantName);
+  }
   fprintf(f, "/* End PBXBuildFile section */\n\n");
 
   bool has_post_build_action = (p->postBuildAction != 0);
@@ -211,16 +236,33 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "archive.ar; path = lib%s.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
             id, p->dependantOn[i]->name, p->dependantOn[i]->name);
   }
+  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+    const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
+    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
+    fprintf(f,
+            "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = "
+            "%s; name = %s; path = %s; sourceTree = SDKROOT; };\n",
+            id, dependantName, fileType, dependantName, p->dependantOnExternalLibrary[i]);
+  }
   fprintf(f, "/* End PBXFileReference section */\n\n");
 
   fprintf(f,
-          "/* Begin PBXFrameworksBuildPhase section */\n		403CC53823EB479400558E07 "
-          "/* Frameworks */ = {\n			isa = PBXFrameworksBuildPhase;\n	"
-          "		buildActionMask = 2147483647;\n			files = (\n");
+          "/* Begin PBXFrameworksBuildPhase section */\n"
+          "		403CC53823EB479400558E07 /* Frameworks */ = {\n"
+          "			isa = PBXFrameworksBuildPhase;\n"
+          "			buildActionMask = 2147483647;\n"
+          "			files = (\n");
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* buildID = dependencyBuildUUID[i];
     fprintf(f, "				%s /* lib%s.a in Frameworks */,\n", buildID,
             p->dependantOn[i]->name);
+  }
+  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+    const char* buildID       = dependencyExternalLibraryBuildUUID[i];
+    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    fprintf(f, "				%s /* %s in Frameworks */,\n", buildID,
+            dependantName);
   }
   fprintf(f,
           "			);\n			runOnlyForDeploymentPostprocessing = "
@@ -244,7 +286,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
   }
   fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
-  if (array_count(p->dependantOn) > 0) {
+  const bool references_libraries =
+      (array_count(p->dependantOn) > 0) || (array_count(p->dependantOnExternalLibrary) > 0);
+  if (references_libraries) {
     fprintf(f, "				4008B25F23EDACFC00FCB192 /* Frameworks */,\n");
   }
   fprintf(f,
@@ -280,11 +324,19 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "		};\n",
             g->name);
   }
-  if (array_count(p->dependantOn) > 0) {
+  if (references_libraries) {
     fprintf(f,
             "		4008B25F23EDACFC00FCB192 /* Frameworks */ = {\n"
             "			isa = PBXGroup;\n"
-            "			children = (\n"
+            "			children = (\n");
+#if 1
+    for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+      const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
+      const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+      fprintf(f, "				%s /* %s */,\n", buildID, dependantName);
+    }
+#endif
+    fprintf(f,
             "			);\n"
             "			name = Frameworks;\n"
             "			sourceTree = \"<group>\";\n"

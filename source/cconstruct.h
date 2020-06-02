@@ -80,6 +80,10 @@ typedef struct cconstruct_t {
      */
     void (*addInputProject)(cc_project_t target_project, const cc_project_t on_project);
 
+    /* Add dependency on external library or framework.
+     */
+    void (*addInputExternalLibrary)(cc_project_t target_project, const char* in_library);
+
     /* Set state on a project.
      *
      * @param in_platform may be NULL if state is for all architectures

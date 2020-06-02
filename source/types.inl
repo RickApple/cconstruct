@@ -52,6 +52,7 @@ typedef struct cc_project_impl_t {
   struct cc_file_t_** file_data;                               /* stretch array */
   struct cc_file_custom_command_t_** file_data_custom_command; /* stretch array */
   cc_project_impl_t** dependantOn;                             /* stretch array */
+  const char** dependantOnExternalLibrary;                     /* stretch array */
 
   cc_state_impl_t* state;                 /* stretch array */
   cc_configuration_impl_t** configs;      /* stretch array */
@@ -167,8 +168,14 @@ void cc_project_addFileWithCustomCommand(cc_project_t in_out_project, const char
   array_push(project->file_data_custom_command, file_data);
 }
 
-void addInputProject(cc_project_t target_project, const cc_project_t on_project) {
+void cc_project_addInputProject(cc_project_t target_project, const cc_project_t on_project) {
   array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
+}
+
+void cc_project_addInputExternalLibrary(cc_project_t target_project,
+                                        const char* in_external_library) {
+  array_push(((cc_project_impl_t*)target_project)->dependantOnExternalLibrary,
+             in_external_library);
 }
 
 void addConfiguration(const cc_configuration_t in_configuration) {
@@ -331,7 +338,8 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
        &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_setWarningLevel,
        &cc_state_disableWarningsAsErrors},
       {&addFilesToProject, &addFilesFromFolderToProject, &cc_project_addFileWithCustomCommand,
-       &addInputProject, &cc_project_setFlags_, &addPostBuildAction},
+       &cc_project_addInputProject, &cc_project_addInputExternalLibrary, &cc_project_setFlags_,
+       &addPostBuildAction},
       {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addArchitecture, &addPlatform}};
 
   return out;

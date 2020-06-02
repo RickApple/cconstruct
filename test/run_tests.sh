@@ -8,10 +8,6 @@ COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
 
 
 
-
-
-
-
 pushd 01_hello_world
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
@@ -194,6 +190,15 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme other_file_types
+popd
+
+
+pushd 19_macos_framework
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct --generate-projects
+xcodebuild -quiet -workspace build/xcode/macos_framework.xcworkspace -scheme my_binary
+./build/xcode/x64/Debug/my_binary
 popd
 
 

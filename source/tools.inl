@@ -259,6 +259,7 @@ const char** string_array_clone(const char** in) {
   return (const char**)out;
 }
 
+/* Strip path information returning only the filename (with extension) */
 const char* strip_path(const char* path) {
   const char* last_slash = strrchr(path, '/');
   if (last_slash)
