@@ -567,7 +567,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         "GCC_WARN_UNUSED_FUNCTION",
         "GCC_WARN_UNUSED_LABEL",
         "GCC_WARN_UNUSED_VARIABLE",
-        "RUN_CLANG_STATIC_ANALYZER",
+        //"RUN_CLANG_STATIC_ANALYZER",
     };
     if (combined_warning_level == EStateWarningLevelHigh) {
       for (unsigned i = 0; i < countof(high_enabled_warnings); ++i) {
