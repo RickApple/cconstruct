@@ -17,6 +17,8 @@ Warnings are set to a high level by default, and treated as errors by default. S
 Currently there is no way to prevent CConstruct from setting the warnings it wants to, but you could disable those warnings again with regular compiler flags, as they are applied after the chosen warning level is applied.
 
 ## TODO
+
+- Need to add support for setting Info.plist for MacOS and iOS
 - addInputProject crashes when project to add to is empty. add error output
 - Make selection of compilable files more flexible
 - Architecture and platform should be set at project level
@@ -40,7 +42,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - have option to create project to debug cconstruct binary?
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
 - Better name for CCProjectTypeWindowedApplication as that is also the type used for iOS applications
-    Maybe just CCProjectTypeApplication
+  Maybe just CCProjectTypeApplication
 - Use existing function for path manipulation:
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/makepath-wmakepath?view=vs-2019
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/fullpath-wfullpath?view=vs-2019

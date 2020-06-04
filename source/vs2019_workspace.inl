@@ -53,8 +53,10 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
       const cc_state_impl_t* state = project->state + state_idx;
       for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
            includes_idx++) {
-        const char* include_path = state->include_folders[includes_idx];
-        if (include_path[0] != '/' && include_path[1] != ':') {
+        const char* include_path            = state->include_folders[includes_idx];
+        const bool is_absolute_path         = (include_path[0] == '/') || (include_path[1] == ':');
+        const bool starts_with_env_variable = (include_path[0] == '$');
+        if (!is_absolute_path && !starts_with_env_variable) {
           state->include_folders[includes_idx] =
               cc_printf("%s%s", build_to_base_path, include_path);
         }
