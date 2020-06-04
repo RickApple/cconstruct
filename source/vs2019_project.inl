@@ -384,6 +384,25 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                            additional_link_flags};
       array_push(linker_flags, additionallinkoptions_setting);
 
+      const char* link_additional_directories  = "";
+      const char* link_additional_dependencies = "";
+      for (unsigned di = 0; di < array_count(p->dependantOnExternalLibrary); di++) {
+        const char* lib_path   = p->dependantOnExternalLibrary[di];
+        const char* lib_name   = strip_path(lib_path);
+        const char* lib_folder = make_uri(folder_path_only(lib_path));
+        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)lib_folder);
+        link_additional_dependencies = cc_printf("%s;%s", link_additional_dependencies, lib_name);
+        link_additional_directories  = cc_printf("%s;%s", link_additional_directories, lib_folder);
+      }
+      link_additional_dependencies =
+          cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
+      vs_compiler_setting additionallinkdirectories_setting = {"AdditionalLibraryDirectories",
+                                                               link_additional_directories};
+      array_push(linker_flags, additionallinkdirectories_setting);
+      vs_compiler_setting additionallinkdependencies_setting = {"AdditionalDependencies",
+                                                                link_additional_dependencies};
+      array_push(linker_flags, additionallinkdependencies_setting);
+
       const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       fprintf(project_file,
               "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
