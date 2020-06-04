@@ -19,7 +19,7 @@ int main(int argc, const char** argv) {
 
   cc_state_t flags = cc.createState();
 #include "return_value.inl"
-  cc.project.setFlags(p, flags, platform, configuration);
+  cc.project.setFlags(p, flags, arch, configuration);
 
   cc_default_generator("build");
 

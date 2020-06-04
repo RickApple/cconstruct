@@ -90,7 +90,7 @@ typedef struct cconstruct_t {
      * @param in_configuration may be NULL if state is for all configurations
      */
     void (*setFlags)(cc_project_t in_out_project, const cc_state_t in_state,
-                     cc_architecture_t in_platform, cc_configuration_t in_configuration);
+                     cc_architecture_t in_architecture, cc_configuration_t in_configuration);
 
     /* Add a command line instruction to execute after the build has finished successfully.
      */
