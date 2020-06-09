@@ -40,6 +40,7 @@ int main(int argc, const char** argv) {
     cc.project.addFiles(b, countof(files), files, NULL);
   }
 
+#if defined(_WIN32)
   {
     cc_state_t s = cc.createState();
     cc.state.linkExternalLibrary(s, "${platform}/Debug/lib/my_library.lib");
@@ -50,6 +51,18 @@ int main(int argc, const char** argv) {
     cc.state.linkExternalLibrary(s, "${platform}/Release/lib/my_library.lib");
     cc.project.setFlags(b, s, NULL, configuration_release);
   }
+#else
+  {
+    cc_state_t s = cc.createState();
+    cc.state.linkExternalLibrary(s, "${platform}/Debug/lib/my_library");
+    cc.project.setFlags(b, s, NULL, configuration_debug);
+  }
+  {
+    cc_state_t s = cc.createState();
+    cc.state.linkExternalLibrary(s, "${platform}/Release/lib/my_library");
+    cc.project.setFlags(b, s, NULL, configuration_release);
+  }
+#endif
 
 #if defined(_MSC_VER)
   cc_default_generator("build/msvc");

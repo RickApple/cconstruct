@@ -19,14 +19,16 @@
       "name": "(lldb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/test/preprocessor/cconstruct",
-      "args": [],
+      "program": "${workspaceFolder}/test/19_macos_framework/cconstruct",
+      "args": [
+        "--generate-projects"
+      ],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/test/preprocessor/",
+      "cwd": "${workspaceFolder}/test/19_macos_framework/",
       "environment": [],
       "externalConsole": false,
       "MIMode": "lldb",
-      "preLaunchTask": "Build"
+      //"preLaunchTask": "Build"
     }
   ]
 }

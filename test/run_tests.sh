@@ -3,7 +3,10 @@ set -e
 set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c'
+COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g'
 COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
+
+
 
 
 
@@ -33,6 +36,25 @@ $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
 xcodebuild -quiet -workspace build/xcode/library_dependency.xcworkspace -scheme my_binary
 ./build/xcode/x64/Debug/my_binary
+popd
+
+
+pushd 03a_library_dependency_explicit
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct  --generate-projects
+xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library
+xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary
+xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library -configuration Release
+xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary -configuration Release
+set +e
+# Debug lib returns 1
+build/xcode/x64/Debug/bin/my_binary
+[ $? -ne 1 ] && exit 1
+# Release lib returns 2
+build/xcode/x64/Release/bin/my_binary
+[ $? -ne 2 ] && exit 2
+set -e
 popd
 
 

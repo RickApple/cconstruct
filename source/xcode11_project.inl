@@ -106,9 +106,32 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     array_push(dependencyBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
+  // Extract frameworks from list of external libs
+  const char** external_frameworks = {0};
+  for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+    const bool is_global_state = ((p->configs[ipc] == NULL) && (p->architectures[ipc] == NULL));
+
+    const cc_state_impl_t* s = &(p->state[ipc]);
+    for (unsigned fi = 0; fi < array_count(s->external_libs);) {
+      const char* lib_path = s->external_libs[fi];
+      if (strstr(lib_path, ".framework") == NULL) {
+        fi++;
+      } else {
+        if (!is_global_state) {
+          LOG_ERROR_AND_QUIT(
+              "Apple framework added to state with configuration or architecture. This is not yet "
+              "supported");
+        }
+        array_push(external_frameworks, lib_path);
+        array_remove_at_index(s->external_libs, fi);
+      }
+    }
+  }
+  // No frameworks left in the state now.
+
   const char** dependencyExternalLibraryFileReferenceUUID = {0};
   const char** dependencyExternalLibraryBuildUUID         = {0};
-  for (unsigned fi = 0; fi < array_count(p->dependantOnExternalLibrary); ++fi) {
+  for (unsigned fi = 0; fi < array_count(external_frameworks); ++fi) {
     array_push(dependencyExternalLibraryFileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
     array_push(dependencyExternalLibraryBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
@@ -180,10 +203,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "};\n",
             buildID, dependantName, id, dependantName);
   }
-  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
     const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
     const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
     fprintf(f,
             "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
             "};\n",
@@ -236,14 +259,14 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "archive.ar; path = lib%s.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
             id, p->dependantOn[i]->name, p->dependantOn[i]->name);
   }
-  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
     const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
     const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
     fprintf(f,
             "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = "
             "%s; name = %s; path = %s; sourceTree = SDKROOT; };\n",
-            id, dependantName, fileType, dependantName, p->dependantOnExternalLibrary[i]);
+            id, dependantName, fileType, dependantName, external_frameworks[i]);
   }
   fprintf(f, "/* End PBXFileReference section */\n\n");
 
@@ -258,9 +281,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     fprintf(f, "				%s /* lib%s.a in Frameworks */,\n", buildID,
             p->dependantOn[i]->name);
   }
-  for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
     const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
     fprintf(f, "				%s /* %s in Frameworks */,\n", buildID,
             dependantName);
   }
@@ -287,7 +310,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
   fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
   const bool references_libraries =
-      (array_count(p->dependantOn) > 0) || (array_count(p->dependantOnExternalLibrary) > 0);
+      (array_count(p->dependantOn) > 0) || (array_count(external_frameworks) > 0);
   if (references_libraries) {
     fprintf(f, "				4008B25F23EDACFC00FCB192 /* Frameworks */,\n");
   }
@@ -330,9 +353,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "			isa = PBXGroup;\n"
             "			children = (\n");
 #if 1
-    for (unsigned i = 0; i < array_count(p->dependantOnExternalLibrary); ++i) {
+    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(p->dependantOnExternalLibrary[i]));
+      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
       fprintf(f, "				%s /* %s */,\n", buildID, dependantName);
     }
 #endif
@@ -700,18 +723,59 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     array_push(native_target_ids, xCodeUUID2String(xCodeGenerateUUID()));
   }
   for (unsigned i = 0; i < num_configurations; ++i) {
+    const cc_configuration_impl_t* config = cc_data_.configurations[i];
+
+    const char* link_additional_directories  = "";
+    const char* link_additional_dependencies = "";
+
+    const char* substitution_keys[] = {"configuration", "platform"};
+    // For MacOS currently the only allowed platform is  64-bit
+    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+
+    for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+      const cc_state_impl_t* flags = &(p->state[ipc]);
+
+      // TODO ordering and combination so that more specific flags can override general ones
+      if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+
+      for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
+        const char* lib_path            = flags->external_libs[di];
+        const char* lib_name            = strip_path(lib_path);
+        const char* lib_folder          = make_uri(folder_path_only(lib_path));
+        const char* resolved_lib_folder = cc_substitute(
+            lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
+
+        link_additional_dependencies =
+            cc_printf("%s -l%s", link_additional_dependencies, lib_name);
+        link_additional_directories =
+            cc_printf("%s					\"$(PROJECT_DIR)/%s\",\n",
+                      link_additional_directories, resolved_lib_folder);
+      }
+    }
+
     switch (cc_data_.platforms[0]->type) {
       case EPlatformDesktop:
         fprintf(f,
                 "		%s /* %s */ = {\n"
                 "			isa = XCBuildConfiguration;\n"
                 "			buildSettings = {\n"
-                "				CODE_SIGN_STYLE = Automatic;\n"
+                "				CODE_SIGN_STYLE = Automatic;\n",
+                native_target_ids[i], cc_data_.configurations[i]->label);
+        if (link_additional_dependencies[0] != 0) {
+          fprintf(f,
+                  "				LIBRARY_SEARCH_PATHS = (\n"
+                  "					\"$(inherited)\",\n"
+                  "%s"
+                  "				);\n",
+                  link_additional_directories);
+          fprintf(f, "				OTHER_LDFLAGS = \"\%s\";\n",
+                  link_additional_dependencies);
+        }
+        fprintf(f,
                 "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
                 "			};\n"
                 "			name = %s;\n"
                 "		};\n",
-                native_target_ids[i], cc_data_.configurations[i]->label,
                 cc_data_.configurations[i]->label);
         break;
       case EPlatformPhone:

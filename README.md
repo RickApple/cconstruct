@@ -46,6 +46,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - Use existing function for path manipulation:
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/makepath-wmakepath?view=vs-2019
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/fullpath-wfullpath?view=vs-2019
+- Should users handle difference between .a and .lib static library extension when adding dependency on external lib?
 
 ## Done
 

@@ -55,7 +55,6 @@ typedef struct cc_project_impl_t {
   struct cc_file_t_** file_data;                               /* stretch array */
   struct cc_file_custom_command_t_** file_data_custom_command; /* stretch array */
   cc_project_impl_t** dependantOn;                             /* stretch array */
-  const char** dependantOnExternalLibrary;                     /* stretch array */
 
   cc_state_impl_t* state;                 /* stretch array */
   cc_configuration_impl_t** configs;      /* stretch array */

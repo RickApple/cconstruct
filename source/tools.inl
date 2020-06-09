@@ -129,6 +129,9 @@ void* array_grow(void* a, unsigned element_size);
   (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
    (a[array_header(a)->count_++] = item))
 
+#define array_remove_at_index(a, idx) \
+  memmove(a + idx, a + idx + 1, (array_count(a) - idx - 1) * sizeof(*a)), array_header(a)->count_--
+
 #define array_append(a, data, count)                                       \
   (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
    (memcpy(a + array_header(a)->count_, data, (count) * sizeof(*a))),      \
