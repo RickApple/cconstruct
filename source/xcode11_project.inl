@@ -784,7 +784,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                   "%s"
                   "				);\n",
                   link_additional_directories);
-          fprintf(f, "				OTHER_LDFLAGS = \"\%s\";\n",
+          fprintf(f, "				OTHER_LDFLAGS = \"%s\";\n",
                   link_additional_dependencies);
         }
         fprintf(f,
@@ -847,7 +847,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "			buildConfigurations = (\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
     const char* config_name = cc_data_.configurations[i]->label;
-    fprintf(f, "				%s /* %s */,\n", native_target_ids[i], config_name);
+    fprintf(f, "				%s /* %s */,\n", native_target_ids[i],
+            config_name);
   }
   fprintf(f,
           "			);\n"
