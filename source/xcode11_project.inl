@@ -722,6 +722,16 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   for (unsigned i = 0; i < num_configurations; ++i) {
     array_push(native_target_ids, xCodeUUID2String(xCodeGenerateUUID()));
   }
+
+  // Find Info.plist
+  const char* info_plist_path = NULL;
+  for (unsigned i = 0; i < files_count; i++) {
+    const char* filename = strip_path(p->file_data[i]->path);
+    if (strcmp(filename, "Info.plist") == 0) {
+      info_plist_path = p->file_data[i]->path;
+    }
+  }
+
   for (unsigned i = 0; i < num_configurations; ++i) {
     const cc_configuration_impl_t* config = cc_data_.configurations[i];
 
@@ -761,6 +771,12 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                 "			buildSettings = {\n"
                 "				CODE_SIGN_STYLE = Automatic;\n",
                 native_target_ids[i], cc_data_.configurations[i]->label);
+        if (info_plist_path) {
+          fprintf(f,
+                  "				INFOPLIST_FILE = "
+                  "\"$(SRCROOT)/%s%s\";\n",
+                  build_to_base_path, info_plist_path);
+        }
         if (link_additional_dependencies[0] != 0) {
           fprintf(f,
                   "				LIBRARY_SEARCH_PATHS = (\n"
@@ -831,8 +847,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "			buildConfigurations = (\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
     const char* config_name = cc_data_.configurations[i]->label;
-    fprintf(f, "				%s /* %s */,\n", native_target_ids[i],
-            config_name);
+    fprintf(f, "				%s /* %s */,\n", native_target_ids[i], config_name);
   }
   fprintf(f,
           "			);\n"
