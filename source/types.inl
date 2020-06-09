@@ -37,13 +37,16 @@ typedef struct cc_group_impl_t {
 } cc_group_impl_t;
 
 typedef struct cc_state_impl_t {
-  const char** defines;
-  const char** include_folders;
-  const char** compile_options;
-  const char** link_options;
-  // By default warnings are turned up to the highest level below _all_.
+  const char** defines;         /* stretch array */
+  const char** include_folders; /* stretch array */
+  const char** compile_options; /* stretch array */
+  const char** link_options;    /* stretch array */
+  const char** external_libs;   /* stretch array */
+
+  /* By default warnings are turned up to the highest level below _all_ */
   EStateWarningLevel warningLevel;
-  bool disableWarningsAsErrors;  // By default warnings are treated as errors.
+  /* By default warnings are treated as errors */
+  bool disableWarningsAsErrors;
 } cc_state_impl_t;
 
 typedef struct cc_project_impl_t {
@@ -60,12 +63,13 @@ typedef struct cc_project_impl_t {
   const char* postBuildAction;
 
   size_t parent_group_idx;
+  const char* outputFolder;
+
 } cc_project_impl_t;
 
 struct {
   bool is_inited;
   const char* base_folder;
-  const char* outputFolder;
   const char* workspaceLabel;
   cc_project_impl_t** projects;                   /* stretch array */
   const cc_configuration_impl_t** configurations; /* stretch array */
@@ -94,15 +98,13 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
   if (cc_data_.workspaceLabel == 0) {
     cc_data_.workspaceLabel = "workspace";
   }
-  if (cc_data_.outputFolder == 0) {
-    cc_data_.outputFolder = "${platform}/${configuration}";
-  }
   if (cc_data_.base_folder == 0) {
     cc_data_.base_folder = "";
   }
 
   cc_project_impl_t* p = (cc_project_impl_t*)malloc(sizeof(cc_project_impl_t));
   memset(p, 0, sizeof(cc_project_impl_t));
+  p->outputFolder      = "${platform}/${configuration}";
   p->type              = in_project_type;
   unsigned name_length = strlen(in_project_name);
 
@@ -172,12 +174,6 @@ void cc_project_addInputProject(cc_project_t target_project, const cc_project_t 
   array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
 }
 
-void cc_project_addInputExternalLibrary(cc_project_t target_project,
-                                        const char* in_external_library) {
-  array_push(((cc_project_impl_t*)target_project)->dependantOnExternalLibrary,
-             in_external_library);
-}
-
 void addConfiguration(const cc_configuration_t in_configuration) {
   array_push(cc_data_.configurations, (const cc_configuration_impl_t*)in_configuration);
 }
@@ -188,7 +184,6 @@ void addPlatform(const cc_platform_t in_platform) {
   array_push(cc_data_.platforms, (const cc_platform_impl_t*)in_platform);
 }
 
-void setOutputFolder(const char* of) { cc_data_.outputFolder = of; }
 void setWorkspaceLabel(const char* label) { cc_data_.workspaceLabel = label; }
 
 void cc_state_reset(cc_state_t out_flags) {
@@ -207,6 +202,11 @@ void cc_state_addPreprocessorDefine(cc_state_t in_state, const char* in_define_s
 
 void cc_state_addCompilerFlag(cc_state_t in_state, const char* in_compiler_flag) {
   array_push(((cc_state_impl_t*)in_state)->compile_options, cc_printf("%s", in_compiler_flag));
+}
+
+void cc_state_linkExternalLibrary(cc_state_t in_state, const char* in_external_library_path) {
+  array_push(((cc_state_impl_t*)in_state)->external_libs,
+             cc_printf("%s", in_external_library_path));
 }
 
 void cc_state_addLinkerFlag(cc_state_t in_state, const char* in_linker_flag) {
@@ -244,6 +244,10 @@ void cc_state_disableWarningsAsErrors(cc_state_t in_state) {
 
 void addPostBuildAction(cc_project_t in_out_project, const char* in_action_command) {
   ((cc_project_impl_t*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
+}
+
+void cc_project_setOutputFolder(cc_project_t in_out_project, const char* of) {
+  ((cc_project_impl_t*)in_out_project)->outputFolder = cc_printf("%s", of);
 }
 
 void cc_project_setFlags_(cc_project_t in_out_project, const cc_state_t in_state,
@@ -335,12 +339,18 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       &cc_group_create,
       &cc_state_create,
       {&cc_state_reset, &cc_state_addIncludeFolder, &cc_state_addPreprocessorDefine,
-       &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_setWarningLevel,
-       &cc_state_disableWarningsAsErrors},
-      {&addFilesToProject, &addFilesFromFolderToProject, &cc_project_addFileWithCustomCommand,
-       &cc_project_addInputProject, &cc_project_addInputExternalLibrary, &cc_project_setFlags_,
-       &addPostBuildAction},
-      {&setWorkspaceLabel, &setOutputFolder, &addConfiguration, &addArchitecture, &addPlatform}};
+       &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_linkExternalLibrary,
+       &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
+      {
+          &addFilesToProject,
+          &addFilesFromFolderToProject,
+          &cc_project_addFileWithCustomCommand,
+          &cc_project_addInputProject,
+          &cc_project_setFlags_,
+          &addPostBuildAction,
+          &cc_project_setOutputFolder,
+      },
+      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
   return out;
 }

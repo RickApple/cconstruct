@@ -232,9 +232,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       const char* platform_label        = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       const char* substitution_keys[]   = {"configuration", "platform"};
       const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
-      const char* resolved_output_folder =
-          cc_substitute(cc_data_.outputFolder, substitution_keys, substitution_values,
-                        countof(substitution_keys));
+      const char* resolved_output_folder = cc_substitute(
+          p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
       vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
       fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
       fprintf(project_file,
@@ -307,10 +306,14 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         default:
           LOG_ERROR_AND_QUIT("Unknown project type for project '%s'\n", p->name);
       }
-      const char* additional_compiler_flags  = "%(AdditionalOptions)";
-      const char* additional_link_flags      = "%(AdditionalOptions)";
-      const char* additional_include_folders = "";
+      const char* additional_compiler_flags    = "%(AdditionalOptions)";
+      const char* additional_link_flags        = "%(AdditionalOptions)";
+      const char* additional_include_folders   = "";
+      const char* link_additional_directories  = "";
+      const char* link_additional_dependencies = "";
 
+      const char* substitution_keys[]           = {"configuration", "platform"};
+      const char* substitution_values[]         = {"$(Configuration)", "$(Platform)"};
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
       bool shouldDisableWarningsAsError         = false;
       for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
@@ -337,6 +340,20 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           // Order matters here, so append
           additional_include_folders =
               cc_printf("%s;%s", additional_include_folders, flags->include_folders[ifi]);
+        }
+
+        for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
+          const char* lib_path            = flags->external_libs[di];
+          const char* lib_name            = strip_path(lib_path);
+          const char* lib_folder          = make_uri(folder_path_only(lib_path));
+          const char* resolved_lib_folder = cc_substitute(
+              lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
+
+          vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
+          link_additional_dependencies =
+              cc_printf("%s;%s", link_additional_dependencies, lib_name);
+          link_additional_directories =
+              cc_printf("%s;%s", link_additional_directories, resolved_lib_folder);
         }
       }
 
@@ -384,16 +401,6 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                            additional_link_flags};
       array_push(linker_flags, additionallinkoptions_setting);
 
-      const char* link_additional_directories  = "";
-      const char* link_additional_dependencies = "";
-      for (unsigned di = 0; di < array_count(p->dependantOnExternalLibrary); di++) {
-        const char* lib_path   = p->dependantOnExternalLibrary[di];
-        const char* lib_name   = strip_path(lib_path);
-        const char* lib_folder = make_uri(folder_path_only(lib_path));
-        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)lib_folder);
-        link_additional_dependencies = cc_printf("%s;%s", link_additional_dependencies, lib_name);
-        link_additional_directories  = cc_printf("%s;%s", link_additional_directories, lib_folder);
-      }
       link_additional_dependencies =
           cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
       vs_compiler_setting additionallinkdirectories_setting = {"AdditionalLibraryDirectories",

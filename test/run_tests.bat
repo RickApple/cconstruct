@@ -9,7 +9,6 @@ set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /EHsc /Fo%TEMP% /Fecconstruct.exe /
 
 
 
-
 pushd 01_hello_world
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
@@ -34,6 +33,31 @@ rd /S /Q build
 cconstruct.exe --generate-projects || exit /b
 devenv.com build\msvc\library_dependency.sln /Build "Debug|x64" || exit /b
 build\msvc\x64\Debug\my_binary.exe || exit /b
+popd
+
+
+pushd 03a_library_dependency_explicit
+rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generate-projects || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_library /Build "Debug|x64" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_binary /Build "Debug|x64" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_library /Build "Debug|x86" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_binary /Build "Debug|x86" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_library /Build "Release|x64" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_binary /Build "Release|x64" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_library /Build "Release|x86" || exit /b
+devenv.com build\msvc\library_dependency_explicit.sln /Project my_binary /Build "Release|x86" || exit /b
+rem Debug lib returns 1
+build\msvc\x64\Debug\bin\my_binary.exe
+if %errorlevel% neq 1 exit /b %errorlevel%
+build\msvc\Win32\Debug\bin\my_binary.exe
+if %errorlevel% neq 1 exit /b %errorlevel%
+rem Release lib returns 2
+build\msvc\x64\Release\bin\my_binary.exe
+if %errorlevel% neq 2 exit /b %errorlevel%
+build\msvc\Win32\Release\bin\my_binary.exe
+if %errorlevel% neq 2 exit /b %errorlevel%
 popd
 
 

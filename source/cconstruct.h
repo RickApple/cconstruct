@@ -53,13 +53,18 @@ typedef struct cconstruct_t {
   cc_state_t (*createState)();
 
   const struct {
-    void (*reset)(cc_state_t out_state);
-    void (*addIncludeFolder)(cc_state_t in_state, const char* in_include_folder);
-    void (*addPreprocessorDefine)(cc_state_t in_state, const char* in_define);
-    void (*addCompilerFlag)(cc_state_t in_state, const char* in_compiler_flag);
-    void (*addLinkerFlag)(cc_state_t in_state, const char* in_linker_flag);
-    void (*setWarningLevel)(cc_state_t in_state, EStateWarningLevel in_level);
-    void (*disableWarningsAsErrors)(cc_state_t in_state);
+    void (*reset)(cc_state_t in_out_state);
+    void (*addIncludeFolder)(cc_state_t in_out_state, const char* in_include_folder);
+    void (*addPreprocessorDefine)(cc_state_t in_out_state, const char* in_define);
+    void (*addCompilerFlag)(cc_state_t in_out_state, const char* in_compiler_flag);
+    void (*addLinkerFlag)(cc_state_t in_out_state, const char* in_linker_flag);
+
+    /* Add dependency on external library or framework.
+     */
+    void (*linkExternalLibrary)(cc_state_t in_out_state, const char* in_external_library_path);
+
+    void (*setWarningLevel)(cc_state_t in_out_state, EStateWarningLevel in_level);
+    void (*disableWarningsAsErrors)(cc_state_t in_out_state);
   } state;
 
   const struct {
@@ -80,10 +85,6 @@ typedef struct cconstruct_t {
      */
     void (*addInputProject)(cc_project_t target_project, const cc_project_t on_project);
 
-    /* Add dependency on external library or framework.
-     */
-    void (*addInputExternalLibrary)(cc_project_t target_project, const char* in_library);
-
     /* Set state on a project.
      *
      * @param in_platform may be NULL if state is for all architectures
@@ -95,16 +96,16 @@ typedef struct cconstruct_t {
     /* Add a command line instruction to execute after the build has finished successfully.
      */
     void (*addPostBuildAction)(cc_project_t in_out_project, const char* in_action_command);
+
+    /* Output folder for project build results.
+     */
+    void (*setOutputFolder)(cc_project_t in_out_project, const char* in_output_folder);
   } project;
 
   const struct {
     /* Label of the workspace, used for filename of the workspace.
      */
     void (*setLabel)(const char* label);
-
-    /* Output folder for build results.
-     */
-    void (*setOutputFolder)(const char* in_output_folder);
 
     /* Add a configuration
      */

@@ -3,7 +3,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("project_structure");
 
   cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);

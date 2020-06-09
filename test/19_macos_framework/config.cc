@@ -3,7 +3,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc.workspace.setOutputFolder("${platform}/${configuration}");
   cc.workspace.setLabel("macos_framework");
 
   cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
@@ -18,7 +17,10 @@ int main(int argc, const char** argv) {
   {
     const char* files[] = {"src/main.m"};
     cc.project.addFiles(b, countof(files), files, NULL);
-    cc.project.addInputExternalLibrary(b, "System/Library/Frameworks/Metal.framework");
+
+    cc_state_t s = cc.createState();
+    cc.state.linkExternalLibrary(s, "System/Library/Frameworks/Metal.framework");
+    cc.project.setFlags(b, s, NULL, NULL);
   }
 
 #if defined(__APPLE__)

@@ -545,7 +545,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     const char* substitution_keys[]    = {"configuration", "platform"};
     const char* substitution_values[]  = {"$CONFIGURATION", "x64"};
     const char* resolved_output_folder = cc_substitute(
-        cc_data_.outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
+        p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 
     const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
 
