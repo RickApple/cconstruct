@@ -240,7 +240,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             "= %s; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
             fileReferenceUUID[fi], strip_path(filename), fileType, strip_path(filename),
             file_ref_paths[fi]);
-    printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
+    if (cc_is_verbose) {
+      printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
+    }
   }
   fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
           xCodeUUID2String(outputFileReferenceUIID), outputName);

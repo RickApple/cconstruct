@@ -246,9 +246,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       } else {
         fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
       }
-      fprintf(project_file, "    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>\n");
+      // Because users can add post-build commands, make sure these custom build commands have
+      // executed before then by doing it after BuildCompile instead of after Build.
+      fprintf(project_file,
+              "    <CustomBuildAfterTargets>BuildCompile</CustomBuildAfterTargets>\n");
       fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\</OutDir>\n", resolved_output_folder);
-      // VS2019 warns if multiple projects have the same intermediate directory, so void that
+      // VS2019 warns if multiple projects have the same intermediate directory, so avoid that
       // here
       fprintf(project_file,
               "    <IntDir>$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\</IntDir>\n",

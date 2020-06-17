@@ -18,6 +18,9 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
+- On windows, when running created cconstruct binary from explorer it immediately closes, even on errors. It should remain open so the user can read the error and take action. If it generates succesfully it may close immediately.
+- external libs are currently specified from resulting project folder, but should be specified from config root folder
+- add description to cconstruct.h on how to build the initial version of the binary
 - Need to add support for setting Info.plist for MacOS and iOS
 - addInputProject crashes when project to add to is empty. add error output
 - Make selection of compilable files more flexible
