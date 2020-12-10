@@ -122,7 +122,8 @@ void* array_grow(void* a, unsigned element_size);
 #define array_header(a) ((a) ? ((array_header_t*)((char*)(a) - sizeof(array_header_t))) : 0)
 
 #define array_count(a) ((a) ? array_header(a)->count_ : 0)
-
+#define array_capacity(a) ((a) ? array_header(a)->capacity_ : 0)
+#define array_reset(a) ((a) ? array_header(a)->count_ = 0 : 0)
 #define array_full(a) ((a) ? (array_header(a)->count_ == array_header(a)->capacity_) : true)
 
 #define array_push(a, item)                                                \
@@ -132,10 +133,15 @@ void* array_grow(void* a, unsigned element_size);
 #define array_remove_at_index(a, idx) \
   memmove(a + idx, a + idx + 1, (array_count(a) - idx - 1) * sizeof(*a)), array_header(a)->count_--
 
-#define array_append(a, data, count)                                       \
-  (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
-   (memcpy(a + array_header(a)->count_, data, (count) * sizeof(*a))),      \
-   (array_header(a)->count_ = array_header(a)->count_ + (count)))
+#define array_append(a, data, count)                                                            \
+  (((array_count(a) + (count)) > array_capacity(a))                                             \
+       ? (*((void**)&(a)) = array_reserve((a), sizeof(*(a)),                                    \
+                                          (array_count(a) + (count)) > (array_count(a) * 3 / 2) \
+                                              ? (array_count(a) + (count))                      \
+                                              : (array_count(a) * 3 / 2)))                      \
+       : 0,                                                                                     \
+   (memcpy(a + array_count(a), data, ((count) + 0) * sizeof(*a))),                              \
+   (array_header(a)->count_ = array_count(a) + (count)))
 
 void* array_grow(void* a, unsigned element_size) {
   unsigned prev_capacity      = 0;
@@ -243,7 +249,9 @@ const char* cc_substitute(const char* in_original, const char** keys, const char
     }
     array_append(out_string, piece_start, (unsigned)strlen(piece_start));
     array_push(out_string, 0);
-    in = out_string;  // Breaking connection to stretchy buffer but that's ok.
+    // Breaking connection to stretchy buffer but that's ok, since we're not tracking memory in
+    // CConstruct.
+    in = out_string;
   }
 
   return in;

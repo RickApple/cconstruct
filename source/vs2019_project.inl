@@ -226,12 +226,13 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     }
   }
 
+  const char* substitution_keys[]   = {"configuration", "platform"};
+  const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
+
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label        = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      const char* substitution_keys[]   = {"configuration", "platform"};
-      const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
+      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
       const char* resolved_output_folder = cc_substitute(
           p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
       vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
@@ -315,8 +316,6 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       const char* link_additional_directories  = "";
       const char* link_additional_dependencies = "";
 
-      const char* substitution_keys[]           = {"configuration", "platform"};
-      const char* substitution_values[]         = {"$(Configuration)", "$(Platform)"};
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
       bool shouldDisableWarningsAsError         = false;
       for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
@@ -437,8 +436,6 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
         const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
-        const char* substitution_keys[]    = {"configuration", "platform"};
-        const char* substitution_values[]  = {"$(Configuration)", "$(Platform)"};
         windowsPostBuildAction = cc_substitute(windowsPostBuildAction, substitution_keys,
                                                substitution_values, countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
@@ -482,11 +479,17 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     Build Tool. That's why there needs to be an absolute path here, instead of only the simpler
     relative build_to_base_path.
     */
+    const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
+                                             substitution_values, countof(substitution_keys));
+    const char* custom_command = cc_substitute(file->command, substitution_keys,
+                                               substitution_values, countof(substitution_keys));
+    const char* out_file_path  = cc_substitute(relative_out_file_path, substitution_keys,
+                                              substitution_values, countof(substitution_keys));
     fprintf(project_file, "  <ItemGroup>\n");
-    fprintf(project_file, "    <CustomBuild Include=\"%s\">\n", relative_in_file_path);
+    fprintf(project_file, "    <CustomBuild Include=\"%s\">\n", in_file_path);
     fprintf(project_file, "      <Command>cd $(ProjectDir)%s &amp;&amp; %s</Command>\n",
-            build_to_base_path, file->command);
-    fprintf(project_file, "      <Outputs>%s</Outputs>\n", relative_out_file_path);
+            build_to_base_path, custom_command);
+    fprintf(project_file, "      <Outputs>%s</Outputs>\n", out_file_path);
     fprintf(project_file, "    </CustomBuild>\n");
     fprintf(project_file, "  </ItemGroup>\n");
   }
