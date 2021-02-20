@@ -3,6 +3,7 @@ tools/build/
 return_value.inl
 test/**/build
 .vs
+*.idb
 build/cconstruct.h
 cconstruct.exe.old
 test/18_custom_commands/src/*.txt

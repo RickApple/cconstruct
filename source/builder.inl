@@ -46,6 +46,9 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   const char* cconstruct_internal_build_file_path = "cconstruct_internal_build.exe";
   const char* recompile_command                   = cc_printf(
       "\"%s\" > nul && cl.exe -EHsc "
+#ifndef NDEBUG
+      "/ZI /DEBUG"
+#endif
       "/Fo%s\\cconstruct.obj "
       "/Fe%s %s "
       "/nologo "

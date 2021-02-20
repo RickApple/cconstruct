@@ -137,8 +137,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 // Tools
 #include "tools.inl"
 #include "types.inl"
+#include "data_tree.inl"
 
-// Generators
+// Constructors
 #include "vs2019_project.inl"
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"

@@ -42,14 +42,54 @@ typedef struct vs_compiler_setting {
   const char* value;
 } vs_compiler_setting;
 
+void export_tree_as_xml(FILE* f, const struct data_tree_t* dt, unsigned int node,
+                        unsigned int depth) {
+  assert(node < array_count(dt->objects));
+
+  const int SPACES_PER_DEPTH = 2;
+
+  const struct data_tree_object_t* obj = dt->objects + node;
+  if (obj->name) {
+    fprintf(f, "%*s<%s", depth * SPACES_PER_DEPTH, "", obj->name);
+    if (obj->first_parameter) {
+      const struct data_tree_object_t* param_obj = dt->objects + obj->first_parameter;
+      do {
+        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value);
+      } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
+    }
+  }
+
+  if (obj->has_children) {
+    if (obj->name) {
+      fprintf(f, ">\n");
+    }
+    unsigned int child_index                   = obj->first_child;
+    const struct data_tree_object_t* child_obj = dt->objects + child_index;
+    do {
+      export_tree_as_xml(f, dt, child_index, (node == 0) ? 0 : (depth + 1));
+    } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
+             (child_obj = dt->objects + child_obj->next_sibling));
+    fprintf(f, "%*s", depth * SPACES_PER_DEPTH, "");
+
+    if (obj->name) {
+      fprintf(f, "</%s>\n", obj->name);
+    }
+  } else if (obj->value) {
+    fprintf(f, ">%s</%s>\n", obj->value, obj->name);
+  } else {
+    fprintf(f, " />\n");
+  }
+}
+
 void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_output_folder) {
   const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
-  FILE* filter_file                    = fopen(projectfilters_file_path, "wb");
 
-  fprintf(filter_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-  fprintf(filter_file,
-          "<Project ToolsVersion=\"4.0\" "
-          "xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
+  struct data_tree_t dt = data_tree_api.create();
+
+  unsigned int project = data_tree_api.create_object(&dt, 0, "Project");
+  data_tree_api.set_object_parameter(&dt, project, "ToolsVersion", "4.0");
+  data_tree_api.set_object_parameter(&dt, project, "xmlns",
+                                     "http://schemas.microsoft.com/developer/msbuild/2003");
 
   // Create list of groups needed.
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
@@ -88,21 +128,21 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     array_push(unique_group_names, name);
   }
 
-  fprintf(filter_file, "  <ItemGroup>\n");
+  unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
   for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
     if (groups_needed[gi]) {
       const char* group_name = unique_group_names[gi];
-      fprintf(filter_file, "    <Filter Include=\"%s\">\n", group_name);
-      fprintf(filter_file, "      <UniqueIdentifier>{%s}</UniqueIdentifier>\n", vs_generateUUID());
-      fprintf(filter_file, "    </Filter>\n");
+      unsigned int filter    = data_tree_api.create_object(&dt, itemgroup, "Filter");
+      data_tree_api.set_object_parameter(&dt, filter, "Include", group_name);
+      unsigned int uid = data_tree_api.create_object(&dt, filter, "UniqueIdentifier");
+      data_tree_api.set_object_value(&dt, uid, vs_generateUUID());
     }
   }
-  fprintf(filter_file, "  </ItemGroup>\n");
 
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const struct cc_file_t_* file = p->file_data[fi];
 
-    fprintf(filter_file, "  <ItemGroup>\n");
+    itemgroup                      = data_tree_api.create_object(&dt, project, "ItemGroup");
     const char* f                  = file->path;
     const unsigned gi              = file->parent_group_idx;
     const char* group_name         = NULL;
@@ -110,26 +150,23 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     group_name = unique_group_names[gi];
 
+    unsigned int g = 0;
+
     if (is_header_file(f)) {
-      fprintf(filter_file, "    <ClInclude Include=\"%s\">\n", relative_file_path);
-      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
-      fprintf(filter_file, "    </ClInclude>\n");
+      g = data_tree_api.create_object(&dt, itemgroup, "ClInclude");
     } else if (is_source_file(f)) {
-      fprintf(filter_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
-      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
-      fprintf(filter_file, "    </ClCompile>\n");
+      g = data_tree_api.create_object(&dt, itemgroup, "ClCompile");
     } else {
-      fprintf(filter_file, "    <None Include=\"%s\">\n", relative_file_path);
-      fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
-      fprintf(filter_file, "    </None>\n");
+      g = data_tree_api.create_object(&dt, itemgroup, "None");
     }
-    fprintf(filter_file, "  </ItemGroup>\n");
+    data_tree_api.set_object_parameter(&dt, g, "Include", relative_file_path);
+    unsigned int fil = data_tree_api.create_object(&dt, g, "Filter");
+    data_tree_api.set_object_value(&dt, fil, group_name);
   }
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
 
-    fprintf(filter_file, "  <ItemGroup>\n");
     const char* f                  = file->path;
     const unsigned gi              = file->parent_group_idx;
     const char* group_name         = NULL;
@@ -137,92 +174,135 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     group_name = unique_group_names[gi];
 
-    fprintf(filter_file, "    <CustomBuild Include=\"%s\">\n", relative_file_path);
-    fprintf(filter_file, "      <Filter>%s</Filter>\n", group_name);
-    fprintf(filter_file, "    </CustomBuild>\n");
-
-    fprintf(filter_file, "  </ItemGroup>\n");
+    itemgroup       = data_tree_api.create_object(&dt, project, "ItemGroup");
+    unsigned int cb = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
+    data_tree_api.set_object_parameter(&dt, cb, "Include", relative_file_path);
+    unsigned int fil = data_tree_api.create_object(&dt, cb, "Filter");
+    data_tree_api.set_object_value(&dt, fil, group_name);
   }
 
-  fprintf(filter_file, "</Project>\n");
+  FILE* filter_file = fopen(projectfilters_file_path, "wb");
+  fprintf(filter_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+  export_tree_as_xml(filter_file, &dt, 0, 0);
+  fclose(filter_file);
 }
+
+typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group);
+
+void optionZi(struct data_tree_t* dt, unsigned int compile_group) {
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
+      "ProgramDatabase");
+}
+void optionZI(struct data_tree_t* dt, unsigned int compile_group) {
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
+      "EditAndContinue");
+}
+
+typedef struct vs_compiler_flag {
+  const char* flag;
+  const func action;
+} vs_compiler_flag;
+
+const vs_compiler_flag known_flags[] = {{"/Zi", &optionZi}, {"/ZI", &optionZI}};
 
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
                               const char** project_ids, const char* in_output_folder) {
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
-  FILE* project_file            = fopen(project_file_path, "wb");
-  fprintf(
-      project_file,
-      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project DefaultTargets=\"Build\" "
-      "ToolsVersion=\"15.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n");
 
-  fprintf(project_file, "  <ItemGroup Label=\"ProjectConfigurations\">\n");
+  struct data_tree_t dt = data_tree_api.create();
+  unsigned int project  = data_tree_api.create_object(&dt, 0, "Project");
+  data_tree_api.set_object_parameter(&dt, project, "DefaultTargets", "Build");
+  data_tree_api.set_object_parameter(&dt, project, "ToolsVersion", "15.0");
+  data_tree_api.set_object_parameter(&dt, project, "xmlns",
+                                     "http://schemas.microsoft.com/developer/msbuild/2003");
+
+  unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
+  data_tree_api.set_object_parameter(&dt, itemgroup, "Label", "ProjectConfigurations");
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      fprintf(project_file, "    <ProjectConfiguration Include=\"%s|%s\">\n", c, platform_label);
-      fprintf(project_file, "      <Configuration>%s</Configuration>\n", c);
-      fprintf(project_file, "      <Platform>%s</Platform>\n", platform_label);
-      fprintf(project_file, "    </ProjectConfiguration>\n");
+
+      unsigned int pc = data_tree_api.create_object(&dt, itemgroup, "ProjectConfiguration");
+      data_tree_api.set_object_parameter(&dt, pc, "Include",
+                                         cc_printf("%s|%s", c, platform_label));
+      unsigned int cobj = data_tree_api.create_object(&dt, pc, "Configuration");
+      data_tree_api.set_object_value(&dt, cobj, c);
+      unsigned int platformobj = data_tree_api.create_object(&dt, pc, "Platform");
+      data_tree_api.set_object_value(&dt, platformobj, platform_label);
     }
   }
-  fprintf(project_file, "  </ItemGroup>\n");
 
-  fprintf(project_file,
-          "  <PropertyGroup Label=\"Globals\">\n"
-          "    <VCProjectVersion>15.0</VCProjectVersion>\n"
-          "    <ProjectGuid>{%s}</ProjectGuid>\n"
-          "    <Keyword>Win32Proj</Keyword>\n"
-          "    <RootNamespace>builder</RootNamespace>\n"
-          "    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>\n"
-          "  </PropertyGroup>\n",
-          project_id);
+  unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
+  data_tree_api.set_object_parameter(&dt, pg, "Label", "Globals");
+  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "VCProjectVersion"),
+                                 "15.0");
+  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "ProjectGuid"),
+                                 cc_printf("{%s}", project_id));
+  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "Keyword"),
+                                 "Win32Proj");
+  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "RootNamespace"),
+                                 "builder");
+  data_tree_api.set_object_value(
+      &dt, data_tree_api.create_object(&dt, pg, "WindowsTargetPlatformVersion"), "10.0");
 
-  fprintf(project_file,
-          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n");
+  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
+                                     "Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      fprintf(project_file,
-              "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\" "
-              "Label=\"Configuration\">\n",
-              c, platform_label);
-      fprintf(project_file, "    <ConfigurationType>");
+      unsigned int pg            = data_tree_api.create_object(&dt, project, "PropertyGroup");
+      data_tree_api.set_object_parameter(
+          &dt, pg, "Condition",
+          cc_printf("'$(Configuration)|$(Platform)' == '%s|%s'", c, platform_label));
+      data_tree_api.set_object_parameter(&dt, pg, "Label", "Configuration");
+
+      unsigned int ct      = data_tree_api.create_object(&dt, pg, "ConfigurationType");
+      const char* ct_value = NULL;
       if ((p->type == CCProjectTypeConsoleApplication) ||
           (p->type == CCProjectTypeWindowedApplication)) {
-        fprintf(project_file, "Application");
+        ct_value = "Application";
       } else {
-        fprintf(project_file, "StaticLibrary");
+        ct_value = "StaticLibrary";
       }
-      fprintf(project_file, "</ConfigurationType>\n");
-      fprintf(project_file,
-              "    <UseDebugLibraries>true</UseDebugLibraries>\n"
-              "    <PlatformToolset>v142</PlatformToolset>\n"
-              "    <CharacterSet>MultiByte</CharacterSet>\n"
-              "  </PropertyGroup>\n");
+      data_tree_api.set_object_value(&dt, ct, ct_value);
+
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.create_object(&dt, pg, "UseDebugLibraries"), "true");
+      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "PlatformToolset"),
+                                     "v142");
+      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "CharacterSet"),
+                                     "MultiByte");
     }
   }
 
-  fprintf(project_file,
-          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.props\" />\n  <ImportGroup "
-          "Label=\"ExtensionSettings\">\n  </ImportGroup>\n  <ImportGroup Label=\"Shared\">\n  "
-          "</ImportGroup>\n");
+  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
+                                     "Project", "$(VCTargetsPath)\\Microsoft.Cpp.props");
+  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "ImportGroup"),
+                                     "Label", "ExtensionSettings");
+  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "ImportGroup"),
+                                     "Label", "Shared");
+
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      fprintf(project_file,
-              "  <ImportGroup Label=\"PropertySheets\" "
-              "Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              c, platform_label);
-      fprintf(project_file,
-              "    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" "
-              "Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" "
-              "Label=\"LocalAppDataPlatform\" />\n");
-      fprintf(project_file, "  </ImportGroup>\n");
+      unsigned int importgroup   = data_tree_api.create_object(&dt, project, "ImportGroup");
+      data_tree_api.set_object_parameter(&dt, importgroup, "Label", "PropertySheets");
+      data_tree_api.set_object_parameter(
+          &dt, importgroup, "Condition",
+          cc_printf("'$(Configuration)|$(Platform)' == '%s|%s'", c, platform_label));
+      unsigned int import_obj = data_tree_api.create_object(&dt, importgroup, "Import");
+      data_tree_api.set_object_parameter(&dt, import_obj, "Project",
+                                         "$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props");
+      data_tree_api.set_object_parameter(
+          &dt, import_obj, "Condition",
+          "exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')");
+      data_tree_api.set_object_parameter(&dt, import_obj, "Label", "LocalAppDataPlatform");
     }
   }
 
@@ -236,29 +316,31 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       const char* resolved_output_folder = cc_substitute(
           p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
       vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
-      fprintf(project_file, "  <PropertyGroup Label=\"UserMacros\" />\n");
-      fprintf(project_file,
-              "  <PropertyGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n", c,
-              platform_label);
+
+      unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
+      data_tree_api.set_object_parameter(&dt, pg, "Label", "UserMacros");
+      pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
+      data_tree_api.set_object_parameter(
+          &dt, pg, "Condition",
+          cc_printf("'$(Configuration)|$(Platform)'=='%s|%s'", c, platform_label));
+
       // TODO: fix detection of type of config
       bool is_debug_build = (strcmp(c, "Debug") == 0);
-      if (is_debug_build) {
-        fprintf(project_file, "    <LinkIncremental>true</LinkIncremental>\n");
-      } else {
-        fprintf(project_file, "    <LinkIncremental>false</LinkIncremental>\n");
-      }
+      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "LinkIncremental"),
+                                     is_debug_build ? "true" : "false");
+
       // Because users can add post-build commands, make sure these custom build commands have
       // executed before then by doing it after BuildCompile instead of after Build.
-      fprintf(project_file,
-              "    <CustomBuildAfterTargets>BuildCompile</CustomBuildAfterTargets>\n");
-      fprintf(project_file, "    <OutDir>$(SolutionDir)\\%s\\</OutDir>\n", resolved_output_folder);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.create_object(&dt, pg, "CustomBuildAfterTargets"), "BuildCompile");
+      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "OutDir"),
+                                     cc_printf("$(SolutionDir)\\%s\\", resolved_output_folder));
+
       // VS2019 warns if multiple projects have the same intermediate directory, so avoid that
       // here
-      fprintf(project_file,
-              "    <IntDir>$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\</IntDir>\n",
-              resolved_output_folder);
-
-      fprintf(project_file, "  </PropertyGroup>\n");
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.create_object(&dt, pg, "IntDir"),
+          cc_printf("$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\", resolved_output_folder));
     }
   }
 
@@ -269,31 +351,38 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const cc_architecture_impl_t* arch = cc_data_.architectures[pi];
 
-      vs_compiler_setting* compiler_flags = {0};
-      {
-        vs_compiler_setting precompiled_setting     = {"PrecompiledHeader", "NotUsing"};
-        vs_compiler_setting sdlcheck_setting        = {"SDLCheck", "true"};
-        vs_compiler_setting conformancemode_setting = {"ConformanceMode", "true"};
-        array_push(compiler_flags, precompiled_setting);
-        array_push(compiler_flags, sdlcheck_setting);
-        array_push(compiler_flags, conformancemode_setting);
-      }
+      unsigned int idg = data_tree_api.create_object(&dt, project, "ItemDefinitionGroup");
+      const char* platform_label = vs_projectArch2String_(arch->type);
+      data_tree_api.set_object_parameter(&dt, idg, "Condition",
+                                         cc_printf("'$(Configuration)|$(Platform)'=='%s|%s'",
+                                                   configuration_label, platform_label));
+      unsigned int compile_obj = data_tree_api.create_object(&dt, idg, "ClCompile");
+      unsigned int link_obj    = data_tree_api.create_object(&dt, idg, "Link");
 
-      vs_compiler_setting* linker_flags     = {0};
-      vs_compiler_setting subsystem_setting = {
-          "SubSystem", ((p->type == CCProjectTypeWindowedApplication) ? "Windows" : "Console")};
-      vs_compiler_setting debuginfo_setting = {"GenerateDebugInformation", "true"};
-      array_push(linker_flags, subsystem_setting);
-      array_push(linker_flags, debuginfo_setting);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "PrecompiledHeader"),
+          "NotUsing");
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "SDLCheck"), "true");
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "ConformanceMode"), "true");
+
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "SubSystem"),
+          ((p->type == CCProjectTypeWindowedApplication) ? "Windows" : "Console"));
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "GenerateDebugInformation"),
+          "true");
 
       if (is_debug_build) {
-        vs_compiler_setting setting = {"Optimization", "Disabled"};
-        array_push(compiler_flags, setting);
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "Optimization"), "Disabled");
       } else {
-        vs_compiler_setting opt_setting   = {"Optimization", "MaxSpeed"};
-        vs_compiler_setting check_setting = {"BasicRuntimeChecks", "Default"};
-        array_push(compiler_flags, opt_setting);
-        array_push(compiler_flags, check_setting);
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "Optimization"), "MaxSpeed");
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "BasicRuntimeChecks"),
+            "Default");
       }
 
       const char* preprocessor_defines = "%(PreprocessorDefinitions)";
@@ -331,8 +420,18 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           preprocessor_defines = cc_printf("%s;%s", flags->defines[pdi], preprocessor_defines);
         }
         for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
-          additional_compiler_flags =
-              cc_printf("%s %s", flags->compile_options[cfi], additional_compiler_flags);
+          // Index in known flags
+          bool found = false;
+          for (unsigned kfi = 0; kfi < countof(known_flags); kfi++) {
+            if (strcmp(known_flags[kfi].flag, flags->compile_options[cfi]) == 0) {
+              found = true;
+              known_flags[kfi].action(&dt, compile_obj);
+            }
+          }
+          if (!found) {
+            additional_compiler_flags =
+                cc_printf("%s %s", flags->compile_options[cfi], additional_compiler_flags);
+          }
         }
         for (unsigned lfi = 0; lfi < array_count(flags->link_options); ++lfi) {
           additional_link_flags =
@@ -359,21 +458,25 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         }
       }
 
-      const char* warning_strings[] = {"Level4", "Level3", "Level2", "EnableAllWarnings",
-                                       "TurnOffAllWarnings"};
-      assert(EStateWarningLevelHigh == 0);
-      assert(EStateWarningLevelAll == 3);
-      assert(EStateWarningLevelNone == 4);
+      {
+        const char* warning_strings[] = {"Level4", "Level3", "Level2", "EnableAllWarnings",
+                                         "TurnOffAllWarnings"};
+        assert(EStateWarningLevelHigh == 0);
+        assert(EStateWarningLevelAll == 3);
+        assert(EStateWarningLevelNone == 4);
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "WarningLevel"),
+            warning_strings[combined_warning_level]);
+      }
 
-      vs_compiler_setting warning_level_setting = {"WarningLevel",
-                                                   warning_strings[combined_warning_level]};
-      array_push(compiler_flags, warning_level_setting);
-      vs_compiler_setting disable_unused_parameter_setting = {"DisableSpecificWarnings", "4100"};
-      array_push(compiler_flags, disable_unused_parameter_setting);
-
-      vs_compiler_setting warning_as_error_setting = {
-          "TreatWarningAsError", shouldDisableWarningsAsError ? "false" : "true"};
-      array_push(compiler_flags, warning_as_error_setting);
+      // Disable unreferenced parameter warning
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "DisableSpecificWarnings"),
+          "4100");
+          
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "TreatWarningAsError"),
+          shouldDisableWarningsAsError ? "false" : "true");
 
       if (is_debug_build) {
         preprocessor_defines = cc_printf("_DEBUG;%s", preprocessor_defines);
@@ -388,50 +491,34 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       vs_compiler_setting preprocessor_setting = {"PreprocessorDefinitions", preprocessor_defines};
       vs_compiler_setting additionaloptions_setting = {"AdditionalOptions",
                                                        additional_compiler_flags};
-      array_push(compiler_flags, preprocessor_setting);
-      array_push(compiler_flags, additionaloptions_setting);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "PreprocessorDefinitions"),
+          preprocessor_defines);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalOptions"),
+          additional_compiler_flags);
 
       if (*additional_include_folders != 0) {
-        // Skip the starting ;
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
-        vs_compiler_setting additionalincludes_setting = {"AdditionalIncludeDirectories",
-                                                          additional_include_folders + 1};
-        array_push(compiler_flags, additionalincludes_setting);
+        // Skip the starting ;
+        data_tree_api.set_object_value(
+            &dt,
+            data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalIncludeDirectories"),
+            additional_include_folders + 1);
       }
 
-      vs_compiler_setting additionallinkoptions_setting = {"AdditionalOptions",
-                                                           additional_link_flags};
-      array_push(linker_flags, additionallinkoptions_setting);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalOptions"),
+          additional_link_flags);
 
       link_additional_dependencies =
           cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
-      vs_compiler_setting additionallinkdirectories_setting = {"AdditionalLibraryDirectories",
-                                                               link_additional_directories};
-      array_push(linker_flags, additionallinkdirectories_setting);
-      vs_compiler_setting additionallinkdependencies_setting = {"AdditionalDependencies",
-                                                                link_additional_dependencies};
-      array_push(linker_flags, additionallinkdependencies_setting);
-
-      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      fprintf(project_file,
-              "  <ItemDefinitionGroup Condition=\"'$(Configuration)|$(Platform)'=='%s|%s'\">\n",
-              configuration_label, platform_label);
-      fprintf(project_file, "    <ClCompile>\n");
-
-      for (unsigned cfi = 0; cfi < array_count(compiler_flags); ++cfi) {
-        const char* key   = compiler_flags[cfi].key;
-        const char* value = compiler_flags[cfi].value;
-        fprintf(project_file, "      <%s>%s</%s>\n", key, value, key);
-      }
-
-      fprintf(project_file, "    </ClCompile>\n");
-      fprintf(project_file, "    <Link>\n");
-      for (unsigned cfi = 0; cfi < array_count(linker_flags); ++cfi) {
-        const char* key   = linker_flags[cfi].key;
-        const char* value = linker_flags[cfi].value;
-        fprintf(project_file, "      <%s>%s</%s>\n", key, value, key);
-      }
-      fprintf(project_file, "    </Link>\n");
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalLibraryDirectories"),
+          link_additional_directories);
+      data_tree_api.set_object_value(
+          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalDependencies"),
+          link_additional_dependencies);
 
       bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
@@ -439,30 +526,30 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         windowsPostBuildAction = cc_substitute(windowsPostBuildAction, substitution_keys,
                                                substitution_values, countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
-        fprintf(project_file, "    <PostBuildEvent>\n");
-        fprintf(project_file, "      <Command>%s</Command>\n", windowsPostBuildAction);
-        fprintf(project_file, "    </PostBuildEvent>\n");
+        unsigned int pbe = data_tree_api.create_object(&dt, idg, "PostBuildEvent");
+        data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
+                                       windowsPostBuildAction);
       }
-      fprintf(project_file, "  </ItemDefinitionGroup>\n");
     }
   }
 
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
-    fprintf(project_file, "  <ItemGroup>\n");
     const char* f                  = p->file_data[fi]->path;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
+    unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
+    unsigned int obj       = 0;
     if (is_header_file(f)) {
-      fprintf(project_file, "    <ClInclude Include=\"%s\" />\n", relative_file_path);
+      obj = data_tree_api.create_object(&dt, itemgroup, "ClInclude");
     } else if (is_source_file(f)) {
-      fprintf(project_file, "    <ClCompile Include=\"%s\">\n", relative_file_path);
-      fprintf(project_file, "      <CompileAs>%s</CompileAs>\n",
-              ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
-      fprintf(project_file, "    </ClCompile>\n");
+      obj             = data_tree_api.create_object(&dt, itemgroup, "ClCompile");
+      unsigned int ca = data_tree_api.create_object(&dt, obj, "CompileAs");
+      data_tree_api.set_object_value(
+          &dt, ca, ((strstr(f, ".cpp") != NULL) ? "CompileAsCpp" : "CompileAsC"));
     } else {
-      fprintf(project_file, "    <None Include=\"%s\" />\n", relative_file_path);
+      obj = data_tree_api.create_object(&dt, itemgroup, "None");
     }
-    fprintf(project_file, "  </ItemGroup>\n");
+    data_tree_api.set_object_parameter(&dt, obj, "Include", relative_file_path);
   }
 
   const char* build_to_base_path = make_path_relative(in_output_folder, cc_data_.base_folder);
@@ -485,27 +572,36 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                substitution_values, countof(substitution_keys));
     const char* out_file_path  = cc_substitute(relative_out_file_path, substitution_keys,
                                               substitution_values, countof(substitution_keys));
-    fprintf(project_file, "  <ItemGroup>\n");
-    fprintf(project_file, "    <CustomBuild Include=\"%s\">\n", in_file_path);
-    fprintf(project_file, "      <Command>cd $(ProjectDir)%s &amp;&amp; %s</Command>\n",
-            build_to_base_path, custom_command);
-    fprintf(project_file, "      <Outputs>%s</Outputs>\n", out_file_path);
-    fprintf(project_file, "    </CustomBuild>\n");
-    fprintf(project_file, "  </ItemGroup>\n");
+    unsigned int itemgroup     = data_tree_api.create_object(&dt, project, "ItemGroup");
+    unsigned int cb            = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
+    data_tree_api.set_object_parameter(&dt, cb, "Include", in_file_path);
+    unsigned int command_obj = data_tree_api.create_object(&dt, cb, "Command");
+    data_tree_api.set_object_value(
+        &dt, command_obj,
+        cc_printf("cd $(ProjectDir)%s &amp;&amp; %s", build_to_base_path, custom_command));
+    unsigned int outputs_obj = data_tree_api.create_object(&dt, cb, "Outputs");
+    data_tree_api.set_object_value(&dt, outputs_obj, out_file_path);
   }
 
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id            = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
     const char* project_label = p->dependantOn[i]->name;
-    fprintf(project_file,
-            "  <ItemGroup>\n    <ProjectReference Include=\"%s.vcxproj\">\n      "
-            "<Project>{%s}</Project>\n    </ProjectReference>\n  </ItemGroup>\n",
-            project_label, id);
+
+    unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
+    unsigned int pr        = data_tree_api.create_object(&dt, itemgroup, "ProjectReference");
+    data_tree_api.set_object_parameter(&dt, pr, "Include", cc_printf("%s.vcxproj", project_label));
+    unsigned int project = data_tree_api.create_object(&dt, pr, "Project");
+    data_tree_api.set_object_value(&dt, project, cc_printf("{%s}", id));
   }
 
-  fprintf(project_file,
-          "  <Import Project=\"$(VCTargetsPath)\\Microsoft.Cpp.targets\" />\n  <ImportGroup "
-          "Label=\"ExtensionTargets\">\n  </ImportGroup>\n</Project>");
+  unsigned int importobj = data_tree_api.create_object(&dt, project, "Import");
+  data_tree_api.set_object_parameter(&dt, importobj, "Project",
+                                     "$(VCTargetsPath)\\Microsoft.Cpp.targets");
+  unsigned int importgroup = data_tree_api.create_object(&dt, project, "ImportGroup");
+  data_tree_api.set_object_parameter(&dt, importgroup, "Label", "ExtensionTargets");
 
+  FILE* project_file = fopen(project_file_path, "wb");
+  fprintf(project_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+  export_tree_as_xml(project_file, &dt, 0, 0);
   fclose(project_file);
 }
