@@ -298,20 +298,17 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
             "__FILE__ check your compiler settings.\n",
             in_absolute_config_file_path);
 #if defined(_MSC_VER)
-    fprintf(stderr,
-            "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
-            "an absolute path.\n");
+    LOG_ERROR_AND_QUIT(
+        "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
+        "an absolute path.\n");
 #elif defined(__APPLE__)
-    fprintf(stderr,
-            "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
+    LOG_ERROR_AND_QUIT(
+        "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
 #endif
-
-    exit(1);
   }
 
   if (cc_data_.is_inited) {
-    fprintf(stderr, "Error: calling cc_init() multiple times. Don't do this.\n");
-    exit(1);
+    LOG_ERROR_AND_QUIT("Error: calling cc_init() multiple times. Don't do this.\n");
   }
   cc_data_.is_inited = true;
 

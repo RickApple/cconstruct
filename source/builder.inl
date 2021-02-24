@@ -144,6 +144,7 @@ void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const ch
     cc_swapBuilds_();
     printf("Rebuilt CConstruct binary\n");
     RA_ActivateRestartProcess();
+    // Kill this process, since the restart process is waiting to run
     exit(0);
   }
 }

@@ -1,4 +1,5 @@
 #if defined(_MSC_VER)
+#include <Windows.h>
 #include <direct.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -15,10 +16,27 @@ bool cc_is_verbose = false;
 #define LOG_ERROR_AND_QUIT(...)   \
   {                               \
     fprintf(stderr, __VA_ARGS__); \
-    exit(1);                      \
+    error_quit();                \
   }
 #define LOG_VERBOSE(...) \
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
+
+void error_quit() {
+#if defined(_WIN32)
+  // The program could have been run crom the command prompt, or by double clicking on a previously
+  // built CConstruct executable. In the first case, the output is readily visible. In the second
+  // case keep the window open so users can read the error.
+  DWORD p[2];
+  int count = (int)GetConsoleProcessList((LPDWORD)&p, 2);
+  if (count <= 1) {
+    // Last one, or error querying, so probably started with a double-click. Should wait for the user
+    // to read output.
+    system("pause");
+  }
+#endif
+
+  exit(1);
+}
 
 const char* file_extension(const char* file_path) { return strrchr(file_path, '.') + 1; }
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }

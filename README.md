@@ -18,7 +18,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- On windows, when running created cconstruct binary from explorer it immediately closes, even on errors. It should remain open so the user can read the error and take action. If it generates succesfully it may close immediately.
 - external libs are currently specified from resulting project folder, but should be specified from config root folder
 - add description to cconstruct.h on how to build the initial version of the binary
 - Need to add support for setting Info.plist for MacOS and iOS
@@ -30,8 +29,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported
 - Allow config to set linker flags
 - Allow config to set environment and arguments for debug run?
-- if a project adds /Zi flag for VS, parse it and add it in the proper place in the interface to avoid warnings about /Zi overwriting /ZI
-  don't compile.
 - XCode remove hardcoded debug and release configurations
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
