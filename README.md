@@ -18,7 +18,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- external libs are currently specified from resulting project folder, but should be specified from config root folder
 - add description to cconstruct.h on how to build the initial version of the binary
 - Need to add support for setting Info.plist for MacOS and iOS
 - addInputProject crashes when project to add to is empty. add error output

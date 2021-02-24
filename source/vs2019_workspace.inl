@@ -48,9 +48,9 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
       project->file_data_custom_command[file_idx]->output_file = cc_printf(
           "%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->output_file);
     }
-    // Also all the include paths
     for (unsigned state_idx = 0; state_idx < array_count(project->state); state_idx++) {
       const cc_state_impl_t* state = project->state + state_idx;
+      // Also all the include paths
       for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
            includes_idx++) {
         const char* include_path            = state->include_folders[includes_idx];
@@ -59,6 +59,15 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
         if (!is_absolute_path && !starts_with_env_variable) {
           state->include_folders[includes_idx] =
               cc_printf("%s%s", build_to_base_path, include_path);
+        }
+      }
+      // And referenced external libs
+      for (unsigned libs_idx = 0; libs_idx < array_count(state->external_libs); libs_idx++) {
+        const char* lib_path                = state->external_libs[libs_idx];
+        const bool is_absolute_path         = (lib_path[0] == '/') || (lib_path[1] == ':');
+        const bool starts_with_env_variable = (lib_path[0] == '$');
+        if (!is_absolute_path && !starts_with_env_variable) {
+          state->external_libs[libs_idx] = cc_printf("%s%s", build_to_base_path, lib_path);
         }
       }
     }

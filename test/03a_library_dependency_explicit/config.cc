@@ -1,5 +1,13 @@
 #include "../../source/cconstruct.h"
 
+
+#if defined(_MSC_VER)
+  #define OUTPUT_FOLDER "build/msvc"
+#else
+  #define OUTPUT_FOLDER "build/xcode"
+#endif
+
+
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
@@ -43,32 +51,28 @@ int main(int argc, const char** argv) {
 #if defined(_WIN32)
   {
     cc_state_t s = cc.createState();
-    cc.state.linkExternalLibrary(s, "${platform}/Debug/lib/my_library.lib");
+    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Debug/lib/my_library.lib");
     cc.project.setFlags(b, s, NULL, configuration_debug);
   }
   {
     cc_state_t s = cc.createState();
-    cc.state.linkExternalLibrary(s, "${platform}/Release/lib/my_library.lib");
+    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Release/lib/my_library.lib");
     cc.project.setFlags(b, s, NULL, configuration_release);
   }
 #else
   {
     cc_state_t s = cc.createState();
-    cc.state.linkExternalLibrary(s, "${platform}/Debug/lib/my_library");
+    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Debug/lib/my_library");
     cc.project.setFlags(b, s, NULL, configuration_debug);
   }
   {
     cc_state_t s = cc.createState();
-    cc.state.linkExternalLibrary(s, "${platform}/Release/lib/my_library");
+    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Release/lib/my_library");
     cc.project.setFlags(b, s, NULL, configuration_release);
   }
 #endif
 
-#if defined(_MSC_VER)
-  cc_default_generator("build/msvc");
-#else
-  cc_default_generator("build/xcode");
-#endif
+  cc_default_generator(OUTPUT_FOLDER);
 
   return 0;
 }

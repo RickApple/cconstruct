@@ -444,9 +444,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         }
 
         for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
-          const char* lib_path            = flags->external_libs[di];
-          const char* lib_name            = strip_path(lib_path);
-          const char* lib_folder          = make_uri(folder_path_only(lib_path));
+          const char* lib_path_from_base = flags->external_libs[di];
+          const char* relative_lib_path = make_path_relative(in_output_folder, lib_path_from_base);
+          const char* lib_name          = strip_path(relative_lib_path);
+          const char* lib_folder        = make_uri(folder_path_only(relative_lib_path));
           const char* resolved_lib_folder = cc_substitute(
               lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
@@ -473,7 +474,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "DisableSpecificWarnings"),
           "4100");
-          
+
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "TreatWarningAsError"),
           shouldDisableWarningsAsError ? "false" : "true");
