@@ -18,7 +18,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- add description to cconstruct.h on how to build the initial version of the binary
+- add description to cconstruct.h on how to build the initial version of the binary on MacOS
 - Need to add support for setting Info.plist for MacOS and iOS
 - addInputProject crashes when project to add to is empty. add error output
 - Make selection of compilable files more flexible
