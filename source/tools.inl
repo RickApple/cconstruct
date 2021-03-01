@@ -29,8 +29,8 @@ void error_quit() {
   DWORD p[2];
   int count = (int)GetConsoleProcessList((LPDWORD)&p, 2);
   if (count <= 1) {
-    // Last one, or error querying, so probably started with a double-click. Should wait for the user
-    // to read output.
+    // Last one, or error querying, so probably started with a double-click. Should wait for the
+    // user to read output.
     system("pause");
   }
 #endif
