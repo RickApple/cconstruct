@@ -18,9 +18,11 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
+- run the new binary before renaming. that way the output will be better in a command prompt
+- have option to create project to debug cconstruct binary?
+- support 64-bit. can make a 64-bit cconstruct.exe manually, but the regenerated one is 32 bit again I think. [MSVS]
 - add description to cconstruct.h on how to build the initial version of the binary on MacOS
 - Need to add support for setting Info.plist for MacOS and iOS
-- addInputProject crashes when project to add to is empty. add error output
 - Make selection of compilable files more flexible
 - Architecture and platform should be set at project level
 - Custom commands on files (eg to compile GLSL)
@@ -38,7 +40,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - allows handle relative locations correctly
 - simplify output folders taking into account that VS gives warning if multiple projects have same output/intermediate folder
 - support pre build actions (post already works)
-- have option to create project to debug cconstruct binary?
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
 - Better name for CCProjectTypeWindowedApplication as that is also the type used for iOS applications
   Maybe just CCProjectTypeApplication

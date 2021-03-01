@@ -4,6 +4,10 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#if 0
+#include <DbgHelp.h>  // For stack trace
+#pragma comment(lib, "DbgHelp.lib")
+#endif
 #else
 #include <sys/stat.h>
 #include <unistd.h>
@@ -13,10 +17,54 @@
 
 bool cc_is_verbose = false;
 
+#if defined(_MSC_VER)
+void printStack(void);
+void printStack(void) {
+#if 0
+     unsigned int   i;
+     void         * stack[ 100 ];
+     unsigned short frames;
+     SYMBOL_INFO  * symbol;
+     HANDLE         process;
+
+     process = GetCurrentProcess();
+
+     
+     SymInitialize( process, NULL, TRUE );
+
+     SymSetOptions(SYMOPT_LOAD_LINES);
+
+     frames               = CaptureStackBackTrace( 0, 100, stack, NULL );
+     symbol               = ( SYMBOL_INFO * )calloc( sizeof( SYMBOL_INFO ) + 256 * sizeof( char ), 1 );
+     symbol->MaxNameLen   = 255;
+     symbol->SizeOfStruct = sizeof( SYMBOL_INFO );
+
+     IMAGEHLP_LINE lineInfo = {0};
+     for( i = 0; i < frames; i++ )
+     {
+         SymFromAddr( process, ( DWORD64 )( stack[ i ] ), 0, symbol );
+         if( SymGetLineFromAddr(process, symbol->Address, 0, &lineInfo) ) {
+           printf("%s(%i)\n", lineInfo.FileName, lineInfo.LineNumber);
+         }
+
+#if defined(_WIN64)
+         printf( "%i: %s - 0x%0llX\n", frames - i - 1, symbol->Name, symbol->Address );
+#else
+         printf( "%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, symbol->Address );
+#endif
+     }
+
+     free( symbol );
+#endif
+}
+#endif
+
 #define LOG_ERROR_AND_QUIT(...)   \
   {                               \
     fprintf(stderr, __VA_ARGS__); \
-    error_quit();                \
+    fprintf(stderr, "\n");        \
+    printStack();                 \
+    error_quit();                 \
   }
 #define LOG_VERBOSE(...) \
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
