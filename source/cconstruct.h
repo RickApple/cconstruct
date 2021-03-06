@@ -152,6 +152,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #include "tools.inl"
 #include "types.inl"
 #include "data_tree.inl"
+#include "cconstruct_main.inl"
 
 // Constructors
 #include "vs2019_project.inl"
