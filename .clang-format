@@ -11,3 +11,4 @@ PointerAlignment: Left
 AllowShortFunctionsOnASingleLine: All
 AlignConsecutiveAssignments: true
 ColumnLimit: 99
+SortIncludes: false

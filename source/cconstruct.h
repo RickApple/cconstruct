@@ -2,12 +2,13 @@
  * Windows with Visual Studio
  * ==========================
  * 1a. Open a 'Developer Command Prompt' or
- * 1b. In an existing prompt call 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat' or similar
+ * 1b. In an existing prompt call 'C:\Program Files (x86)\Microsoft Visual
+ * Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat' or similar
  * 2. Compile cconstruct exectuble with the following command
  *      'cl.exe /FC /Fo%TEMP% /Fecconstruct.exe your_config.cc'
  * 3. Run the resulting cconstruct.exe, which will regenerate itself from the config file
  *    and then construct the project files you specified in the config.
- * 
+ *
  * After this you don't need the developer prompt anymore, the cconstruct.exe binary
  * stores the proper settings.
  */

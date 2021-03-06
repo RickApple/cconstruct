@@ -125,7 +125,7 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
 void addFilesToProject(cc_project_t in_out_project, unsigned num_files,
                        const char* in_file_names[], const cc_group_t in_parent_group) {
   assert(in_out_project);
-  
+
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
   for (unsigned i = 0; i < num_files; ++i, ++in_file_names) {
     struct cc_file_t_* file_data = (struct cc_file_t_*)cc_alloc_(sizeof(struct cc_file_t_));
@@ -141,8 +141,8 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
                                  const cc_group_t in_parent_group) {
   assert(in_out_project);
   assert(folder);
-  assert(num_files==0 || !in_file_names);
-  
+  assert(num_files == 0 || !in_file_names);
+
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
   const char* relative_path  = make_path_relative(cc_data_.base_folder, folder);
   if (relative_path[strlen(relative_path) - 1] != '/') {
@@ -164,7 +164,7 @@ void cc_project_addFileWithCustomCommand(cc_project_t in_out_project, const char
                                          const char* in_custom_command,
                                          const char* in_output_file_name) {
   assert(in_out_project);
-  
+
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
 
   struct cc_file_custom_command_t_* file_data =
@@ -180,7 +180,7 @@ void cc_project_addFileWithCustomCommand(cc_project_t in_out_project, const char
 void cc_project_addInputProject(cc_project_t target_project, const cc_project_t on_project) {
   assert(target_project);
   assert(on_project);
-  
+
   array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
 }
 
