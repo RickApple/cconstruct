@@ -1,5 +1,7 @@
 
-call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\\Tools\\VsDevCmd.bat"
+rem -arch=x86 for 32-bit
+rem -arch=amd64 for 64-bit
+call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat"
 echo on
 
 set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
@@ -235,6 +237,31 @@ SET CMD_OUTPUT=%%F
 )
 if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
 popd
+
+
+pushd 21_errors
+rd /S /Q build
+rem Create CConstruct binary which works fine
+copy error_none.inl error.inl
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+rem Cause the recreation of CConstruct binary to fail
+copy error_compile.inl error.inl
+cconstruct.exe
+if %errorlevel% neq 1 exit /b %errorlevel%
+rem Cause the recreation of CConstruct binary to succeed, but then crash during construction
+copy error_construction.inl error.inl
+cconstruct.exe
+rem Need to do this, because the recursive cconstruct finishes before the construction is done
+cconstruct.exe --generate-projects
+if %errorlevel% neq 2 exit /b %errorlevel%
+rem No error at all, everything goes OK from here on out
+copy error_none.inl error.inl
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x64\Debug\hello_world.exe || exit /b
+popd
+
+
 
 
 

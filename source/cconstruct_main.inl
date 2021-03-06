@@ -1,4 +1,15 @@
+#if defined(_WIN32)
+LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
+  fprintf(stderr, "Unhandled exception occurred\n");
+  exit(ERR_CONSTRUCTION);
+}
+#endif
+
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
+#if defined(_WIN32)
+  SetUnhandledExceptionFilter(ExceptionHandler);
+#endif
+
   bool is_path_absolute =
       (in_absolute_config_file_path[0] == '/') || (in_absolute_config_file_path[1] == ':');
   if (!is_path_absolute) {

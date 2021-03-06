@@ -19,6 +19,12 @@
 
 #include <stdbool.h>
 
+enum ErrorCodes {
+  ERR_NO_ERROR     = 0,
+  ERR_COMPILING    = 1,  // There was an error compiling the new CConstruct binary
+  ERR_CONSTRUCTION = 2,  // There was an error running the CConstruct binary to construct projects
+};
+
 typedef enum {
   CCProjectTypeConsoleApplication = 0,
   CCProjectTypeWindowedApplication,
@@ -141,6 +147,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 /***********************************************************************************************************************
  *                                             Implementation starts here
  ***********************************************************************************************************************/
+#if defined(_WIN32)
+#include <Windows.h>
+#endif
 
 #include <assert.h>
 #include <stdarg.h>
