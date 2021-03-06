@@ -60,11 +60,11 @@ void printStack(void) {
 }
 #endif
 
-#define LOG_ERROR_AND_QUIT(error,...)   \
-  {                               \
-    fprintf(stderr, __VA_ARGS__); \
-    fprintf(stderr, "\n");        \
-    printStack();                 \
+#define LOG_ERROR_AND_QUIT(error, ...) \
+  {                                    \
+    fprintf(stderr, __VA_ARGS__);      \
+    fprintf(stderr, "\n");             \
+    printStack();                      \
     error_quit(error);                 \
   }
 #define LOG_VERBOSE(...) \
@@ -197,8 +197,9 @@ void* array_grow(void* a, unsigned element_size);
   (array_full(a) ? (*((void**)&a) = array_grow((void*)a, sizeof(*a))) : 0, \
    (a[array_header(a)->count_++] = item))
 
-#define array_remove_at_index(a, idx) \
-  memmove(a + idx, a + idx + 1, (array_count(a) - idx - 1) * sizeof(*a)), array_header(a)->count_--
+#define array_remove_at_index(a, idx)                                                       \
+  memmove((void*)(a + idx), (void*)(a + idx + 1), (array_count(a) - idx - 1) * sizeof(*a)), \
+      array_header(a)->count_--
 
 #define array_append(a, data, count)                                                            \
   (((array_count(a) + (count)) > array_capacity(a))                                             \
