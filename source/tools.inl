@@ -15,7 +15,8 @@
 
 #define countof(a) sizeof(a) / sizeof(a[0])
 
-bool cc_is_verbose = false;
+bool cc_is_verbose    = false;
+bool cc_only_generate = false;
 
 #if defined(_MSC_VER)
 void printStack(void);
@@ -59,19 +60,19 @@ void printStack(void) {
 }
 #endif
 
-#define LOG_ERROR_AND_QUIT(...)   \
+#define LOG_ERROR_AND_QUIT(error,...)   \
   {                               \
     fprintf(stderr, __VA_ARGS__); \
     fprintf(stderr, "\n");        \
     printStack();                 \
-    error_quit();                 \
+    error_quit(error);                 \
   }
 #define LOG_VERBOSE(...) \
   if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
 
-void error_quit() {
+void error_quit(int error_code) {
 #if defined(_WIN32)
-  // The program could have been run crom the command prompt, or by double clicking on a previously
+  // The program could have been run from the command prompt, or by double clicking on a previously
   // built CConstruct executable. In the first case, the output is readily visible. In the second
   // case keep the window open so users can read the error.
   DWORD p[2];
@@ -83,7 +84,7 @@ void error_quit() {
   }
 #endif
 
-  exit(1);
+  exit(error_code);
 }
 
 const char* file_extension(const char* file_path) { return strrchr(file_path, '.') + 1; }

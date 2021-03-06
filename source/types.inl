@@ -296,5 +296,3 @@ cc_configuration_t cc_configuration_create(const char* in_label) {
   strcpy((char*)c->label, in_label);
   return c;
 }
-
-void cc_autoRecompileFromConfig(const char* config_file_path, int argc, const char* const* argv);

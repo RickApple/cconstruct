@@ -251,8 +251,6 @@ if %errorlevel% neq 1 exit /b %errorlevel%
 rem Cause the recreation of CConstruct binary to succeed, but then crash during construction
 copy error_construction.inl error.inl
 cconstruct.exe
-rem Need to do this, because the recursive cconstruct finishes before the construction is done
-cconstruct.exe --generate-projects
 if %errorlevel% neq 2 exit /b %errorlevel%
 rem No error at all, everything goes OK from here on out
 copy error_none.inl error.inl

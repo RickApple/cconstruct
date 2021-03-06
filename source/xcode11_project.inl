@@ -118,7 +118,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         fi++;
       } else {
         if (!is_global_state) {
-          LOG_ERROR_AND_QUIT(
+          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
               "Apple framework added to state with configuration or architecture. This is not yet "
               "supported");
         }

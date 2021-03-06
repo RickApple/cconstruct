@@ -397,7 +397,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
           break;
         default:
-          LOG_ERROR_AND_QUIT("Unknown project type for project '%s'\n", p->name);
+          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
       }
       const char* additional_compiler_flags    = "%(AdditionalOptions)";
       const char* additional_link_flags        = "%(AdditionalOptions)";

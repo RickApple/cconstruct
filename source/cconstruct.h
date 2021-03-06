@@ -20,9 +20,10 @@
 #include <stdbool.h>
 
 enum ErrorCodes {
-  ERR_NO_ERROR     = 0,
-  ERR_COMPILING    = 1,  // There was an error compiling the new CConstruct binary
-  ERR_CONSTRUCTION = 2,  // There was an error running the CConstruct binary to construct projects
+  ERR_NO_ERROR      = 0,
+  ERR_COMPILING     = 1,  // An error compiling the new CConstruct binary
+  ERR_CONSTRUCTION  = 2,  // An error running the CConstruct binary to construct projects
+  ERR_CONFIGURATION = 3,  // An error in the configuration. Check error output for more details
 };
 
 typedef enum {
@@ -161,7 +162,6 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #include "tools.inl"
 #include "types.inl"
 #include "data_tree.inl"
-#include "cconstruct_main.inl"
 
 // Constructors
 #include "vs2019_project.inl"
@@ -174,6 +174,8 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 
 // For automatic updates to the config
 #include "builder.inl"
+
+#include "cconstruct_main.inl"
 
 // For ease of use set a default CConstruct generator for each OS
 #if defined(_MSC_VER)

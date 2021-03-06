@@ -5,6 +5,16 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 }
 #endif
 
+int cc_runNewBuild_() {
+  const char* new_construct_command =
+      cc_printf("%s --generate-projects", cconstruct_internal_build_file_name);
+  if (cc_is_verbose) {
+    new_construct_command = cc_printf("%s --verbose", new_construct_command);
+  }
+  LOG_VERBOSE("Executing new binary: '%s'\n", new_construct_command);
+  return system(new_construct_command);
+}
+
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
 #if defined(_WIN32)
   SetUnhandledExceptionFilter(ExceptionHandler);
@@ -20,16 +30,17 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
             in_absolute_config_file_path);
 #if defined(_MSC_VER)
     LOG_ERROR_AND_QUIT(
+        ERR_CONFIGURATION,
         "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
         "an absolute path.\n");
 #elif defined(__APPLE__)
-    LOG_ERROR_AND_QUIT(
+    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
         "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
 #endif
   }
 
   if (cc_data_.is_inited) {
-    LOG_ERROR_AND_QUIT("Error: calling cc_init() multiple times. Don't do this.\n");
+    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,"Error: calling cc_init() multiple times. Don't do this.\n");
   }
   cc_data_.is_inited = true;
 
@@ -37,13 +48,25 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     if (strcmp(argv[i], "--verbose") == 0) {
       cc_is_verbose = true;
     }
+    if (strcmp(argv[i], "--generate-projects") == 0) {
+      cc_only_generate = true;
+    }
   }
 
   // First group is no group
   cc_group_impl_t null_group = {0};
   array_push(cc_data_.groups, null_group);
 
-  cc_autoRecompileFromConfig(in_absolute_config_file_path, argc, argv);
+  // If not only generating, then a new binary is built, that is run, and only then do we attempt
+  // to clean up this existing version. This binary doesn't do any construction of projects.
+  if (!cc_only_generate) {
+    cc_recompile_binary_(in_absolute_config_file_path);
+    int result                        = cc_runNewBuild_();
+    if (result == 0) {
+      cc_activateNewBuild_();
+    }
+    exit(result);
+  }
 
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
 
