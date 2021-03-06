@@ -141,7 +141,7 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
                                  const cc_group_t in_parent_group) {
   assert(in_out_project);
   assert(folder);
-  assert(num_files == 0 || !in_file_names);
+  assert(num_files == 0 || (in_file_names!=NULL));
 
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
   const char* relative_path  = make_path_relative(cc_data_.base_folder, folder);
