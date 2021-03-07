@@ -7,7 +7,7 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 
 int cc_runNewBuild_() {
   const char* new_construct_command =
-      cc_printf("%s --generate-projects", cconstruct_internal_build_file_name);
+      cc_printf("%s --generate-projects", cconstruct_internal_binary_name);
   if (cc_is_verbose) {
     new_construct_command = cc_printf("%s --verbose", new_construct_command);
   }
@@ -17,6 +17,7 @@ int cc_runNewBuild_() {
 
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
 #if defined(_WIN32)
+  (void)DeleteFile(cconstruct_old_binary_name);
   SetUnhandledExceptionFilter(ExceptionHandler);
 #endif
 
@@ -61,7 +62,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   // to clean up this existing version. This binary doesn't do any construction of projects.
   if (!cc_only_generate) {
     cc_recompile_binary_(in_absolute_config_file_path);
-    int result                        = cc_runNewBuild_();
+    int result = cc_runNewBuild_();
     if (result == 0) {
       cc_activateNewBuild_();
     }

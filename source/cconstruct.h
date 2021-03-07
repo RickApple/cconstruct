@@ -168,11 +168,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #include "vs2019_workspace.inl"
 #include "xcode11_project.inl"
 
-// Automatic updating
 #include "process.inl"
-#include "restart_api.inl"
-
-// For automatic updates to the config
 #include "builder.inl"
 
 #include "cconstruct_main.inl"

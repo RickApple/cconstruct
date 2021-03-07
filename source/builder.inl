@@ -4,7 +4,15 @@
 static char stdout_data[16 * 1024 * 1024] = {0};
 static char stderr_data[16 * 1024 * 1024] = {0};
 
-const char* cconstruct_internal_build_file_name = "cconstruct_internal_build";
+#if defined(_WIN32)
+const char* cconstruct_binary_name          = "cconstruct.exe";
+const char* cconstruct_internal_binary_name = "cconstruct_internal.exe";
+const char* cconstruct_old_binary_name      = "cconstruct.exe.old";
+#else
+const char* cconstruct_binary_name          = "cconstruct";
+const char* cconstruct_internal_binary_name = "cconstruct_internal";
+const char* cconstruct_old_binary_name      = "cconstruct.old";
+#endif
 
 // This function finds the location of the VcDevCmd.bat file on your system. This is needed to set
 // the environment when compiling a new version of CConstruct binary.
@@ -23,8 +31,8 @@ const char* cc_find_VcDevCmd_bat_() {
   if (r != 0) {
     // Not much to do at this point
     LOG_ERROR_AND_QUIT(ERR_COMPILING,
-        "Couldn't rebuild cconstruct exe, please do so manually if you changed the "
-        "configuration file.\n");
+                       "Couldn't rebuild cconstruct exe, please do so manually if you changed the "
+                       "configuration file.\n");
   }
 
   // Remove new line from stdout_data
@@ -46,96 +54,99 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 
   const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
   const char* recompile_command = cc_printf(
-      "\"%s\" > nul && cl.exe -EHsc "
+      "\"%s\" > nul && pushd %s && cl.exe -EHsc "
 #ifndef NDEBUG
-      "/ZI /DEBUG"
+      "/ZI /DEBUG "
 #endif
-      "/Fo%s\\cconstruct.obj "
-      "/Fe%s.exe %s "
+      "/Fe%s %s "
       "/nologo "
+      "/INCREMENTAL:NO "
 #ifdef __cplusplus
       "/TP "
 #else
       "/TC "
 #endif
-      ,
-      VsDevCmd_bat, temp_path, cconstruct_internal_build_file_name, cconstruct_config_file_path);
+      " && popd",
+      VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path);
 
-  LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
+  LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
               recompile_command);
   int exit_code = 0;
   int result    = system_np(recompile_command, 100 * 1000, stdout_data, sizeof(stdout_data),
                          stderr_data, sizeof(stderr_data), &exit_code);
-
   if (result != 0) {
     char* message;
     DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
                               result, 0, (LPSTR)&message, 1024, NULL);
     if (rfm != 0) {
-      LOG_ERROR_AND_QUIT(ERR_COMPILING,"Error recompiling with command '%s'\nError: %s", recompile_command,
-                         message);
+      LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error recompiling with command '%s'\nError: %s",
+                         recompile_command, message);
     } else {
       LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error recompiling with command '%s'\nError: %i",
                          recompile_command, result);
     }
   } else {
     if (exit_code == 0) {
-      LOG_VERBOSE("Built new CConstruct binary at '%s.exe'\n",
-                  cconstruct_internal_build_file_name);
+      LOG_VERBOSE("Built new CConstruct binary at '%s'\n", cconstruct_internal_binary_name);
     } else {
       // Succesfully ran the command, but there was an error, likely an issue compiling the config
       // file
-      printf("%s\n", stdout_data);
+      printf("stdout %s\n", stdout_data);
+      printf("stderr %s\n", stderr_data);
 
       LOG_ERROR_AND_QUIT(
           ERR_COMPILING,
           "Error (%i) recompiling CConstruct config file. You can add '--generate-projects' to "
-          "generate projects "
-          "with the settings built into the existing CConstruct binary.\n",
+          "generate projects with the settings built into the existing CConstruct binary.\n",
           exit_code);
     }
   }
-}
 
-void cc_swapBuilds_() {
-  char path[MAX_PATH];
-  if (!GetModuleFileNameA(NULL, path, MAX_PATH)) exit(1);
-  const char* old_path = cc_printf("%s.old", path);
+  const char* from_path = cc_printf("%s\\%s", temp_path, cconstruct_internal_binary_name);
+  const char* to_path   = cc_printf("%s", cconstruct_internal_binary_name);
 
-  // Moving only works if the target doesn't exist yet
-  if (!MoveFileA(path, old_path)) {
-    LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move binary from '%s' to '%s'\n", path,
-                       old_path);
-  } else {
-    LOG_VERBOSE("Moved binary from '%s' to '%s'\n", path, old_path);
-  }
-
-  const char* internal_build_path = cc_printf("%s.exe", cconstruct_internal_build_file_name);
-  if (!MoveFileA(internal_build_path, path)) {
-    LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move binary from '%s' to '%s'\n",
-                       internal_build_path, path);
-  } else {
-    LOG_VERBOSE("Moved binary from '%s' to '%s'\n", internal_build_path, path);
+  if (!MoveFileEx(from_path, to_path, MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING)) {
+    int err = GetLastError();
+    LOG_ERROR_AND_QUIT(ERR_COMPILING,
+                       "Error (%i): Couldn't move internal binary from '%s' to '%s'\n", err,
+                       from_path, to_path);
   }
 }
 
-void cc_deletePreviousBuild_() {
-  char path[MAX_PATH];
-  if (!GetModuleFileNameA(NULL, path, MAX_PATH)) exit(1);
-  const char* old_path = cc_printf("%s.old", path);
-  if (!DeleteFileA(old_path)) {
-    DWORD last_error = GetLastError();
-    if (last_error != ERROR_FILE_NOT_FOUND) {
-      LOG_VERBOSE("Couldn't delete old binary '%s'\n", old_path);
-    }
-  } else {
-    LOG_VERBOSE("Deleted binary at '%s'\n", old_path);
-  }
-}
-
+// On Windows cannot delete a binary while it is being run. It is possible to move the binary
+// though (as long as it's on the same drive), so move the existing binary to a different name and
+// then rename the new one to the original name.
 void cc_activateNewBuild_() {
-  cc_deletePreviousBuild_();
-  cc_swapBuilds_();
+  char temp_folder_path[MAX_PATH];
+  GetEnvironmentVariable("temp", temp_folder_path, MAX_PATH);
+
+  char existing_binary_path[MAX_PATH];
+  char existing_binary_name[MAX_PATH];
+  if (!GetModuleFileNameA(NULL, existing_binary_path, MAX_PATH)) {
+    exit(1);
+  }
+
+  strcpy(existing_binary_name, strrchr(existing_binary_path, '\\') + 1);
+
+  if (!MoveFileEx(existing_binary_path, cconstruct_old_binary_name, MOVEFILE_REPLACE_EXISTING)) {
+    LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move old binary from '%s' to '%s'\n",
+                       existing_binary_path, cconstruct_old_binary_name);
+  } else {
+    LOG_VERBOSE("Moved old binary from '%s' to '%s'\n", existing_binary_path,
+                cconstruct_old_binary_name);
+  }
+
+  if (!MoveFileEx(cconstruct_internal_binary_name, existing_binary_path,
+                  MOVEFILE_REPLACE_EXISTING)) {
+    LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move new binary from '%s' to '%s'\n",
+                       cconstruct_internal_binary_name, existing_binary_path);
+  } else {
+    LOG_VERBOSE("Moved new binary from '%s' to '%s'\n", cconstruct_internal_binary_name,
+                existing_binary_path);
+  }
+
+  // This will delete the old file after a reboot. Not great, but cleans up a little bit.
+  (void)MoveFileEx(cconstruct_old_binary_name, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 }
 
 #elif defined(__APPLE__)
@@ -154,11 +165,11 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 #endif
   const char* recompile_command =
       cc_printf("clang++ %s -x c++ -std=c++%s -o %s", cconstruct_config_file_path,
-                language_revision, cconstruct_internal_build_file_name);
+                language_revision, cconstruct_internal_binary_name);
 
 #else
   const char* recompile_command = cc_printf("clang %s -x c -o %s", cconstruct_config_file_path,
-                                            cconstruct_internal_build_file_name);
+                                            cconstruct_internal_binary_name);
 #endif
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
               recompile_command);
@@ -181,7 +192,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   int rc = pclose(pipe);
 
   if (rc == EXIT_SUCCESS) {  // == 0
-    LOG_VERBOSE("Built new CConstruct binary at '%s'\n", cconstruct_internal_build_file_name);
+    LOG_VERBOSE("Built new CConstruct binary at '%s'\n", cconstruct_internal_binary_name);
   } else {
     // It looks like the errors have already been printed to the console, so no need to to do that
     // manually.
@@ -197,11 +208,11 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 void cc_activateNewBuild_() {
   const char* path = getprogname();
 
-  if (rename(cconstruct_internal_build_file_name, path) != 0) {
+  if (rename(cconstruct_internal_binary_name, path) != 0) {
     LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move binary from '%s' to '%s'\n",
-                       cconstruct_internal_build_file_name, path);
+                       cconstruct_internal_binary_name, path);
   } else {
-    LOG_VERBOSE("Moved binary from '%s' to '%s'\n", cconstruct_internal_build_file_name, path);
+    LOG_VERBOSE("Moved binary from '%s' to '%s'\n", cconstruct_internal_binary_name, path);
   }
 }
 

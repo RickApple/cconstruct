@@ -18,7 +18,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- run the new binary before renaming. that way the output will be better in a command prompt
 - have option to create project to debug cconstruct binary?
 - support 64-bit. can make a 64-bit cconstruct.exe manually, but the regenerated one is 32 bit again I think. [MSVS]
 - add description to cconstruct.h on how to build the initial version of the binary on MacOS

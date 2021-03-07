@@ -118,7 +118,7 @@ static int create_child_process(system_np_t* system) {
 
   const char* szCmdline = system->command;
 
-  bool b = CreateProcessA(NULL, (char*)szCmdline,
+  bool b  = CreateProcessA(NULL, (char*)szCmdline,
                           NULL,              // process security attributes
                           NULL,              // primary thread security attributes
                           true,              // handles are inherited
@@ -127,7 +127,6 @@ static int create_child_process(system_np_t* system) {
                           NULL,              // use parent's current directory
                           &siStartInfo,      // STARTUPINFO pointer
                           &system->pi);      // receives PROCESS_INFORMATION
-
   int err = GetLastError();
   CloseHandle(child_stderr_write);
   CloseHandle(child_stdout_write);
