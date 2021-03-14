@@ -23,7 +23,7 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - add description to cconstruct.h on how to build the initial version of the binary on MacOS
 - Need to add support for setting Info.plist for MacOS and iOS
 - Make selection of compilable files more flexible
-- Architecture and platform should be set at project level
+- Architecture and platform should be set at project level instead of top-level
 - Custom commands on files (eg to compile GLSL)
   [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported
@@ -33,16 +33,15 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - Allow adding any XCode setting you want as UI option, not as other flags
 - Allow adding files that shouldn't be compiled (.h,.inl)
 - Should the language dialect be exposed?
-- Allow for a way to add files in a specific folder so user doesn't have to manually give complete path to every single file
 - Create test for hierarchical folder structure
-- Make tests for cconstruct build out of tree
+- Make tests for cconstruct build out of tree (so ../ from location of main cconstruct file)
 - allows handle relative locations correctly
 - simplify output folders taking into account that VS gives warning if multiple projects have same output/intermediate folder
 - support pre build actions (post already works)
 - Custom configuration Testing for example. Take into account that XCode generator adds some Debug/Release differences hardcoded.
 - Better name for CCProjectTypeWindowedApplication as that is also the type used for iOS applications
   Maybe just CCProjectTypeApplication
-- Use existing function for path manipulation:
+- Use existing functions for path manipulation:
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/makepath-wmakepath?view=vs-2019
   https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/fullpath-wfullpath?view=vs-2019
 - Should users handle difference between .a and .lib static library extension when adding dependency on external lib?

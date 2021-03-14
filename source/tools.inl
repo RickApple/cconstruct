@@ -91,7 +91,16 @@ void error_quit(int error_code) {
   exit(error_code);
 }
 
-const char* file_extension(const char* file_path) { return strrchr(file_path, '.') + 1; }
+// Returns the extension of a file name (excluding the .).
+// Returns "" if no extension is present.
+const char* file_extension(const char* file_path) {
+  const char* result = strrchr(file_path, '.');
+  if (result) {
+    return result + 1;
+  } else {
+    return "";
+  }
+}
 bool is_header_file(const char* file_path) { return strstr(file_path, ".h") != 0; }
 bool is_source_file(const char* file_path) {
   const char* ext = file_extension(file_path);
