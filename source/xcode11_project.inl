@@ -86,10 +86,32 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
 
   const unsigned files_count = array_count(p->file_data);
-
   const char** file_ref_paths = {0};
   for (unsigned i = 0; i < files_count; ++i) {
     array_push(file_ref_paths, cc_printf("%s%s", build_to_base_path, p->file_data[i]->path));
+  }
+
+  for (unsigned state_idx = 0; state_idx < array_count(p->state); state_idx++) {
+    const cc_state_impl_t* state = p->state + state_idx;
+    // Also all the include paths
+    for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
+         includes_idx++) {
+      const char* include_path            = state->include_folders[includes_idx];
+      const bool is_absolute_path         = (include_path[0] == '/') || (include_path[1] == ':');
+      const bool starts_with_env_variable = (include_path[0] == '$');
+      if (!is_absolute_path && !starts_with_env_variable) {
+        state->include_folders[includes_idx] = cc_printf("%s%s", build_to_base_path, include_path);
+      }
+    }
+    // And referenced external libs
+    for (unsigned libs_idx = 0; libs_idx < array_count(state->external_libs); libs_idx++) {
+      const char* lib_path                = state->external_libs[libs_idx];
+      const bool is_absolute_path         = (lib_path[0] == '/') || (lib_path[1] == ':');
+      const bool starts_with_env_variable = (lib_path[0] == '$');
+      if (!is_absolute_path && !starts_with_env_variable) {
+        state->external_libs[libs_idx] = cc_printf("%s%s", build_to_base_path, lib_path);
+      }
+    }
   }
 
   const char** fileReferenceUUID = {0};
@@ -751,9 +773,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
 
       for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
-        const char* lib_path            = flags->external_libs[di];
-        const char* lib_name            = strip_path(lib_path);
-        const char* lib_folder          = make_uri(folder_path_only(lib_path));
+        const char* lib_path_from_base  = flags->external_libs[di];
+        const char* relative_lib_path = make_path_relative(build_to_base_path, lib_path_from_base);
+        const char* lib_name            = strip_path(lib_path_from_base);
+        const char* lib_folder          = make_uri(folder_path_only(lib_path_from_base));
         const char* resolved_lib_folder = cc_substitute(
             lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
@@ -916,12 +939,12 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   fprintf(f, "</Workspace>");
 }
 
-void xcode_generateInFolder(const char* in_workspace_path) {
-  in_workspace_path = make_uri(in_workspace_path);
-  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
-    in_workspace_path = cc_printf("%s/", in_workspace_path);
+void xcode_generateInFolder(const char* in_project_output_path) {
+  in_project_output_path = make_uri(in_project_output_path);
+  if (in_project_output_path[strlen(in_project_output_path) - 1] != '/')
+    in_project_output_path = cc_printf("%s/", in_project_output_path);
 
-  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_project_output_path));
 
   char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
 

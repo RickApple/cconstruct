@@ -1,10 +1,4 @@
 #if defined(_WIN32)
-#include <Windows.h>
-
-static char stdout_data[16 * 1024 * 1024] = {0};
-static char stderr_data[16 * 1024 * 1024] = {0};
-
-#if defined(_WIN32)
 const char* cconstruct_binary_name          = "cconstruct.exe";
 const char* cconstruct_internal_binary_name = "cconstruct_internal.exe";
 const char* cconstruct_old_binary_name      = "cconstruct.exe.old";
@@ -13,6 +7,12 @@ const char* cconstruct_binary_name          = "cconstruct";
 const char* cconstruct_internal_binary_name = "cconstruct_internal";
 const char* cconstruct_old_binary_name      = "cconstruct.old";
 #endif
+
+#if defined(_WIN32)
+#include <Windows.h>
+
+static char stdout_data[16 * 1024 * 1024] = {0};
+static char stderr_data[16 * 1024 * 1024] = {0};
 
 // This function finds the location of the VcDevCmd.bat file on your system. This is needed to set
 // the environment when compiling a new version of CConstruct binary.
@@ -214,14 +214,5 @@ void cc_activateNewBuild_() {
   } else {
     LOG_VERBOSE("Moved binary from '%s' to '%s'\n", cconstruct_internal_binary_name, path);
   }
-}
-
-bool cc_should_generate_projects(int argc, const char* const* argv) {
-  for (int i = 0; i < argc; ++i) {
-    if (strcmp(argv[i], RA_CMDLINE_RESTART_PROCESS) == 0) {
-      return true;
-    }
-  }
-  return false;
 }
 #endif

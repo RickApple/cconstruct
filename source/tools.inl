@@ -58,6 +58,10 @@ void printStack(void) {
      free( symbol );
 #endif
 }
+#else
+void printStack() {
+  // Not yet implemented
+}
 #endif
 
 #define LOG_ERROR_AND_QUIT(error, ...) \
