@@ -11,6 +11,14 @@
  *
  * After this you don't need the developer prompt anymore, the cconstruct.exe binary
  * stores the proper settings.
+ *
+ * MacOS with Clang
+ * ==========================
+ * 1. Open a Terminal
+ * 2. Compile cconstruct exectuble with the following command
+ *      'clang -x c your_config.cc -o cconstruct'
+ * 3. Run the resulting cconstruct, which will regenerate itself from the config file
+ *    and then construct the project files you specified in the config.
  */
 #ifndef CC_CONSTRUCT_H
 #define CC_CONSTRUCT_H

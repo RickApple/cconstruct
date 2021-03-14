@@ -85,7 +85,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const char* build_to_base_path) {
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
 
-  const unsigned files_count = array_count(p->file_data);
+  const unsigned files_count  = array_count(p->file_data);
   const char** file_ref_paths = {0};
   for (unsigned i = 0; i < files_count; ++i) {
     array_push(file_ref_paths, cc_printf("%s%s", build_to_base_path, p->file_data[i]->path));
@@ -140,7 +140,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         fi++;
       } else {
         if (!is_global_state) {
-          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
+          LOG_ERROR_AND_QUIT(
+              ERR_CONFIGURATION,
               "Apple framework added to state with configuration or architecture. This is not yet "
               "supported");
         }
@@ -263,7 +264,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             fileReferenceUUID[fi], strip_path(filename), fileType, strip_path(filename),
             file_ref_paths[fi]);
     if (cc_is_verbose) {
-      printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
+      // printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
     }
   }
   fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
@@ -773,10 +774,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
 
       for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
-        const char* lib_path_from_base  = flags->external_libs[di];
+        const char* lib_path_from_base = flags->external_libs[di];
         const char* relative_lib_path = make_path_relative(build_to_base_path, lib_path_from_base);
-        const char* lib_name            = strip_path(lib_path_from_base);
-        const char* lib_folder          = make_uri(folder_path_only(lib_path_from_base));
+        const char* lib_name          = strip_path(lib_path_from_base);
+        const char* lib_folder        = make_uri(folder_path_only(lib_path_from_base));
         const char* resolved_lib_folder = cc_substitute(
             lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
