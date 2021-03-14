@@ -8,6 +8,10 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 int cc_runNewBuild_() {
   const char* new_construct_command =
       cc_printf("%s --generate-projects", cconstruct_internal_binary_name);
+#if !defined(_WIN32)
+  new_construct_command = cc_printf("./%s", new_construct_command);
+#endif
+
   if (cc_is_verbose) {
     new_construct_command = cc_printf("%s --verbose", new_construct_command);
   }
