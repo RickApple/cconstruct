@@ -3,6 +3,68 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
   fprintf(stderr, "Unhandled exception occurred\n");
   exit(ERR_CONSTRUCTION);
 }
+#else
+#include <signal.h>
+
+#include <err.h>
+void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
+  (void)sig;
+  (void)siginfo;
+  (void)context;
+  // posix_print_stack_trace();
+  exit(ERR_CONSTRUCTION);
+}
+
+static uint8_t alternate_stack[SIGSTKSZ];
+void set_signal_handler() {
+  /* setup alternate stack */
+  {
+    stack_t ss = {};
+    /* malloc is usually used here, I'm not 100% sure my static allocation
+       is valid but it seems to work just fine. */
+    ss.ss_sp    = (void*)alternate_stack;
+    ss.ss_size  = SIGSTKSZ;
+    ss.ss_flags = 0;
+
+    if (sigaltstack(&ss, NULL) != 0) {
+      err(1, "sigaltstack");
+    }
+  }
+
+  /* register our signal handlers */
+  {
+    struct sigaction sig_action = {};
+    sig_action.sa_sigaction     = posix_signal_handler;
+    sigemptyset(&sig_action.sa_mask);
+
+#ifdef __APPLE__
+    /* for some reason we backtrace() doesn't work on osx
+       when we use an alternate stack */
+    sig_action.sa_flags = SA_SIGINFO;
+#else
+    sig_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+#endif
+
+    if (sigaction(SIGSEGV, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+    if (sigaction(SIGFPE, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+    if (sigaction(SIGINT, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+    if (sigaction(SIGILL, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+    if (sigaction(SIGTERM, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+    if (sigaction(SIGABRT, &sig_action, NULL) != 0) {
+      err(1, "sigaction");
+    }
+  }
+}
 #endif
 
 int cc_runNewBuild_() {
@@ -16,13 +78,21 @@ int cc_runNewBuild_() {
     new_construct_command = cc_printf("%s --verbose", new_construct_command);
   }
   LOG_VERBOSE("Executing new binary: '%s'\n", new_construct_command);
-  return system(new_construct_command);
+  int result = system(new_construct_command);
+#if !defined(_WIN32)
+  // The spec for system() doesn't require it to return the error from the executed command.
+  // On MacOS it doesn't, so query the actual error here.
+  result = WEXITSTATUS(result);
+#endif
+  return result;
 }
 
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
 #if defined(_WIN32)
   (void)DeleteFile(cconstruct_old_binary_name);
   SetUnhandledExceptionFilter(ExceptionHandler);
+#else
+  set_signal_handler();
 #endif
 
   bool is_path_absolute =

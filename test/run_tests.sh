@@ -224,6 +224,29 @@ xcodebuild -quiet -workspace build/xcode/macos_framework.xcworkspace -scheme my_
 popd
 
 
+pushd 21_errors
+rm -rf build
+set +e
+# Create CConstruct binary which works fine
+cp error_none.inl error.inl
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+# Cause the recreation of CConstruct binary to fail
+cp error_compile.inl error.inl
+./cconstruct
+[ $? -ne 1 ] && exit 1
+# Cause the recreation of CConstruct binary to succeed, but then crash during construction
+cp error_construction.inl error.inl
+./cconstruct
+[ $? -ne 2 ] && exit 1
+# No error at all, everything goes OK from here on out
+cp error_none.inl error.inl
+./cconstruct
+set -e
+popd
+
+
+
+
 
 
 pushd ../tools
