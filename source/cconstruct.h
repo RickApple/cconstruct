@@ -159,6 +159,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #include <string.h>
 
 // Tools
+#include "stack.inl"
 #include "tools.inl"
 #include "types.inl"
 #include "data_tree.inl"

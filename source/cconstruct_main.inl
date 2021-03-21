@@ -1,6 +1,8 @@
 #if defined(_WIN32)
 LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
-  fprintf(stderr, "Unhandled exception occurred\n");
+  fprintf(stderr, "Unhandled exception occurred with the following stack:\n");
+  PrintStrackFromContext(pExceptionInfo->ContextRecord);
+
   exit(ERR_CONSTRUCTION);
 }
 #else
