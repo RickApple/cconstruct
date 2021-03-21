@@ -54,14 +54,22 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 
   const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
   const char* recompile_command = cc_printf(
-      "\"%s\" > nul && pushd %s && cl.exe -EHsc "
+      "\"%s\" > nul && pushd %s && cl.exe "
+      // Enable exception handling so can help users fix issues in their config files.
+      "-EHsc "
+      // Always add debug symbols so can give stack trace on exceptions.
+      // Would prefer to embed them into binary, but that isn't possible. The binary will reference
+      // the PDB file in the %TEMP% folder where it was built.
+      "/ZI "
 #ifndef NDEBUG
-      "/ZI /DEBUG "
+      "/DEBUG "
 #endif
       "/Fe%s %s "
       "/nologo "
       "/INCREMENTAL:NO "
 #ifdef __cplusplus
+      // Set compiler option so that the file is compiled as C or C++, depending on the compiler
+      // settings used to manually compile the first CConstruct binary.
       "/TP "
 #else
       "/TC "
