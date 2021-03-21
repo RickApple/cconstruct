@@ -178,10 +178,10 @@ int make_folder(const char* folder_path) {
 static uintptr_t cc_next_free     = (uintptr_t)NULL;
 static uintptr_t cc_end_next_free = (uintptr_t)NULL;
 
-void* cc_alloc_(unsigned size) {
+void* cc_alloc_(size_t size) {
   if ((cc_end_next_free - cc_next_free) < size) {
     // Doesn't fit, allocate a new block
-    unsigned byte_count = 1024 * 1024;
+    size_t byte_count = 1024 * 1024;
     if (size > byte_count) byte_count = size;
     cc_next_free     = (uintptr_t)malloc(byte_count);
     cc_end_next_free = cc_next_free + byte_count;

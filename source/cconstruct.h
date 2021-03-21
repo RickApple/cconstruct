@@ -149,7 +149,6 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
  *                                             Implementation starts here
  ***********************************************************************************************************************/
 
-
 #include "cconstruct_main.inl"
 
 // For ease of use set a default CConstruct generator for each OS

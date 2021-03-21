@@ -27,11 +27,11 @@ const char* combinePaths(const char* folder1, const char* folder2) {
   return out_buffer;
 }
 
-int copyFileContents(const char* in_file_path, FILE* out_file) {
+char* readFileContents(const char* in_file_path) {
   FILE* in_file = fopen(in_file_path, "rb");
   if (in_file == NULL) {
     fprintf(stderr, "Couldn't open include file '%s'\n", in_file_path);
-    return 1;
+    return NULL;
   }
 
   size_t in_size = 0;
@@ -40,13 +40,12 @@ int copyFileContents(const char* in_file_path, FILE* out_file) {
   in_size = (size_t)ftell(in_file);
   fseek(in_file, 0, SEEK_SET);
 
-  char* in_data = (char*)cc_alloc_((unsigned)in_size);
+  char* in_data = (char*)cc_alloc_((unsigned)in_size + 1);
   fread(in_data, 1, in_size, in_file);
+  in_data[in_size] = 0;
   fclose(in_file);
 
-  fwrite(in_data, 1, in_size, out_file);
-
-  return 0;
+  return in_data;
 }
 
 int main(int argc, const char* argv[]) {
@@ -60,30 +59,18 @@ int main(int argc, const char* argv[]) {
 
   const char* in_file_path  = argv[1];
   const char* out_file_path = argv[2];
-  FILE* in_file             = fopen(in_file_path, "rb");
   FILE* out_file            = fopen(out_file_path, "wb");
 
-  if (in_file == NULL) {
+  char* in_data = readFileContents(in_file_path);
+
+  if (in_data == NULL) {
     fprintf(stderr, "Couldn't open input file '%s'\n", in_file_path);
   }
   if (out_file == NULL) {
     fprintf(stderr, "Couldn't open output file '%s'\n", out_file_path);
   }
-  if (in_file == NULL || out_file == NULL) {
+  if (in_data == NULL || out_file == NULL) {
     return 1;
-  }
-
-  char* in_data = NULL;
-  long in_size  = 0;
-  {
-    fseek(in_file, 0, SEEK_END);
-    in_size = ftell(in_file);
-    fseek(in_file, 0, SEEK_SET);
-
-    in_data = (char*)cc_alloc_((unsigned)(in_size + 1));
-    fread(in_data, 1, (size_t)(in_size), in_file);
-    in_data[in_size] = 0;
-    fclose(in_file);
   }
 
   const char* in_file_only  = strip_path(in_file_path);
@@ -91,29 +78,36 @@ int main(int argc, const char* argv[]) {
   memcpy(in_folder_path, in_file_path, (size_t)(in_file_only - in_file_path));
   printf("root path '%s'\n", in_folder_path);
 
-  char* next_include                  = NULL;
-  const char* k_include_search        = "#include \"";
-  char include_file_path_buffer[2048] = {0};
+  char* next_include           = NULL;
+  const char* k_include_search = "#include \"";
 
   while ((next_include = strstr(in_data, k_include_search)) != NULL) {
-    // Write out string before the include
-    fwrite(in_data, 1, (size_t)(next_include - in_data), out_file);
+    // Get path to file
+    const char* start_include = next_include + strlen(k_include_search);
+    char* end_include         = strchr(start_include, '"');
+    *end_include              = 0;
+    const char* remainder     = end_include + 1;
 
-    in_data           = next_include + strlen(k_include_search);
-    char* end_include = strchr(in_data, '"');
-    memcpy(include_file_path_buffer, in_data, (size_t)(end_include - in_data));
-    include_file_path_buffer[end_include - in_data] = 0;
+    *next_include = 0;
 
-    in_data = end_include + 1;
+    const char* include_file_path = combinePaths(in_folder_path, start_include);
+    printf("Including '%s' (%s)\n", start_include, include_file_path);
 
-    const char* include_file_path = combinePaths(in_folder_path, include_file_path_buffer);
-    printf("Including '%s' (%s)\n", include_file_path_buffer, include_file_path);
+    const char* included_file_data = readFileContents(include_file_path);
 
-    // TODO: recursive includes
-    copyFileContents(include_file_path, out_file);
+    // This can be edited for sure, so cast is safe
+    size_t pre_len       = strlen(in_data);
+    size_t include_len   = strlen(included_file_data);
+    size_t remainder_len = strlen(remainder);
+    char* new_file       = (char*)cc_alloc_(pre_len + include_len + remainder_len + 1);
+    memcpy(new_file, in_data, pre_len);
+    memcpy(new_file + pre_len, included_file_data, include_len);
+    memcpy(new_file + pre_len + include_len, remainder, remainder_len);
+    new_file[pre_len + include_len + remainder_len] = 0;
+    in_data                                         = new_file;
   }
 
-  // Write out remainder of input file
+  // Write the output file
   fwrite(in_data, 1, strlen(in_data), out_file);
 
   fclose(out_file);
