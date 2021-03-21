@@ -1,4 +1,27 @@
 #if defined(_WIN32)
+#include <Windows.h>
+#endif
+
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Tools
+#include "stack.inl"
+#include "tools.inl"
+#include "types.inl"
+#include "data_tree.inl"
+
+// Constructors
+#include "vs2019_generator.inl"
+#include "xcode11_generator.inl"
+
+#include "process.inl"
+#include "builder.inl"
+
+#if defined(_WIN32)
 LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
   fprintf(stderr, "Unhandled exception occurred with the following stack:\n");
   PrintStrackFromContext(pExceptionInfo->ContextRecord);
@@ -111,13 +134,15 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
         "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
         "an absolute path.\n");
 #elif defined(__APPLE__)
-    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
+    LOG_ERROR_AND_QUIT(
+        ERR_CONFIGURATION,
         "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
 #endif
   }
 
   if (cc_data_.is_inited) {
-    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,"Error: calling cc_init() multiple times. Don't do this.\n");
+    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
+                       "Error: calling cc_init() multiple times. Don't do this.\n");
   }
   cc_data_.is_inited = true;
 

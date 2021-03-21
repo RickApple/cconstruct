@@ -148,29 +148,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 /***********************************************************************************************************************
  *                                             Implementation starts here
  ***********************************************************************************************************************/
-#if defined(_WIN32)
-#include <Windows.h>
-#endif
 
-#include <assert.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// Tools
-#include "stack.inl"
-#include "tools.inl"
-#include "types.inl"
-#include "data_tree.inl"
-
-// Constructors
-#include "vs2019_project.inl"
-#include "vs2019_workspace.inl"
-#include "xcode11_project.inl"
-
-#include "process.inl"
-#include "builder.inl"
 
 #include "cconstruct_main.inl"
 
