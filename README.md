@@ -18,7 +18,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
-- support 64-bit. can make a 64-bit cconstruct.exe manually, but the regenerated one is 32 bit again I think. [MSVS]
 - Compile for Itanium, 32bit and 64bit to check for errors.
 - reference post build actions relative to where? check and document
 - have option to create project to debug cconstruct binary?

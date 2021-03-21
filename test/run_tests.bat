@@ -1,14 +1,49 @@
-
-rem -arch=x86 for 32-bit
-rem -arch=amd64 for 64-bit
-call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat"
 echo on
+@set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+@set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+@set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
-set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
 
+
+
+
+
+
+
+
+@rem Do this test case first, as it needs to change the build environment around. Doing that with SETLOCAL/ENDLOCAL.
+@SETLOCAL
+pushd 22_cconstruct_architecture
+@rd /S /Q build
+call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\amd64\cconstruct_architecture.exe
+if %errorlevel% neq 64 exit /b %errorlevel%
+@popd
+@ENDLOCAL
+@SETLOCAL
+@pushd 22_cconstruct_architecture
+@rd /S /Q build
+call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe || exit /b
+devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
+build\x86\cconstruct_architecture.exe
+if %errorlevel% neq 86 exit /b %errorlevel%
+popd
+@ENDLOCAL
+
+
+
+
+@rem Now set a single environment for the rest of the tests
+SETLOCAL
+@rem -arch=x86 for 32-bit
+@rem -arch=amd64 for 64-bit
+call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat"
 
 
 pushd 01_hello_world
@@ -256,7 +291,7 @@ rem No error at all, everything goes OK from here on out
 copy error_none.inl error.inl
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
-build\x64\Debug\hello_world.exe || exit /b
+build\x64\Debug\errors.exe || exit /b
 popd
 
 

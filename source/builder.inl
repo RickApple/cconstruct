@@ -45,7 +45,11 @@ const char* cc_find_VcDevCmd_bat_() {
     s++;
   }
 
-  return cc_printf("%s\\Common7\\Tools\\VsDevCmd.bat", stdout_data);
+#if _M_X64
+  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars64.bat", stdout_data);
+#else
+  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars32.bat", stdout_data);
+#endif
 }
 
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
@@ -74,7 +78,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 #else
       "/TC "
 #endif
-      " && popd",
+      "&& popd",
       VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path);
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
@@ -114,10 +118,14 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   const char* to_path   = cc_printf("%s", cconstruct_internal_binary_name);
 
   if (!MoveFileEx(from_path, to_path, MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING)) {
+    char buf[256];
     int err = GetLastError();
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err,
+                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (sizeof(buf) / sizeof(wchar_t)),
+                   NULL);
     LOG_ERROR_AND_QUIT(ERR_COMPILING,
-                       "Error (%i): Couldn't move internal binary from '%s' to '%s'\n", err,
-                       from_path, to_path);
+                       "Couldn't move internal binary from '%s' to '%s'\nError %i: '%s'\n",
+                       from_path, to_path, err, buf);
   }
 }
 

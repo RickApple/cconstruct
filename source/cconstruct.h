@@ -118,7 +118,7 @@ typedef struct cconstruct_t {
      */
     void (*addPostBuildAction)(cc_project_t in_out_project, const char* in_action_command);
 
-    /* Output folder for project build results.
+    /* Output folder for project build results (default:"${platform}/${configuration}")
      */
     void (*setOutputFolder)(cc_project_t in_out_project, const char* in_output_folder);
   } project;
