@@ -26,8 +26,8 @@ int main(int argc, const char** argv) {
   const char* input_file_path  = "src/test_source.txt";
   const char* output_file_path = "src/test.txt";
 #if defined(_WIN32)
-  cc.project.addFileWithCustomCommand(p, input_file_path, g,
-                                      "copy src\\test_source.txt src\\test.txt", output_file_path);
+  cc.project.addFileWithCustomCommand(p, input_file_path, g, "copy ${input} ${output}",
+                                      output_file_path);
 #else
   cc.project.addFileWithCustomCommand(p, custom_compile_command_file, g,
                                       "cp ../src/test_source.txt ../src/test.txt",

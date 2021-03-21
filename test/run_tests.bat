@@ -1,7 +1,10 @@
 echo on
 @set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-@set COMPILE_CONSTRUCT_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+@set COMPILE_CONSTRUCT_COMMAND=cl.exe /ZI /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
+
+
+
 
 
 

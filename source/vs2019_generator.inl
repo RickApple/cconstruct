@@ -397,7 +397,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
           break;
         default:
-          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
+          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n",
+                             p->name);
       }
       const char* additional_compiler_flags    = "%(AdditionalOptions)";
       const char* additional_link_flags        = "%(AdditionalOptions)";
@@ -567,14 +568,27 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     Build Tool. That's why there needs to be an absolute path here, instead of only the simpler
     relative build_to_base_path.
     */
+    const char* in_file_path_from_base = make_path_relative(
+        cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->path)));
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)in_file_path_from_base);
+    const char* out_file_path_from_base = make_path_relative(
+        cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->output_file)));
+    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)out_file_path_from_base);
+    const char* input_output_substitution_keys[]   = {"input", "output"};
+    const char* input_output_substitution_values[] = {in_file_path_from_base,
+                                                      out_file_path_from_base};
+
     const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
                                              substitution_values, countof(substitution_keys));
     const char* custom_command = cc_substitute(file->command, substitution_keys,
                                                substitution_values, countof(substitution_keys));
-    const char* out_file_path  = cc_substitute(relative_out_file_path, substitution_keys,
+    custom_command =
+        cc_substitute(custom_command, input_output_substitution_keys,
+                      input_output_substitution_values, countof(input_output_substitution_keys));
+    const char* out_file_path = cc_substitute(relative_out_file_path, substitution_keys,
                                               substitution_values, countof(substitution_keys));
-    unsigned int itemgroup     = data_tree_api.create_object(&dt, project, "ItemGroup");
-    unsigned int cb            = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
+    unsigned int itemgroup    = data_tree_api.create_object(&dt, project, "ItemGroup");
+    unsigned int cb           = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
     data_tree_api.set_object_parameter(&dt, cb, "Include", in_file_path);
     unsigned int command_obj = data_tree_api.create_object(&dt, cb, "Command");
     data_tree_api.set_object_value(

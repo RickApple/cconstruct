@@ -18,6 +18,8 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 
 ## TODO
 
+- For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported [MacOS]
+- Remove some of the conversions between filename, and clarify what path is what path. It's a bit of a mess, especially for VS2019.
 - Compile for Itanium, 32bit and 64bit to check for errors.
 - reference post build actions relative to where? check and document
 - have option to create project to debug cconstruct binary?
@@ -27,7 +29,6 @@ Currently there is no way to prevent CConstruct from setting the warnings it wan
 - Architecture and platform should be set at project level instead of top-level
 - Custom commands on files (eg to compile GLSL)
   [ref https://www.gamedev.net/blogs/entry/2266894-fully-featured-custom-build-targets-in-visual-c/]
-- For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported
 - Allow config to set linker flags
 - Allow config to set environment and arguments for debug run?
 - XCode remove hardcoded debug and release configurations

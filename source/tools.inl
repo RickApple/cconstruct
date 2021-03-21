@@ -4,10 +4,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#if 0
-#include <DbgHelp.h>  // For stack trace
-#pragma comment(lib, "DbgHelp.lib")
-#endif
 #else
 #include <sys/stat.h>
 #include <unistd.h>
@@ -361,6 +357,8 @@ const char* strip_path(const char* path) {
 }
 
 char* make_uri(const char* in_path) {
+  // Win32 api PathCanonicalize only handles '\' instead of '/', doesn't handle multiple // next to
+  // each other
   char* uri = (char*)cc_printf("%s", in_path);
   char* c   = uri;
   while (*c) {
@@ -375,8 +373,12 @@ char* make_uri(const char* in_path) {
     char* uri_read  = uri + 3;
     char* uri_write = uri + 3;
     while (*uri_read) {
-      bool is_parent_path = *uri_read == '/' && *(uri_read + 1) == '.' && *(uri_read + 2) == '.' &&
-                            *(uri_read + 3) == '/';
+      bool is_double_slash = (uri_read[0] == '/') && (uri_read[1] == '/');
+      if (is_double_slash) {
+        uri_read++;
+      }
+      bool is_parent_path = (uri_read[0] == '/') && (uri_read[1] == '.') && (uri_read[2] == '.') &&
+                            (uri_read[3] == '/');
       if (is_parent_path) {
         // Backtrack uri_write
         uri_read = uri_read + 3;
