@@ -85,6 +85,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const char* build_to_base_path) {
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
 
+  const char* substitution_keys[]   = {"configuration", "platform"};
+  const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+
   const unsigned files_count  = array_count(p->file_data);
   const char** file_ref_paths = {0};
   for (unsigned i = 0; i < files_count; ++i) {
@@ -417,6 +420,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "				403CC53823EB479400558E07 /* Frameworks */,\n"
           "				40AC3DC22473B4B20054CF0F /* Resources */,\n"
           "				403CC53923EB479400558E07 /* CopyFiles */,\n");
+  const bool has_custom_commands = (array_count(p->file_data_custom_command) > 0);
+  if (has_custom_commands) {
+    fprintf(f, "				40A820422608BCF0001D0CB1 /* ShellScript */,\n");
+  }
   if (has_post_build_action) {
     fprintf(f, "				40C3D9692440AC2500C8EB40 /* ShellScript */,\n");
   }
@@ -523,6 +530,44 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           "		};\n"
           "/* End PBXResourcesBuildPhase section */\n\n");
 
+  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
+    const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
+
+    const char* input_output_substitution_keys[]   = {"input", "output"};
+    const char* input_output_substitution_values[] = {file->path,
+                                                      file->output_file};
+
+    const char* custom_command = cc_substitute(file->command, substitution_keys,
+                                               substitution_values, countof(substitution_keys));
+    custom_command =
+        cc_substitute(custom_command, input_output_substitution_keys,
+                      input_output_substitution_values, countof(input_output_substitution_keys));
+
+    fprintf(f,
+            "/* Begin PBXShellScriptBuildPhase section */\n"
+            "		40A820422608BCF0001D0CB1 /* ShellScript */ = {\n"
+            "			isa = PBXShellScriptBuildPhase;\n"
+            "			buildActionMask = 2147483647;\n"
+            "			files = (\n"
+            "			);\n"
+            "			inputFileListPaths = (\n"
+            "			);\n"
+            "			inputPaths = (\n"
+            "				\"$(SRCROOT)/%s\",\n"
+            "			);\n"
+            "			outputFileListPaths = (\n"
+            "			);\n"
+            "			outputPaths = (\n"
+            "				\"$(SRCROOT)/%s\", "
+            "			);\n"
+            "			runOnlyForDeploymentPostprocessing = 0;\n"
+            "			shellPath = /bin/sh;\n"
+            "			shellScript = \"cd $SRCROOT && %s\";\n"
+            "		};\n"
+            "/* End PBXShellScriptBuildPhase section */\n",
+            file->path, file->output_file, custom_command);
+  }
+
   fprintf(f,
           "/* Begin PBXSourcesBuildPhase section */\n"
           "		403CC53723EB479400558E07 /* Sources */ = {\n"
@@ -590,8 +635,6 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     additional_include_folders = cc_printf("%s               )", additional_include_folders);
     assert(array_count(cc_data_.architectures) == 1);
     assert(cc_data_.architectures[0]->type == EArchitectureX64);
-    const char* substitution_keys[]    = {"configuration", "platform"};
-    const char* substitution_values[]  = {"$CONFIGURATION", "x64"};
     const char* resolved_output_folder = cc_substitute(
         p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 
@@ -815,10 +858,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         }
         fprintf(f,
                 "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
+                "				SRCROOT = \"%s\";\n"
                 "			};\n"
                 "			name = %s;\n"
                 "		};\n",
-                cc_data_.configurations[i]->label);
+                build_to_base_path, cc_data_.configurations[i]->label);
         break;
       case EPlatformPhone:
         fprintf(f,

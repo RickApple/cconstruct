@@ -9,8 +9,6 @@ COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
 
 
 
-
-
 pushd 01_hello_world
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
@@ -212,6 +210,18 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme other_file_types
+popd
+
+
+pushd 18_custom_commands
+rm -rf build
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
+./cconstruct --generate-projects
+TEST_TIME=`date`
+echo $TEST_TIME > src/test_source.txt
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme custom_commands
+CMD_OUTPUT=$(./build/x64/Debug/custom_commands)
+[ "$CMD_OUTPUT" != "test $TEST_TIME" ] && exit 1
 popd
 
 

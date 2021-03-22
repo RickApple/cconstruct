@@ -7,7 +7,7 @@ const char* read_file(const char* file_path) {
   if (f == NULL) return NULL;
 
   fseek(f, 0, SEEK_END);
-  unsigned size = ftell(f);
+  unsigned size = (unsigned)ftell(f);
   fseek(f, 0, SEEK_SET);
   char* out = malloc(size + 1);
   fread(out, 1, size, f);
