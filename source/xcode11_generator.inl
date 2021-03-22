@@ -80,10 +80,79 @@ const char* xcodeFileTypeFromExtension(const char* ext) {
   }
 }
 
+void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt, unsigned int node,
+                          unsigned int depth) {
+  assert(node < array_count(dt->objects));
+
+  const struct data_tree_object_t* obj = dt->objects + node;
+  const char* preamble                 = "";
+  for (unsigned int i = 0; i < depth; i++) {
+    preamble = cc_printf("\t%s", preamble);
+  }
+  if (obj->name) {
+    fprintf(f, "%s%s", preamble, obj->name);
+    if (obj->has_children && obj->comment) {
+      fprintf(f, " /* %s */", obj->comment);
+    }
+    /*if (obj->first_parameter) {
+      const struct data_tree_object_t* param_obj = dt->objects + obj->first_parameter;
+      do {
+        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value);
+      } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
+    }*/
+  }
+
+  if (obj->has_children || obj->is_array) {
+    if (node == 0) {
+      fprintf(f, "{\n");
+    } else {
+      if (obj->name) {
+        if (obj->is_array) {
+          fprintf(f, " = (\n");
+        } else {
+          fprintf(f, " = {\n");
+        }
+      }
+    }
+    unsigned int child_index = obj->first_child;
+    if (child_index) {
+      const struct data_tree_object_t* child_obj = dt->objects + child_index;
+      const char child_separator                 = obj->is_array ? ',' : ';';
+      do {
+        export_tree_as_xcode(f, dt, child_index, (node == 0) ? 1 : (depth + 1));
+        fprintf(f, "%c\n", child_separator);
+      } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
+               (child_obj = dt->objects + child_obj->next_sibling));
+    }
+    if (node == 0) {
+      fprintf(f, "}\n");
+    } else if (obj->name) {
+      const char node_closer = obj->is_array ? ')' : '}';
+      fprintf(f, "%s%c", preamble, node_closer);
+    }
+  } else if (obj->value) {
+    if (obj->name[0]) {
+      fprintf(f, " = %s", obj->value);
+    } else {
+      fprintf(f, "%s", obj->value);
+    }
+    if (obj->comment) {
+      fprintf(f, " /* %s */", obj->comment);
+    }
+  }
+}
+
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
                             const char* build_to_base_path) {
-  const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
+  const cc_project_impl_t* p         = (cc_project_impl_t*)in_project;
+  const struct data_tree_api* dt_api = &data_tree_api;
+  struct data_tree_t dt              = dt_api->create();
+
+  dt_api->set_object_value(&dt, dt_api->create_object(&dt, 0, "archiveVersion"), "1");
+  dt.objects[dt_api->create_object(&dt, 0, "classes")].has_children = true;
+  dt_api->set_object_value(&dt, dt_api->create_object(&dt, 0, "objectVersion"), "50");
+  unsigned int nodeObjects = dt_api->create_object(&dt, 0, "objects");
 
   const char* substitution_keys[]   = {"configuration", "platform"};
   const char* substitution_values[] = {"$CONFIGURATION", "x64"};
@@ -207,335 +276,476 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
   const unsigned num_unique_groups = array_count(unique_groups);
 
-  fprintf(f,
-          "// !$*UTF8*$!\n{\n	archiveVersion = 1;\n	classes = {\n	};\n	objectVersion = "
-          "50;\n	objects = {\n\n");
-
-  fprintf(f, "/* Begin PBXBuildFile section */\n");
-  for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->file_data[fi]->path;
-    if (is_source_file(filename) || is_buildable_resource_file(filename)) {
-      fprintf(f,
-              "		%s /* %s in Sources */ = {isa = PBXBuildFile; fileRef = %s /* %s */; };\n",
-              fileUUID[fi], strip_path(filename), fileReferenceUUID[fi], strip_path(filename));
+  {
+    for (unsigned fi = 0; fi < files_count; ++fi) {
+      const char* filename = p->file_data[fi]->path;
+      if (is_source_file(filename) || is_buildable_resource_file(filename)) {
+        unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, fileUUID[fi]);
+        dt_api->set_object_comment(&dt, nodeFile,
+                                   cc_printf("%s in Sources", strip_path(filename)));
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
+        unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
+        dt_api->set_object_value(&dt, fr, fileReferenceUUID[fi]);
+        dt_api->set_object_comment(&dt, fr, strip_path(filename));
+      }
+    }
+    for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+      const char* id            = dependencyFileReferenceUUID[i];
+      const char* buildID       = dependencyBuildUUID[i];
+      const char* dependantName = cc_printf("lib%s.a", p->dependantOn[i]->name);
+      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, buildID);
+      dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
+      unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
+      dt_api->set_object_value(&dt, fr, id);
+      dt_api->set_object_comment(&dt, fr, dependantName);
+    }
+    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+      const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
+      const char* buildID       = dependencyExternalLibraryBuildUUID[i];
+      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, buildID);
+      dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
+      unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
+      dt_api->set_object_value(&dt, fr, id);
+      dt_api->set_object_comment(&dt, fr, dependantName);
     }
   }
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const char* id            = dependencyFileReferenceUUID[i];
-    const char* buildID       = dependencyBuildUUID[i];
-    const char* dependantName = cc_printf("lib%s.a", p->dependantOn[i]->name);
-    fprintf(f,
-            "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
-            "};\n",
-            buildID, dependantName, id, dependantName);
-  }
-  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-    const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
-    const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-    fprintf(f,
-            "		%s /* %s in Frameworks */ = {isa = PBXBuildFile; fileRef = %s /* %s */; "
-            "};\n",
-            buildID, dependantName, id, dependantName);
-  }
-  fprintf(f, "/* End PBXBuildFile section */\n\n");
 
   bool has_post_build_action = (p->postBuildAction != 0);
   if (p->type == CCProjectTypeConsoleApplication) {
-    fprintf(f,
-            "/* Begin PBXCopyFilesBuildPhase section */\n"
-            "		403CC53923EB479400558E07 /* CopyFiles */ = {\n"
-            "			isa = PBXCopyFilesBuildPhase;\n"
-            "			buildActionMask = 2147483647;\n"
-            "			dstPath = /usr/share/man/man1/;\n"
-            "			dstSubfolderSpec = 0;\n"
-            "			files = (\n"
-            "			);\n"
-            "			runOnlyForDeploymentPostprocessing = 1;\n"
-            "		};\n"
-            "/* End PBXCopyFilesBuildPhase section */\n\n");
+    unsigned int node = dt_api->create_object(&dt, nodeObjects, "403CC53923EB479400558E07");
+    dt_api->set_object_comment(&dt, node, "CopyFiles");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
+                             "PBXCopyFilesBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
+                             "2147483647");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"),
+                             "/usr/share/man/man1/");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "0");
+
+    unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
+    dt.objects[nodeFiles].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
   }
 
-  fprintf(f, "/* Begin PBXFileReference section */\n");
-  for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->file_data[fi]->path;
-    const char* fileType = xcodeFileTypeFromExtension(file_extension(filename));
-    fprintf(f,
-            "		%s /* %s */ = {isa = PBXFileReference; fileEncoding = 4; "
-            "lastKnownFileType "
-            "= %s; name = %s; path = %s; sourceTree = SOURCE_ROOT; };\n",
-            fileReferenceUUID[fi], strip_path(filename), fileType, strip_path(filename),
-            file_ref_paths[fi]);
-    if (cc_is_verbose) {
-      // printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
+  {
+    for (unsigned fi = 0; fi < files_count; ++fi) {
+      const char* filename  = p->file_data[fi]->path;
+      const char* fileType  = xcodeFileTypeFromExtension(file_extension(filename));
+      unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, fileReferenceUUID[fi]);
+      dt_api->set_object_comment(&dt, nodeFile, strip_path(filename));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
+                               "PBXFileReference");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "fileEncoding"), "4");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "lastKnownFileType"),
+                               fileType);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "name"),
+                               strip_path(filename));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"),
+                               file_ref_paths[fi]);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
+                               "SOURCE_ROOT");
+
+      if (cc_is_verbose) {
+        // printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
+      }
+    }
+
+    {
+      unsigned int nodeFile =
+          dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(outputFileReferenceUIID));
+      dt_api->set_object_comment(&dt, nodeFile, outputName);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
+                               "PBXFileReference");
+      if (p->type == CCProjectTypeConsoleApplication) {
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
+                                 "compiled.mach-o.executable");
+      } else {
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
+                                 "archive.ar");
+      }
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "includeInIndex"), "0");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"), outputName);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
+                               "BUILT_PRODUCTS_DIR");
+    }
+
+    for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+      const char* id        = dependencyFileReferenceUUID[i];
+      unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, id);
+      dt_api->set_object_value(&dt, nodeFile, id);
+      dt_api->set_object_comment(&dt, nodeFile, cc_printf("lib%s.a", p->dependantOn[i]->name));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
+                               "PBXFileReference");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
+                               "archive.ar");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"),
+                               cc_printf("lib%s.a", p->dependantOn[i]->name));
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
+                               "BUILT_PRODUCTS_DIR");
+    }
+    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+      const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
+      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
+      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, id);
+      dt_api->set_object_value(&dt, nodeFile, id);
+      dt_api->set_object_comment(&dt, nodeFile, dependantName);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
+                               "PBXFileReference");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
+                               fileType);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "name"), dependantName);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"),
+                               external_frameworks[i]);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
+                               "SDK_ROOT");
     }
   }
-  fprintf(f, "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = \"",
-          xCodeUUID2String(outputFileReferenceUIID), outputName);
-  if (p->type == CCProjectTypeConsoleApplication) {
-    fprintf(f, "compiled.mach-o.executable");
-  } else {
-    fprintf(f, "archive.ar");
-  }
-  fprintf(f, "\"; includeInIndex = 0; path = %s; sourceTree = BUILT_PRODUCTS_DIR; };\n",
-          outputName);
 
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const char* id = dependencyFileReferenceUUID[i];
-    fprintf(f,
-            "		%s /* lib%s.a */ = {isa = PBXFileReference; explicitFileType = "
-            "archive.ar; path = lib%s.a; sourceTree = BUILT_PRODUCTS_DIR; };\n",
-            id, p->dependantOn[i]->name, p->dependantOn[i]->name);
-  }
-  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-    const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-    const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
-    fprintf(f,
-            "		%s /* %s */ = {isa = PBXFileReference; explicitFileType = "
-            "%s; name = %s; path = %s; sourceTree = SDKROOT; };\n",
-            id, dependantName, fileType, dependantName, external_frameworks[i]);
-  }
-  fprintf(f, "/* End PBXFileReference section */\n\n");
+  {
+    unsigned int nodeFrameworks =
+        dt_api->create_object(&dt, nodeObjects, "403CC53823EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "isa"),
+                             "PBXFrameworksBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "buildActionMask"),
+                             "2147483647");
+    unsigned int nodeFiles         = dt_api->create_object(&dt, nodeFrameworks, "files");
+    dt.objects[nodeFiles].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeFrameworks, "runOnlyForDeploymentPostprocessing"),
+        "0");
 
-  fprintf(f,
-          "/* Begin PBXFrameworksBuildPhase section */\n"
-          "		403CC53823EB479400558E07 /* Frameworks */ = {\n"
-          "			isa = PBXFrameworksBuildPhase;\n"
-          "			buildActionMask = 2147483647;\n"
-          "			files = (\n");
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const char* buildID = dependencyBuildUUID[i];
-    fprintf(f, "				%s /* lib%s.a in Frameworks */,\n", buildID,
-            p->dependantOn[i]->name);
-  }
-  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-    const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-    fprintf(f, "				%s /* %s in Frameworks */,\n", buildID,
-            dependantName);
-  }
-  fprintf(f,
-          "			);\n			runOnlyForDeploymentPostprocessing = "
-          "0;\n		};\n/* End PBXFrameworksBuildPhase section */\n\n");
-
-  fprintf(f, "/* Begin PBXGroup section */\n");
-  fprintf(f,
-          "		403CC53223EB479400558E07 = {\n"
-          "			isa = PBXGroup;\n"
-          "			children = (\n");
-  for (unsigned i = 0; i < array_count(unique_groups); ++i) {
-    if (unique_groups[i]->parent_group_idx == 0) {
-      fprintf(f, "				%s,\n",
-              xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
+    for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+      const char* buildID = dependencyBuildUUID[i];
+      unsigned int node   = dt_api->create_object(&dt, nodeFiles, "");
+      dt_api->set_object_value(&dt, node, buildID);
+      dt_api->set_object_comment(&dt, node,
+                                 cc_printf("lib%s.a in Frameworks", p->dependantOn[i]->name));
+    }
+    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+      const char* buildID       = dependencyExternalLibraryBuildUUID[i];
+      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      unsigned int node         = dt_api->create_object(&dt, nodeFiles, "");
+      dt_api->set_object_value(&dt, node, buildID);
+      dt_api->set_object_comment(&dt, node, cc_printf("%s in Frameworks", dependantName));
     }
   }
-  for (unsigned i = 0; i < array_count(p->file_data); ++i) {
-    if (p->file_data[i]->parent_group_idx == 0) {
-      fprintf(f, "				%s /* %s */,\n", fileReferenceUUID[i],
-              strip_path(p->file_data[i]->path));
-    }
-  }
-  fprintf(f, "				403CC53C23EB479400558E07 /* Products */,\n");
+
   const bool references_libraries =
       (array_count(p->dependantOn) > 0) || (array_count(external_frameworks) > 0);
-  if (references_libraries) {
-    fprintf(f, "				4008B25F23EDACFC00FCB192 /* Frameworks */,\n");
-  }
-  fprintf(f,
-          "			);\n"
-          "			sourceTree = \"<group>\";\n"
-          "		};\n");
-  for (unsigned i = 0; i < num_unique_groups; ++i) {
-    const cc_group_impl_t* g = unique_groups[i];
-    fprintf(f,
-            "		%s = {\n"
-            "			isa = PBXGroup;\n"
-            "			children = (\n",
-            xCodeStringFromGroup(unique_groups, unique_groups_id, g));
-    for (unsigned fi = 0; fi < files_count; ++fi) {
-      const char* filename              = p->file_data[fi]->path;
-      const cc_group_impl_t* file_group = &cc_data_.groups[p->file_data[fi]->parent_group_idx];
-      if (file_group == g) {
-        fprintf(f, "			    %s /* %s */,\n", fileReferenceUUID[fi],
-                strip_path(filename));
+
+  {
+    {
+      unsigned int nodeNT = dt_api->create_object(&dt, nodeObjects, "403CC53223EB479400558E07");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "isa"), "PBXGroup");
+      {
+        unsigned int nodeChildren         = dt_api->create_object(&dt, nodeNT, "children");
+        dt.objects[nodeChildren].is_array = true;
+
+        for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+          if (unique_groups[i]->parent_group_idx == 0) {
+            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+            dt_api->set_object_value(
+                &dt, node,
+                xCodeStringFromGroup(unique_groups, unique_groups_id, unique_groups[i]));
+          }
+        }
+        for (unsigned i = 0; i < array_count(p->file_data); ++i) {
+          if (p->file_data[i]->parent_group_idx == 0) {
+            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+            dt_api->set_object_value(&dt, node, fileReferenceUUID[i]);
+            dt_api->set_object_comment(&dt, node, strip_path(p->file_data[i]->path));
+          }
+        }
+        if (references_libraries) {
+          unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+          dt_api->set_object_value(&dt, node, "4008B25F23EDACFC00FCB192");
+          dt_api->set_object_comment(&dt, node, "Frameworks");
+        }
+        unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+        dt_api->set_object_value(&dt, node, "403CC53C23EB479400558E07");
+        dt_api->set_object_comment(&dt, node, "Products");
+      }
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "sourceTree"),
+                               "\"<group>\"");
+    }
+    {
+      for (unsigned i = 0; i < num_unique_groups; ++i) {
+        const cc_group_impl_t* g = unique_groups[i];
+        unsigned int nodeGroup   = dt_api->create_object(
+            &dt, nodeObjects, xCodeStringFromGroup(unique_groups, unique_groups_id, g));
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
+        unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
+        dt.objects[nodeChildren].is_array = true;
+
+        for (unsigned fi = 0; fi < files_count; ++fi) {
+          const char* filename              = p->file_data[fi]->path;
+          const cc_group_impl_t* file_group = &cc_data_.groups[p->file_data[fi]->parent_group_idx];
+          if (file_group == g) {
+            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+            dt_api->set_object_value(&dt, node, fileReferenceUUID[fi]);
+            dt_api->set_object_comment(&dt, node, strip_path(filename));
+          }
+        }
+        for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
+          const cc_group_impl_t* child_group = unique_groups[gi];
+          if (&cc_data_.groups[child_group->parent_group_idx] == g) {
+            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
+            dt_api->set_object_value(
+                &dt, node, xCodeStringFromGroup(unique_groups, unique_groups_id, child_group));
+          }
+        }
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"),
+                                 cc_printf("\"%s\"", g->name));
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "sourceTree"),
+                                 "\"<group>\"");
       }
     }
-    for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
-      const cc_group_impl_t* child_group = unique_groups[gi];
-      if (&cc_data_.groups[child_group->parent_group_idx] == g) {
-        fprintf(f, "			    %s,\n",
-                xCodeStringFromGroup(unique_groups, unique_groups_id, child_group));
-      }
-    }
-    fprintf(f,
-            "			);\n"
-            "			name = \"%s\";\n"
-            "			sourceTree = \"<group>\";\n"
-            "		};\n",
-            g->name);
-  }
-  if (references_libraries) {
-    fprintf(f,
-            "		4008B25F23EDACFC00FCB192 /* Frameworks */ = {\n"
-            "			isa = PBXGroup;\n"
-            "			children = (\n");
+    if (references_libraries) {
+      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, "4008B25F23EDACFC00FCB192");
+      dt_api->set_object_comment(&dt, nodeGroup, "Frameworks");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
+      unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
+      dt.objects[nodeChildren].is_array = true;
 #if 1
-    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-      const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-      fprintf(f, "				%s /* %s */,\n", buildID, dependantName);
-    }
+      for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+        const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
+        const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+        unsigned int node         = dt_api->create_object(&dt, nodeChildren, "");
+        dt_api->set_object_value(&dt, node, buildID);
+        dt_api->set_object_comment(&dt, node, dependantName);
+      }
 #endif
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"), "Frameworks");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "sourceTree"),
+                               "\"<group>\"");
+    }
+    {
+      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, "403CC53C23EB479400558E07");
+      dt_api->set_object_comment(&dt, nodeGroup, "Products");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
+      unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
+      dt.objects[nodeChildren].is_array = true;
+      unsigned int node                 = dt_api->create_object(&dt, nodeChildren, "");
+      dt_api->set_object_value(&dt, node, xCodeUUID2String(outputFileReferenceUIID));
+      dt_api->set_object_comment(&dt, node, outputName);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"), "Products");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "sourceTree"),
+                               "\"<group>\"");
+    }
+  }
+
+  {
+    unsigned int nodeNT =
+        dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(outputTargetUIID));
+    dt_api->set_object_comment(&dt, nodeNT, p->name);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "isa"), "PBXNativeTarget");
+    unsigned int nodeBCL = dt_api->create_object(&dt, nodeNT, "buildConfigurationList");
+    dt_api->set_object_comment(
+        &dt, nodeBCL, cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
+    dt_api->set_object_value(&dt, nodeBCL, "403CC54223EB479400558E07");
+    unsigned int nodeBP         = dt_api->create_object(&dt, nodeNT, "buildPhases");
+    dt.objects[nodeBP].is_array = true;
+    unsigned int nodeSources    = dt_api->create_object(&dt, nodeBP, "");
+    dt_api->set_object_value(&dt, nodeSources, "403CC53723EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeSources, "Sources");
+    unsigned int nodeFrameworks = dt_api->create_object(&dt, nodeBP, "");
+    dt_api->set_object_value(&dt, nodeFrameworks, "403CC53823EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
+    unsigned int nodeResources = dt_api->create_object(&dt, nodeBP, "");
+    dt_api->set_object_value(&dt, nodeResources, "40AC3DC22473B4B20054CF0F");
+    dt_api->set_object_comment(&dt, nodeResources, "Resources");
+    unsigned int nodeCopyFiles = dt_api->create_object(&dt, nodeBP, "");
+    dt_api->set_object_value(&dt, nodeCopyFiles, "403CC53923EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeCopyFiles, "CopyFiles");
+
+    const bool has_custom_commands = (array_count(p->file_data_custom_command) > 0);
+    if (has_custom_commands) {
+      unsigned int node = dt_api->create_object(&dt, nodeBP, "");
+      dt_api->set_object_value(&dt, node, "40A820422608BCF0001D0CB1");
+      dt_api->set_object_comment(&dt, node, "ShellScript");
+    }
+    if (has_post_build_action) {
+      unsigned int node = dt_api->create_object(&dt, nodeBP, "");
+      dt_api->set_object_value(&dt, node, "40C3D9692440AC2500C8EB40");
+      dt_api->set_object_comment(&dt, node, "ShellScript");
+    }
+    unsigned int nodeBR                   = dt_api->create_object(&dt, nodeNT, "buildRules");
+    dt.objects[nodeBR].is_array           = true;
+    unsigned int nodeDependencies         = dt_api->create_object(&dt, nodeNT, "dependencies");
+    dt.objects[nodeDependencies].is_array = true;
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "name"), p->name);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "productName"), p->name);
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeNT, "productReference"),
+        cc_printf("%s /* %s */", xCodeUUID2String(outputFileReferenceUIID), outputName));
+    unsigned int nodePT = dt_api->create_object(&dt, nodeNT, "productType");
+
+    switch (p->type) {
+      case CCProjectTypeConsoleApplication:
+        dt_api->set_object_value(&dt, nodePT, "\"com.apple.product-type.tool\"");
+        break;
+      case CCProjectTypeWindowedApplication:
+        dt_api->set_object_value(&dt, nodePT, "\"com.apple.product-type.application\"");
+        break;
+      case CCProjectTypeStaticLibrary:
+        dt_api->set_object_value(&dt, nodePT, "\"com.apple.product-type.library.static\"");
+        break;
+    }
+  }
+
+  {
+    unsigned int nodeProject = dt_api->create_object(&dt, nodeObjects, "403CC53323EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeProject, "Project object");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "isa"), "PBXProject");
+    unsigned int nodeAttributes = dt_api->create_object(&dt, nodeProject, "attributes");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeAttributes, "LastUpgradeCheck"),
+                             "1130");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeAttributes, "ORGANIZATIONNAME"),
+                             "\"Daedalus Development\"");
+    unsigned int nodeTA = dt_api->create_object(&dt, nodeAttributes, "TargetAttributes");
+    unsigned int node   = dt_api->create_object(&dt, nodeTA, xCodeUUID2String(outputTargetUIID));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "CreatedOnToolsVersion"),
+                             "11.3");
+
+    unsigned int bcl = dt_api->create_object(&dt, nodeProject, "buildConfigurationList");
+    dt_api->set_object_value(&dt, bcl, "403CC53623EB479400558E07");
+    dt_api->set_object_comment(
+        &dt, bcl, cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "compatibilityVersion"),
+                             "\"Xcode 9.3\"");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "developmentRegion"),
+                             "en");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeProject, "hasScannedForEncodings"), "0");
+    unsigned int kr         = dt_api->create_object(&dt, nodeProject, "knownRegions");
+    dt.objects[kr].is_array = true;
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, kr, ""), "en");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, kr, ""), "Base");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "mainGroup"),
+                             "403CC53223EB479400558E07");
+    unsigned int prg = dt_api->create_object(&dt, nodeProject, "productRefGroup");
+    dt_api->set_object_value(&dt, prg, "403CC53C23EB479400558E07");
+    dt_api->set_object_comment(&dt, prg, "Products");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "projectDirPath"),
+                             "\"\"");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "projectRoot"), "\"\"");
+    unsigned int nodeTargets         = dt_api->create_object(&dt, nodeProject, "targets");
+    dt.objects[nodeTargets].is_array = true;
+    unsigned int target              = dt_api->create_object(&dt, nodeTargets, "");
+    dt_api->set_object_value(&dt, target, xCodeUUID2String(outputTargetUIID));
+    dt_api->set_object_comment(&dt, target, p->name);
+#if 0
+    fprintf(
+        f,
+        "/* Begin PBXProject section "
+        "*/\n		403CC53323EB479400558E07 /* Project object */ = {\n			"
+        "isa = PBXProject;\n			attributes = {\n				"
+        "LastUpgradeCheck = 1130;\n				ORGANIZATIONNAME = \"Daedalus "
+        "Development\";\n				TargetAttributes = {\n			"
+        "		");
+    fprintf(f, "%s", xCodeUUID2String(outputTargetUIID));
+    fprintf(
+        f,
+        " = {\n						CreatedOnToolsVersion = 11.3;\n	"
+        "				};\n				};\n			"
+        "};\n			buildConfigurationList = 403CC53623EB479400558E07 /* Build "
+        "configuration list for PBXProject \"");
+    fprintf(f, "%s", p->name);
     fprintf(f,
-            "			);\n"
-            "			name = Frameworks;\n"
-            "			sourceTree = \"<group>\";\n"
-            "		};\n");
+            "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
+            "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
+            "	knownRegions = (\n				en,\n				"
+            "Base,\n	"
+            "		);\n			mainGroup = 403CC53223EB479400558E07;\n		"
+            "	"
+            "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
+            "projectDirPath = \"\";\n			projectRoot = \"\""
+            ";\n			targets = (\n");
+    fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
+            p->name);
+    fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
+#endif
   }
-  fprintf(f,
-          "		403CC53C23EB479400558E07 /* Products */ = {\n"
-          "			isa = PBXGroup;\n"
-          "			children = (\n");
-  fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputFileReferenceUIID),
-          outputName);
-  fprintf(f,
-          "			);\n"
-          "			name = Products;\n"
-          "			sourceTree = \"<group>\";\n"
-          "		};\n");
-  fprintf(f, "/* End PBXGroup section */\n\n");
 
-  fprintf(f, "/* Begin PBXNativeTarget section */\n");
-  fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(outputTargetUIID), p->name);
-  fprintf(f,
-          "			isa = PBXNativeTarget;\n			"
-          "buildConfigurationList = "
-          "403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget \"");
-  fprintf(f, "%s", p->name);
-  fprintf(f,
-          "\" */;\n"
-          "			buildPhases = (\n"
-          "				403CC53723EB479400558E07 /* Sources */,\n"
-          "				403CC53823EB479400558E07 /* Frameworks */,\n"
-          "				40AC3DC22473B4B20054CF0F /* Resources */,\n"
-          "				403CC53923EB479400558E07 /* CopyFiles */,\n");
-  const bool has_custom_commands = (array_count(p->file_data_custom_command) > 0);
-  if (has_custom_commands) {
-    fprintf(f, "				40A820422608BCF0001D0CB1 /* ShellScript */,\n");
-  }
-  if (has_post_build_action) {
-    fprintf(f, "				40C3D9692440AC2500C8EB40 /* ShellScript */,\n");
-  }
-  fprintf(f,
-          "			);\n"
-          "			buildRules = (\n"
-          "			);\n"
-          "			dependencies = (\n"
-          "			);\n");
-  fprintf(f, "			name = %s;\n", p->name);
-  fprintf(f, "			productName = %s;\n", p->name);
-  fprintf(f, "			productReference = %s /* %s */;\n",
-          xCodeUUID2String(outputFileReferenceUIID), outputName);
-  fprintf(f, "			productType = ");
-  switch (p->type) {
-    case CCProjectTypeConsoleApplication:
-      fprintf(f, "\"com.apple.product-type.tool\"");
-      break;
-    case CCProjectTypeWindowedApplication:
-      fprintf(f, "\"com.apple.product-type.application\"");
-      break;
-    case CCProjectTypeStaticLibrary:
-      fprintf(f, "\"com.apple.product-type.library.static\"");
-      break;
-  }
-  fprintf(f, ";\n		};\n/* End PBXNativeTarget section */\n\n");
-
-  fprintf(f,
-          "/* Begin PBXProject section "
-          "*/\n		403CC53323EB479400558E07 /* Project object */ = {\n			"
-          "isa = PBXProject;\n			attributes = {\n				"
-          "LastUpgradeCheck = 1130;\n				ORGANIZATIONNAME = \"Daedalus "
-          "Development\";\n				TargetAttributes = {\n			"
-          "		");
-  fprintf(f, "%s", xCodeUUID2String(outputTargetUIID));
-  fprintf(f,
-          " = {\n						CreatedOnToolsVersion = 11.3;\n	"
-          "				};\n				};\n			"
-          "};\n			buildConfigurationList = 403CC53623EB479400558E07 /* Build "
-          "configuration list for PBXProject \"");
-  fprintf(f, "%s", p->name);
-  fprintf(f,
-          "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
-          "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
-          "	knownRegions = (\n				en,\n				"
-          "Base,\n	"
-          "		);\n			mainGroup = 403CC53223EB479400558E07;\n		"
-          "	"
-          "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
-          "projectDirPath = \"\";\n			projectRoot = \"\""
-          ";\n			targets = (\n");
-  fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
-          p->name);
-  fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
-
-  if (has_post_build_action) {
+  {
+    unsigned int nodeShellScript =
+        dt_api->create_object(&dt, nodeObjects, "40C3D9692440AC2500C8EB40");
+    dt_api->set_object_comment(&dt, nodeShellScript, "ShellScript");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "isa"),
+                             "PBXShellScriptBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "buildActionMask"),
+                             "2147483647");
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "files");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "inputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "inputPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "outputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "outputPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeShellScript, "runOnlyForDeploymentPostprocessing"),
+        "0");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellPath"),
+                             "/bin/sh");
     const char* postBuildAction     = cc_printf("%s", p->postBuildAction);
     const char* substitution_keys[] = {"configuration", "platform"};
     // For MacOS currently the only allowed platform is  64-bit
     const char* substitution_values[] = {"$CONFIGURATION", "x64"};
     postBuildAction = cc_substitute(postBuildAction, substitution_keys, substitution_values,
                                     countof(substitution_keys));
-    fprintf(f,
-            "/* Begin PBXShellScriptBuildPhase section */\n		40C3D9692440AC2500C8EB40 "
-            "/* ShellScript */ = {\n"
-            "			isa = PBXShellScriptBuildPhase;\n"
-            "			buildActionMask = 2147483647;\n"
-            "			files = (\n"
-            "			);\n"
-            "			inputFileListPaths = (\n"
-            "			);\n"
-            "			inputPaths = (\n"
-            "			);\n"
-            "			outputFileListPaths = (\n"
-            "			);\n"
-            "			outputPaths = (\n"
-            "			);\n"
-            "			runOnlyForDeploymentPostprocessing = 0;\n"
-            "			shellPath = /bin/sh;\n"
-            "			shellScript = \"%s\";\n"
-            "		};\n"
-            "/* End PBXShellScriptBuildPhase section */\n\n",
-            postBuildAction);
+
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellScript"),
+                             cc_printf("\"%s\"", postBuildAction));
   }
 
-  fprintf(f,
-          "/* Begin PBXResourcesBuildPhase section */\n"
-          "		40AC3DC22473B4B20054CF0F /* Resources */ = {\n"
-          "			isa = PBXResourcesBuildPhase;\n"
-          "			buildActionMask = 2147483647;\n"
-          "			files = (\n");
-  //"				40AC3DF22473B4FB0054CF0F /* Assets.xcassets in Resources
-  //*/,\n"
-  for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->file_data[fi]->path;
-    if (is_buildable_resource_file(filename)) {
-      fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
-              strip_path(filename));
+  {
+    unsigned int nodeResources =
+        dt_api->create_object(&dt, nodeObjects, "40AC3DC22473B4B20054CF0F");
+    dt_api->set_object_comment(&dt, nodeResources, "Resources");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeResources, "isa"),
+                             "PBXResourcesBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeResources, "buildActionMask"),
+                             "2147483647");
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeResources, "files");
+      dt.objects[nodeFiles].is_array = true;
+      for (unsigned fi = 0; fi < files_count; ++fi) {
+        const char* filename = p->file_data[fi]->path;
+        if (is_buildable_resource_file(filename)) {
+          unsigned int node = dt_api->create_object(&dt, nodeFiles, "");
+          dt_api->set_object_value(&dt, node, fileUUID[fi]);
+          dt_api->set_object_comment(&dt, node, strip_path(filename));
+        }
+      }
     }
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeResources, "runOnlyForDeploymentPostprocessing"), "0");
   }
-  fprintf(f,
-          "			);\n"
-          "			runOnlyForDeploymentPostprocessing = 0;\n"
-          "		};\n"
-          "/* End PBXResourcesBuildPhase section */\n\n");
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
 
     const char* input_output_substitution_keys[]   = {"input", "output"};
-    const char* input_output_substitution_values[] = {file->path,
-                                                      file->output_file};
+    const char* input_output_substitution_values[] = {file->path, file->output_file};
 
     const char* custom_command = cc_substitute(file->command, substitution_keys,
                                                substitution_values, countof(substitution_keys));
@@ -543,49 +753,69 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         cc_substitute(custom_command, input_output_substitution_keys,
                       input_output_substitution_values, countof(input_output_substitution_keys));
 
-    fprintf(f,
-            "/* Begin PBXShellScriptBuildPhase section */\n"
-            "		40A820422608BCF0001D0CB1 /* ShellScript */ = {\n"
-            "			isa = PBXShellScriptBuildPhase;\n"
-            "			buildActionMask = 2147483647;\n"
-            "			files = (\n"
-            "			);\n"
-            "			inputFileListPaths = (\n"
-            "			);\n"
-            "			inputPaths = (\n"
-            "				\"$(SRCROOT)/%s\",\n"
-            "			);\n"
-            "			outputFileListPaths = (\n"
-            "			);\n"
-            "			outputPaths = (\n"
-            "				\"$(SRCROOT)/%s\", "
-            "			);\n"
-            "			runOnlyForDeploymentPostprocessing = 0;\n"
-            "			shellPath = /bin/sh;\n"
-            "			shellScript = \"cd $SRCROOT && %s\";\n"
-            "		};\n"
-            "/* End PBXShellScriptBuildPhase section */\n",
-            file->path, file->output_file, custom_command);
+    unsigned int nodeShellScript =
+        dt_api->create_object(&dt, nodeObjects, "40A820422608BCF0001D0CB1");
+    dt_api->set_object_comment(&dt, nodeShellScript, "ShellScript");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "isa"),
+                             "PBXShellScriptBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "buildActionMask"),
+                             "2147483647");
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "files");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "inputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "inputPaths");
+      dt.objects[nodeFiles].is_array = true;
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFiles, ""),
+                               cc_printf("\"$(SRCROOT)/%s\"", file->path));
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "outputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "outputPaths");
+      dt.objects[nodeFiles].is_array = true;
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFiles, ""),
+                               cc_printf("\"$(SRCROOT)/%s\"", file->output_file));
+    }
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeShellScript, "runOnlyForDeploymentPostprocessing"),
+        "0");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellPath"),
+                             "/bin/sh");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellScript"),
+                             cc_printf("\"cd $SRCROOT && %s\"", custom_command));
   }
 
-  fprintf(f,
-          "/* Begin PBXSourcesBuildPhase section */\n"
-          "		403CC53723EB479400558E07 /* Sources */ = {\n"
-          "			isa = PBXSourcesBuildPhase;\n"
-          "			buildActionMask = 2147483647;\n"
-          "			files = (\n");
-  for (unsigned fi = 0; fi < files_count; ++fi) {
-    const char* filename = p->file_data[fi]->path;
-    if (is_source_file(filename)) {
-      fprintf(f, "				%s /* %s in Sources */,\n", fileUUID[fi],
-              strip_path(filename));
+  {
+    unsigned int nodeSourcesBuildPhase =
+        dt_api->create_object(&dt, nodeObjects, "403CC53723EB479400558E07");
+    dt_api->set_object_comment(&dt, nodeSourcesBuildPhase, "Sources");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeSourcesBuildPhase, "isa"),
+                             "PBXSourcesBuildPhase");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeSourcesBuildPhase, "buildActionMask"), "2147483647");
+    unsigned int nodeFiles = dt_api->create_object(&dt, nodeSourcesBuildPhase, "files");
+    dt_api->set_object_value(
+        &dt,
+        dt_api->create_object(&dt, nodeSourcesBuildPhase, "runOnlyForDeploymentPostprocessing"),
+        "0");
+    dt.objects[nodeFiles].is_array = true;
+    for (unsigned fi = 0; fi < files_count; ++fi) {
+      const char* filename = p->file_data[fi]->path;
+      if (is_source_file(filename)) {
+        unsigned int node = dt_api->create_object(&dt, nodeFiles, "");
+        dt_api->set_object_value(&dt, node, fileUUID[fi]);
+        dt_api->set_object_comment(&dt, node, cc_printf("%s in Sources", strip_path(filename)));
+      }
     }
   }
-  fprintf(f,
-          "			);\n"
-          "			runOnlyForDeploymentPostprocessing = 0;\n"
-          "		};\n"
-          "/* End PBXSourcesBuildPhase section */\n\n");
 
   const unsigned num_configurations = array_count(cc_data_.configurations);
   xcode_uuid* configuration_ids     = {0};
@@ -769,21 +999,25 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     array_push(config_datas, config_data);
   }
 
-  fprintf(f, "/* Begin XCBuildConfiguration section */\n");
+  // fprintf(f, "/* Begin XCBuildConfiguration section */\n");
   for (unsigned i = 0; i < num_configurations; ++i) {
     const char* config_name = cc_data_.configurations[i]->label;
     xcode_uuid config_id    = configuration_ids[i];
 
-    fprintf(f, "		%s /* %s */ = {\n", xCodeUUID2String(config_id), config_name);
-    fprintf(f, "			isa = XCBuildConfiguration;\n");
-    fprintf(f, "			buildSettings = {\n");
+    unsigned int nodeBuildConfigurationList =
+        dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(config_id));
+    dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
+                             "XCBuildConfiguration");
+    unsigned int nodeBuildSettings =
+        dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
+                             config_name);
     const xcode_compiler_setting* config = config_datas[i];
     for (unsigned ic = 0; ic < array_count(config); ++ic) {
-      fprintf(f, "				%s = %s;\n", config[ic].key, config[ic].value);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildSettings, config[ic].key),
+                               config[ic].value);
     }
-    fprintf(f, "			};\n");
-    fprintf(f, "			name = %s;\n", config_name);
-    fprintf(f, "		};\n");
   }
 
   const char** native_target_ids = {0};
@@ -803,132 +1037,145 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   for (unsigned i = 0; i < num_configurations; ++i) {
     const cc_configuration_impl_t* config = cc_data_.configurations[i];
 
-    const char* link_additional_directories  = "";
     const char* link_additional_dependencies = "";
 
     const char* substitution_keys[] = {"configuration", "platform"};
     // For MacOS currently the only allowed platform is  64-bit
     const char* substitution_values[] = {"$CONFIGURATION", "x64"};
 
-    for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
-      const cc_state_impl_t* flags = &(p->state[ipc]);
+    {
+      unsigned int nodeBuildConfigurationList =
+          dt_api->create_object(&dt, nodeObjects, native_target_ids[i]);
+      dt_api->set_object_comment(&dt, nodeBuildConfigurationList,
+                                 cc_data_.configurations[i]->label);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
+                               "XCBuildConfiguration");
+      unsigned int nodeBuildSettings =
+          dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
+                               cc_data_.configurations[i]->label);
 
-      // TODO ordering and combination so that more specific flags can override general ones
-      if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+      switch (cc_data_.platforms[0]->type) {
+        case EPlatformDesktop: {
+          dt_api->set_object_value(
+              &dt, dt_api->create_object(&dt, nodeBuildSettings, "CODE_SIGN_STYLE"), "Automatic");
+          if (info_plist_path) {
+            dt_api->set_object_value(
+                &dt, dt_api->create_object(&dt, nodeBuildSettings, "INFOPLIST_FILE"),
+                cc_printf("\"$(SRCROOT)/%s%s\"", build_to_base_path, info_plist_path));
+          }
 
-      for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
-        const char* lib_path_from_base = flags->external_libs[di];
-        const char* relative_lib_path = make_path_relative(build_to_base_path, lib_path_from_base);
-        const char* lib_name          = strip_path(lib_path_from_base);
-        const char* lib_folder        = make_uri(folder_path_only(lib_path_from_base));
-        const char* resolved_lib_folder = cc_substitute(
-            lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
+          unsigned int nodeSearchPaths =
+              dt_api->create_object(&dt, nodeBuildSettings, "LIBRARY_SEARCH_PATHS");
+          dt.objects[nodeSearchPaths].is_array = true;
+          unsigned int node                    = dt_api->create_object(&dt, nodeSearchPaths, "");
+          dt_api->set_object_value(&dt, node, "\"$(inherited)\"");
+          for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+            const cc_state_impl_t* flags = &(p->state[ipc]);
 
-        link_additional_dependencies =
-            cc_printf("%s -l%s", link_additional_dependencies, lib_name);
-        link_additional_directories =
-            cc_printf("%s					\"$(PROJECT_DIR)/%s\",\n",
-                      link_additional_directories, resolved_lib_folder);
+            // TODO ordering and combination so that more specific flags can override general ones
+            if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+
+            for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
+              const char* lib_path_from_base = flags->external_libs[di];
+              const char* relative_lib_path =
+                  make_path_relative(build_to_base_path, lib_path_from_base);
+              const char* lib_name            = strip_path(lib_path_from_base);
+              const char* lib_folder          = make_uri(folder_path_only(lib_path_from_base));
+              const char* resolved_lib_folder = cc_substitute(
+                  lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
+
+              link_additional_dependencies =
+                  cc_printf("%s -l%s", link_additional_dependencies, lib_name);
+              node = dt_api->create_object(&dt, nodeSearchPaths, "");
+              dt_api->set_object_value(&dt, node,
+                                       cc_printf("\"$(PROJECT_DIR)/%s\"", resolved_lib_folder));
+            }
+          }
+          if (link_additional_dependencies[0] != 0) {
+            dt_api->set_object_value(
+                &dt, dt_api->create_object(&dt, nodeBuildSettings, "OTHER_LDFLAGS"),
+                cc_printf("\"%s\"", link_additional_dependencies));
+          }
+        } break;
+        case EPlatformPhone: {
+          dt_api->set_object_value(&dt,
+                                   dt_api->create_object(&dt, nodeBuildSettings, "INFOPLIST_FILE"),
+                                   "../src/Info.plist");
+          unsigned int nodeSearchPaths =
+              dt_api->create_object(&dt, nodeBuildSettings, "LIBRARY_SEARCH_PATHS");
+          dt.objects[nodeSearchPaths].is_array = true;
+          unsigned int node                    = dt_api->create_object(&dt, nodeSearchPaths, "");
+          dt_api->set_object_value(&dt, node, "\"$(inherited)\"");
+          node = dt_api->create_object(&dt, nodeSearchPaths, "");
+          dt_api->set_object_value(&dt, node, "\"@executable_path/Frameworks\"");
+          dt_api->set_object_value(
+              &dt, dt_api->create_object(&dt, nodeBuildSettings, "PRODUCT_BUNDLE_IDENTIFIER"),
+              "\"net.daedalus-development.TestGame\"");
+        } break;
       }
-    }
-
-    switch (cc_data_.platforms[0]->type) {
-      case EPlatformDesktop:
-        fprintf(f,
-                "		%s /* %s */ = {\n"
-                "			isa = XCBuildConfiguration;\n"
-                "			buildSettings = {\n"
-                "				CODE_SIGN_STYLE = Automatic;\n",
-                native_target_ids[i], cc_data_.configurations[i]->label);
-        if (info_plist_path) {
-          fprintf(f,
-                  "				INFOPLIST_FILE = "
-                  "\"$(SRCROOT)/%s%s\";\n",
-                  build_to_base_path, info_plist_path);
-        }
-        if (link_additional_dependencies[0] != 0) {
-          fprintf(f,
-                  "				LIBRARY_SEARCH_PATHS = (\n"
-                  "					\"$(inherited)\",\n"
-                  "%s"
-                  "				);\n",
-                  link_additional_directories);
-          fprintf(f, "				OTHER_LDFLAGS = \"%s\";\n",
-                  link_additional_dependencies);
-        }
-        fprintf(f,
-                "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
-                "				SRCROOT = \"%s\";\n"
-                "			};\n"
-                "			name = %s;\n"
-                "		};\n",
-                build_to_base_path, cc_data_.configurations[i]->label);
-        break;
-      case EPlatformPhone:
-        fprintf(f,
-                "		%s /* %s */ = {\n"
-                "			isa = XCBuildConfiguration;\n"
-                "			buildSettings = {\n"
-                "				CODE_SIGN_STYLE = Automatic;\n"
-                "				INFOPLIST_FILE = ../src/Info.plist;\n"
-                "				LD_RUNPATH_SEARCH_PATHS = (\n"
-                "					\"$(inherited)\",\n"
-                "					\"@executable_path/Frameworks\",\n"
-                "				);\n"
-                "				PRODUCT_NAME = \"$(TARGET_NAME)\";\n"
-                "				PRODUCT_BUNDLE_IDENTIFIER = "
-                "\"net.daedalus-development.TestGame\";\n"
-                "			};\n"
-                "			name = %s;\n"
-                "		};\n",
-                native_target_ids[i], cc_data_.configurations[i]->label,
-                cc_data_.configurations[i]->label);
-
-        break;
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildSettings, "PRODUCT_NAME"),
+                               "\"$(TARGET_NAME)\"");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildSettings, "SRCROOT"),
+                               cc_printf("\"%s\"", build_to_base_path));
     }
   }
-  fprintf(f, "/* End XCBuildConfiguration section */\n\n");
 
-  fprintf(f,
-          "/* Begin XCConfigurationList section */\n"
-          "		403CC53623EB479400558E07 /* Build "
-          "configuration list for PBXProject \"");
-  fprintf(f, "%s", p->name);
-  fprintf(f,
-          "\" */ = {\n			isa = XCConfigurationList;\n			"
-          "buildConfigurations = (\n");
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = cc_data_.configurations[i]->label;
-    xcode_uuid config_id    = configuration_ids[i];
-    fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(config_id),
-            config_name);
+  {
+    unsigned int nodeConfigurationList =
+        dt_api->create_object(&dt, nodeObjects, "403CC53623EB479400558E07");
+    dt_api->set_object_comment(
+        &dt, nodeConfigurationList,
+        cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeConfigurationList, "isa"),
+                             "XCConfigurationList");
+    unsigned int nodeConfigurations =
+        dt_api->create_object(&dt, nodeConfigurationList, "buildConfigurations");
+    dt.objects[nodeConfigurations].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationIsVisible"),
+        "0");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationName"),
+        "Release");
+    for (unsigned i = 0; i < num_configurations; ++i) {
+      const char* config_name = cc_data_.configurations[i]->label;
+      xcode_uuid config_id    = configuration_ids[i];
+      unsigned int node       = dt_api->create_object(&dt, nodeConfigurations, "");
+      dt_api->set_object_value(&dt, node, xCodeUUID2String(config_id));
+      dt_api->set_object_comment(&dt, node, config_name);
+    }
   }
-  fprintf(f,
-          "			);\n"
-          "			defaultConfigurationIsVisible = 0;\n"
-          "			defaultConfigurationName = Release;\n"
-          "		};\n");
-  fprintf(f,
-          "		403CC54223EB479400558E07 /* Build configuration list for PBXNativeTarget "
-          "\"%s\" */ = {\n",
-          p->name);
-  fprintf(f,
-          "			isa = XCConfigurationList;\n"
-          "			buildConfigurations = (\n");
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = cc_data_.configurations[i]->label;
-    fprintf(f, "				%s /* %s */,\n", native_target_ids[i],
-            config_name);
+
+  {
+    unsigned int nativeTarget =
+        dt_api->create_object(&dt, nodeObjects, "403CC54223EB479400558E07");
+    dt_api->set_object_comment(
+        &dt, nativeTarget,
+        cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nativeTarget, "isa"),
+                             "XCConfigurationList");
+    unsigned int nodeConfigurations =
+        dt_api->create_object(&dt, nativeTarget, "buildConfigurations");
+    dt.objects[nodeConfigurations].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationIsVisible"), "0");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationName"), "Release");
+    for (unsigned i = 0; i < num_configurations; ++i) {
+      const char* config_name = cc_data_.configurations[i]->label;
+      unsigned int node       = dt_api->create_object(&dt, nodeConfigurations, "");
+      dt_api->set_object_value(&dt, node, native_target_ids[i]);
+      dt_api->set_object_comment(&dt, node, config_name);
+    }
   }
-  fprintf(f,
-          "			);\n"
-          "			defaultConfigurationIsVisible = 0;\n"
-          "			defaultConfigurationName = Release;\n"
-          "		};\n"
-          "/* End XCConfigurationList section */\n"
-          "	};\n"
-          "	rootObject = 403CC53323EB479400558E07 /* Project object */;\n"
-          "}\n");
+
+  unsigned int nodeRootObject = dt_api->create_object(&dt, 0, "rootObject");
+  dt_api->set_object_value(&dt, nodeRootObject, "403CC53323EB479400558E07");
+  dt_api->set_object_comment(&dt, nodeRootObject, "Project object");
+
+  fprintf(f, "// !$*UTF8*$!\n");
+  export_tree_as_xcode(f, &dt, 0, 0);
 }
 
 void xCode_addWorkspaceFolder(FILE* f, const size_t* unique_groups, const size_t parent_group,

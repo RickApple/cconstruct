@@ -11,7 +11,9 @@ For XCode format this is the same, although XCode files also contain commenting 
 
 struct data_tree_object_t {
   const char* name;
+  const char* comment;
   bool has_children;  // If has children, then no value, else has value and no children
+  bool is_array;
   union {
     const char* value;
     unsigned int first_child;  // !=0 if has childen, ==0 if no children
@@ -50,6 +52,10 @@ struct data_tree_api {
    */
   void (*set_object_value)(struct data_tree_t* tree, unsigned int object,
                            const char* object_value);
+
+  /* Set the comment of object at index 'object'.
+   */
+  void (*set_object_comment)(struct data_tree_t* tree, unsigned int object, const char* comment);
 
   /* If 'object' already has a parameter with the same name, then overwrite the value, else add a
    * new parameter 'param_name' with value 'param_value'
@@ -130,6 +136,11 @@ void dt_set_object_value(struct data_tree_t* dt, unsigned int object, const char
   obj->value                     = cc_printf("%s", object_value);
 }
 
+void dt_set_object_comment(struct data_tree_t* dt, unsigned int object, const char* comment) {
+  struct data_tree_object_t* obj = dt->objects + object;
+  obj->comment                   = cc_printf("%s", comment);
+}
+
 void dt_set_object_parameter(struct data_tree_t* dt, unsigned int object, const char* param_name,
                              const char* param_value) {
   struct data_tree_object_t* obj       = dt->objects + object;
@@ -157,6 +168,6 @@ void dt_set_object_parameter(struct data_tree_t* dt, unsigned int object, const 
   array_push(dt->objects, new_param_obj);
 }
 
-const struct data_tree_api data_tree_api = {&dt_create, &dt_create_object,
-                                            &dt_get_or_create_object, &dt_set_object_value,
-                                            &dt_set_object_parameter};
+const struct data_tree_api data_tree_api = {
+    &dt_create,           &dt_create_object,      &dt_get_or_create_object,
+    &dt_set_object_value, &dt_set_object_comment, &dt_set_object_parameter};
