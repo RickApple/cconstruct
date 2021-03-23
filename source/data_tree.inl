@@ -133,12 +133,16 @@ unsigned int dt_get_or_create_object(struct data_tree_t* dt, unsigned int parent
 void dt_set_object_value(struct data_tree_t* dt, unsigned int object, const char* object_value) {
   struct data_tree_object_t* obj = dt->objects + object;
   obj->has_children              = false;
-  obj->value                     = cc_printf("%s", object_value);
+  if (object_value) {
+    obj->value = cc_printf("%s", object_value);
+  }
 }
 
 void dt_set_object_comment(struct data_tree_t* dt, unsigned int object, const char* comment) {
-  struct data_tree_object_t* obj = dt->objects + object;
-  obj->comment                   = cc_printf("%s", comment);
+  if (comment) {
+    struct data_tree_object_t* obj = dt->objects + object;
+    obj->comment                   = cc_printf("%s", comment);
+  }
 }
 
 void dt_set_object_parameter(struct data_tree_t* dt, unsigned int object, const char* param_name,

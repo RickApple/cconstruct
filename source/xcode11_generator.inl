@@ -18,8 +18,7 @@ xcode_uuid xCodeGenerateUUID() {
   return out;
 }
 const char* xCodeUUID2String(xcode_uuid uuid) {
-  // Incorrect byte order, but don't care for now
-  return cc_printf("%08x%08x%08x", uuid.uuid[0], uuid.uuid[1], uuid.uuid[2]);
+  return cc_printf("%08x%08x%08x", uuid.uuid[2], uuid.uuid[1], uuid.uuid[0]);
 }
 
 xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const cc_project_impl_t* project) {
@@ -30,11 +29,10 @@ xcode_uuid findUUIDForProject(const xcode_uuid* uuids, const cc_project_impl_t* 
   return empty;
 }
 
-#define add_setting(a, k, v)                 \
-  {                                          \
-    xcode_compiler_setting setting = {k, v}; \
-    array_push(a, setting);                  \
-  }
+void add_build_setting(struct data_tree_t* dt, unsigned int node_build_settings, const char* k,
+                       const char* v) {
+  data_tree_api.set_object_value(dt, data_tree_api.create_object(dt, node_build_settings, k), v);
+}
 
 const char* xCodeStringFromGroup(const cc_group_impl_t** unique_groups, const char** group_ids,
                                  const cc_group_impl_t* group) {
@@ -142,6 +140,15 @@ void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt, unsigned int no
   }
 }
 
+// Creates a child node with no name, and sets the value and comment on it. Used in XCode projects
+// to create entries of an array with : ID /* comment */
+void dt_api_add_child_value_and_comment(struct data_tree_t* dt, unsigned int parent_id,
+                                        const char* value, const char* comment) {
+  unsigned int node = data_tree_api.create_object(dt, parent_id, "");
+  data_tree_api.set_object_value(dt, node, value);
+  data_tree_api.set_object_comment(dt, node, comment);
+}
+
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
                             const char* build_to_base_path) {
@@ -154,7 +161,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   dt_api->set_object_value(&dt, dt_api->create_object(&dt, 0, "objectVersion"), "50");
   unsigned int nodeObjects = dt_api->create_object(&dt, 0, "objects");
 
-  const char* substitution_keys[]   = {"configuration", "platform"};
+  const char* substitution_keys[] = {"configuration", "platform"};
+  // For MacOS currently the only allowed platform is  64-bit
   const char* substitution_values[] = {"$CONFIGURATION", "x64"};
 
   const unsigned files_count  = array_count(p->file_data);
@@ -313,24 +321,6 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
   }
 
-  bool has_post_build_action = (p->postBuildAction != 0);
-  if (p->type == CCProjectTypeConsoleApplication) {
-    unsigned int node = dt_api->create_object(&dt, nodeObjects, "403CC53923EB479400558E07");
-    dt_api->set_object_comment(&dt, node, "CopyFiles");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
-                             "PBXCopyFilesBuildPhase");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
-                             "2147483647");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"),
-                             "/usr/share/man/man1/");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "0");
-
-    unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
-    dt.objects[nodeFiles].is_array = true;
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
-  }
-
   {
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename  = p->file_data[fi]->path;
@@ -407,44 +397,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   {
-    unsigned int nodeFrameworks =
-        dt_api->create_object(&dt, nodeObjects, "403CC53823EB479400558E07");
-    dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "isa"),
-                             "PBXFrameworksBuildPhase");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "buildActionMask"),
-                             "2147483647");
-    unsigned int nodeFiles         = dt_api->create_object(&dt, nodeFrameworks, "files");
-    dt.objects[nodeFiles].is_array = true;
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nodeFrameworks, "runOnlyForDeploymentPostprocessing"),
-        "0");
-
-    for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-      const char* buildID = dependencyBuildUUID[i];
-      unsigned int node   = dt_api->create_object(&dt, nodeFiles, "");
-      dt_api->set_object_value(&dt, node, buildID);
-      dt_api->set_object_comment(&dt, node,
-                                 cc_printf("lib%s.a in Frameworks", p->dependantOn[i]->name));
-    }
-    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-      const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-      unsigned int node         = dt_api->create_object(&dt, nodeFiles, "");
-      dt_api->set_object_value(&dt, node, buildID);
-      dt_api->set_object_comment(&dt, node, cc_printf("%s in Frameworks", dependantName));
-    }
-  }
-
-  const bool references_libraries =
-      (array_count(p->dependantOn) > 0) || (array_count(external_frameworks) > 0);
-
-  {
+    unsigned int group_children;
     {
       unsigned int nodeNT = dt_api->create_object(&dt, nodeObjects, "403CC53223EB479400558E07");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "isa"), "PBXGroup");
       {
         unsigned int nodeChildren         = dt_api->create_object(&dt, nodeNT, "children");
+        group_children                    = nodeChildren;
         dt.objects[nodeChildren].is_array = true;
 
         for (unsigned i = 0; i < array_count(unique_groups); ++i) {
@@ -457,19 +416,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         }
         for (unsigned i = 0; i < array_count(p->file_data); ++i) {
           if (p->file_data[i]->parent_group_idx == 0) {
-            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
-            dt_api->set_object_value(&dt, node, fileReferenceUUID[i]);
-            dt_api->set_object_comment(&dt, node, strip_path(p->file_data[i]->path));
+            dt_api_add_child_value_and_comment(&dt, nodeChildren, fileReferenceUUID[i],
+                                               strip_path(p->file_data[i]->path));
           }
         }
-        if (references_libraries) {
-          unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
-          dt_api->set_object_value(&dt, node, "4008B25F23EDACFC00FCB192");
-          dt_api->set_object_comment(&dt, node, "Frameworks");
-        }
-        unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
-        dt_api->set_object_value(&dt, node, "403CC53C23EB479400558E07");
-        dt_api->set_object_comment(&dt, node, "Products");
       }
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "sourceTree"),
                                "\"<group>\"");
@@ -487,9 +437,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           const char* filename              = p->file_data[fi]->path;
           const cc_group_impl_t* file_group = &cc_data_.groups[p->file_data[fi]->parent_group_idx];
           if (file_group == g) {
-            unsigned int node = dt_api->create_object(&dt, nodeChildren, "");
-            dt_api->set_object_value(&dt, node, fileReferenceUUID[fi]);
-            dt_api->set_object_comment(&dt, node, strip_path(filename));
+            dt_api_add_child_value_and_comment(&dt, nodeChildren, fileReferenceUUID[fi],
+                                               strip_path(filename));
           }
         }
         for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
@@ -506,40 +455,43 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                                  "\"<group>\"");
       }
     }
+    const bool references_libraries =
+        (array_count(p->dependantOn) > 0) || (array_count(external_frameworks) > 0);
     if (references_libraries) {
-      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, "4008B25F23EDACFC00FCB192");
+      const char* id = xCodeUUID2String(xCodeGenerateUUID());
+      dt_api_add_child_value_and_comment(&dt, group_children, id, "Frameworks");
+      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, id);
       dt_api->set_object_comment(&dt, nodeGroup, "Frameworks");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
       unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
       dt.objects[nodeChildren].is_array = true;
-#if 1
       for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
         const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
         const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-        unsigned int node         = dt_api->create_object(&dt, nodeChildren, "");
-        dt_api->set_object_value(&dt, node, buildID);
-        dt_api->set_object_comment(&dt, node, dependantName);
+        dt_api_add_child_value_and_comment(&dt, nodeChildren, buildID, dependantName);
       }
-#endif
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"), "Frameworks");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "sourceTree"),
                                "\"<group>\"");
     }
     {
-      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, "403CC53C23EB479400558E07");
+      const char* id = xCodeUUID2String(xCodeGenerateUUID());
+      dt_api_add_child_value_and_comment(&dt, group_children, id, "Products");
+
+      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, id);
       dt_api->set_object_comment(&dt, nodeGroup, "Products");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
       unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
       dt.objects[nodeChildren].is_array = true;
-      unsigned int node                 = dt_api->create_object(&dt, nodeChildren, "");
-      dt_api->set_object_value(&dt, node, xCodeUUID2String(outputFileReferenceUIID));
-      dt_api->set_object_comment(&dt, node, outputName);
+      dt_api_add_child_value_and_comment(&dt, nodeChildren,
+                                         xCodeUUID2String(outputFileReferenceUIID), outputName);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"), "Products");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "sourceTree"),
                                "\"<group>\"");
     }
   }
 
+  unsigned int node_build_phases;
   {
     unsigned int nodeNT =
         dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(outputTargetUIID));
@@ -549,32 +501,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt_api->set_object_comment(
         &dt, nodeBCL, cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
     dt_api->set_object_value(&dt, nodeBCL, "403CC54223EB479400558E07");
-    unsigned int nodeBP         = dt_api->create_object(&dt, nodeNT, "buildPhases");
-    dt.objects[nodeBP].is_array = true;
-    unsigned int nodeSources    = dt_api->create_object(&dt, nodeBP, "");
-    dt_api->set_object_value(&dt, nodeSources, "403CC53723EB479400558E07");
-    dt_api->set_object_comment(&dt, nodeSources, "Sources");
-    unsigned int nodeFrameworks = dt_api->create_object(&dt, nodeBP, "");
-    dt_api->set_object_value(&dt, nodeFrameworks, "403CC53823EB479400558E07");
-    dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
-    unsigned int nodeResources = dt_api->create_object(&dt, nodeBP, "");
-    dt_api->set_object_value(&dt, nodeResources, "40AC3DC22473B4B20054CF0F");
-    dt_api->set_object_comment(&dt, nodeResources, "Resources");
-    unsigned int nodeCopyFiles = dt_api->create_object(&dt, nodeBP, "");
-    dt_api->set_object_value(&dt, nodeCopyFiles, "403CC53923EB479400558E07");
-    dt_api->set_object_comment(&dt, nodeCopyFiles, "CopyFiles");
+    node_build_phases                      = dt_api->create_object(&dt, nodeNT, "buildPhases");
+    dt.objects[node_build_phases].is_array = true;
 
-    const bool has_custom_commands = (array_count(p->file_data_custom_command) > 0);
-    if (has_custom_commands) {
-      unsigned int node = dt_api->create_object(&dt, nodeBP, "");
-      dt_api->set_object_value(&dt, node, "40A820422608BCF0001D0CB1");
-      dt_api->set_object_comment(&dt, node, "ShellScript");
-    }
-    if (has_post_build_action) {
-      unsigned int node = dt_api->create_object(&dt, nodeBP, "");
-      dt_api->set_object_value(&dt, node, "40C3D9692440AC2500C8EB40");
-      dt_api->set_object_comment(&dt, node, "ShellScript");
-    }
     unsigned int nodeBR                   = dt_api->create_object(&dt, nodeNT, "buildRules");
     dt.objects[nodeBR].is_array           = true;
     unsigned int nodeDependencies         = dt_api->create_object(&dt, nodeNT, "dependencies");
@@ -600,7 +529,36 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   {
-    unsigned int nodeProject = dt_api->create_object(&dt, nodeObjects, "403CC53323EB479400558E07");
+    const char* id = xCodeUUID2String(xCodeGenerateUUID());
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Frameworks");
+    unsigned int nodeFrameworks = dt_api->create_object(&dt, nodeObjects, id);
+    dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "isa"),
+                             "PBXFrameworksBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "buildActionMask"),
+                             "2147483647");
+    unsigned int nodeFiles         = dt_api->create_object(&dt, nodeFrameworks, "files");
+    dt.objects[nodeFiles].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeFrameworks, "runOnlyForDeploymentPostprocessing"),
+        "0");
+
+    for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+      const char* buildID = dependencyBuildUUID[i];
+      dt_api_add_child_value_and_comment(
+          &dt, nodeFiles, buildID, cc_printf("lib%s.a in Frameworks", p->dependantOn[i]->name));
+    }
+    for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+      const char* buildID       = dependencyExternalLibraryBuildUUID[i];
+      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      dt_api_add_child_value_and_comment(&dt, nodeFiles, buildID,
+                                         cc_printf("%s in Frameworks", dependantName));
+    }
+  }
+
+  const char* project_object_id = xCodeUUID2String(xCodeGenerateUUID());
+  {
+    unsigned int nodeProject = dt_api->create_object(&dt, nodeObjects, project_object_id);
     dt_api->set_object_comment(&dt, nodeProject, "Project object");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "isa"), "PBXProject");
     unsigned int nodeAttributes = dt_api->create_object(&dt, nodeProject, "attributes");
@@ -637,89 +595,14 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "projectRoot"), "\"\"");
     unsigned int nodeTargets         = dt_api->create_object(&dt, nodeProject, "targets");
     dt.objects[nodeTargets].is_array = true;
-    unsigned int target              = dt_api->create_object(&dt, nodeTargets, "");
-    dt_api->set_object_value(&dt, target, xCodeUUID2String(outputTargetUIID));
-    dt_api->set_object_comment(&dt, target, p->name);
-#if 0
-    fprintf(
-        f,
-        "/* Begin PBXProject section "
-        "*/\n		403CC53323EB479400558E07 /* Project object */ = {\n			"
-        "isa = PBXProject;\n			attributes = {\n				"
-        "LastUpgradeCheck = 1130;\n				ORGANIZATIONNAME = \"Daedalus "
-        "Development\";\n				TargetAttributes = {\n			"
-        "		");
-    fprintf(f, "%s", xCodeUUID2String(outputTargetUIID));
-    fprintf(
-        f,
-        " = {\n						CreatedOnToolsVersion = 11.3;\n	"
-        "				};\n				};\n			"
-        "};\n			buildConfigurationList = 403CC53623EB479400558E07 /* Build "
-        "configuration list for PBXProject \"");
-    fprintf(f, "%s", p->name);
-    fprintf(f,
-            "\" */;\n			compatibilityVersion = \"Xcode 9.3\";\n			"
-            "developmentRegion = en;\n			hasScannedForEncodings = 0;\n		"
-            "	knownRegions = (\n				en,\n				"
-            "Base,\n	"
-            "		);\n			mainGroup = 403CC53223EB479400558E07;\n		"
-            "	"
-            "productRefGroup = 403CC53C23EB479400558E07 /* Products */;\n			"
-            "projectDirPath = \"\";\n			projectRoot = \"\""
-            ";\n			targets = (\n");
-    fprintf(f, "				%s /* %s */,\n", xCodeUUID2String(outputTargetUIID),
-            p->name);
-    fprintf(f, "			);\n		};\n/* End PBXProject section */\n\n");
-#endif
+    dt_api_add_child_value_and_comment(&dt, nodeTargets, xCodeUUID2String(outputTargetUIID),
+                                       p->name);
   }
 
   {
-    unsigned int nodeShellScript =
-        dt_api->create_object(&dt, nodeObjects, "40C3D9692440AC2500C8EB40");
-    dt_api->set_object_comment(&dt, nodeShellScript, "ShellScript");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "isa"),
-                             "PBXShellScriptBuildPhase");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "buildActionMask"),
-                             "2147483647");
-    {
-      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "files");
-      dt.objects[nodeFiles].is_array = true;
-    }
-    {
-      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "inputFileListPaths");
-      dt.objects[nodeFiles].is_array = true;
-    }
-    {
-      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "inputPaths");
-      dt.objects[nodeFiles].is_array = true;
-    }
-    {
-      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "outputFileListPaths");
-      dt.objects[nodeFiles].is_array = true;
-    }
-    {
-      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "outputPaths");
-      dt.objects[nodeFiles].is_array = true;
-    }
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nodeShellScript, "runOnlyForDeploymentPostprocessing"),
-        "0");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellPath"),
-                             "/bin/sh");
-    const char* postBuildAction     = cc_printf("%s", p->postBuildAction);
-    const char* substitution_keys[] = {"configuration", "platform"};
-    // For MacOS currently the only allowed platform is  64-bit
-    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
-    postBuildAction = cc_substitute(postBuildAction, substitution_keys, substitution_values,
-                                    countof(substitution_keys));
-
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellScript"),
-                             cc_printf("\"%s\"", postBuildAction));
-  }
-
-  {
-    unsigned int nodeResources =
-        dt_api->create_object(&dt, nodeObjects, "40AC3DC22473B4B20054CF0F");
+    const char* id = xCodeUUID2String(xCodeGenerateUUID());
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Resources");
+    unsigned int nodeResources = dt_api->create_object(&dt, nodeObjects, id);
     dt_api->set_object_comment(&dt, nodeResources, "Resources");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeResources, "isa"),
                              "PBXResourcesBuildPhase");
@@ -731,9 +614,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       for (unsigned fi = 0; fi < files_count; ++fi) {
         const char* filename = p->file_data[fi]->path;
         if (is_buildable_resource_file(filename)) {
-          unsigned int node = dt_api->create_object(&dt, nodeFiles, "");
-          dt_api->set_object_value(&dt, node, fileUUID[fi]);
-          dt_api->set_object_comment(&dt, node, strip_path(filename));
+          dt_api_add_child_value_and_comment(&dt, nodeFiles, fileUUID[fi], strip_path(filename));
         }
       }
     }
@@ -753,9 +634,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         cc_substitute(custom_command, input_output_substitution_keys,
                       input_output_substitution_values, countof(input_output_substitution_keys));
 
-    unsigned int nodeShellScript =
-        dt_api->create_object(&dt, nodeObjects, "40A820422608BCF0001D0CB1");
-    dt_api->set_object_comment(&dt, nodeShellScript, "ShellScript");
+    const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+    const char* comment = "ShellScript - CustomCommand";
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+    unsigned int nodeShellScript = dt_api->create_object(&dt, nodeObjects, id);
+    dt_api->set_object_comment(&dt, nodeShellScript, comment);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "isa"),
                              "PBXShellScriptBuildPhase");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "buildActionMask"),
@@ -794,8 +677,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   {
-    unsigned int nodeSourcesBuildPhase =
-        dt_api->create_object(&dt, nodeObjects, "403CC53723EB479400558E07");
+    const char* id = xCodeUUID2String(xCodeGenerateUUID());
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Sources");
+    unsigned int nodeSourcesBuildPhase = dt_api->create_object(&dt, nodeObjects, id);
     dt_api->set_object_comment(&dt, nodeSourcesBuildPhase, "Sources");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeSourcesBuildPhase, "isa"),
                              "PBXSourcesBuildPhase");
@@ -810,28 +694,165 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename = p->file_data[fi]->path;
       if (is_source_file(filename)) {
-        unsigned int node = dt_api->create_object(&dt, nodeFiles, "");
-        dt_api->set_object_value(&dt, node, fileUUID[fi]);
-        dt_api->set_object_comment(&dt, node, cc_printf("%s in Sources", strip_path(filename)));
+        dt_api_add_child_value_and_comment(&dt, nodeFiles, fileUUID[fi],
+                                           cc_printf("%s in Sources", strip_path(filename)));
       }
     }
   }
 
-  const unsigned num_configurations = array_count(cc_data_.configurations);
-  xcode_uuid* configuration_ids     = {0};
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    array_push(configuration_ids, xCodeGenerateUUID());
-  }
-  xcode_compiler_setting** config_datas = {0};
+  if (p->type == CCProjectTypeConsoleApplication) {
+    // XCode builds to some internal location. Use an additional step to then copy the binary to
+    // where CConstruct wants it.
+    const char* id = xCodeUUID2String(xCodeGenerateUUID());
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id,
+                                       "CopyFiles - Binary To CConstruct location");
+    unsigned int node = dt_api->create_object(&dt, nodeObjects, id);
+    dt_api->set_object_comment(&dt, node, "CopyFiles");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
+                             "PBXCopyFilesBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
+                             "2147483647");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"),
+                             "/usr/share/man/man1/");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "0");
 
+    unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
+    dt.objects[nodeFiles].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
+  }
+
+  // This actually has to be added after Sources so that the binary has been built before the
+  // post-build action
+  bool has_post_build_action = (p->postBuildAction != 0);
+  if (has_post_build_action) {
+    const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+    const char* comment = "ShellScript - Post-Build Action";
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+
+    unsigned int nodeShellScript = dt_api->create_object(&dt, nodeObjects, id);
+    dt_api->set_object_comment(&dt, nodeShellScript, comment);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "isa"),
+                             "PBXShellScriptBuildPhase");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "buildActionMask"),
+                             "2147483647");
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "files");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "inputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "inputPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles = dt_api->create_object(&dt, nodeShellScript, "outputFileListPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    {
+      unsigned int nodeFiles         = dt_api->create_object(&dt, nodeShellScript, "outputPaths");
+      dt.objects[nodeFiles].is_array = true;
+    }
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeShellScript, "runOnlyForDeploymentPostprocessing"),
+        "0");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellPath"),
+                             "/bin/sh");
+    const char* postBuildAction = cc_printf("%s", p->postBuildAction);
+    postBuildAction = cc_substitute(postBuildAction, substitution_keys, substitution_values,
+                                    countof(substitution_keys));
+
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellScript"),
+                             cc_printf("\"%s\"", postBuildAction));
+  }
+
+  unsigned int node_project_configurations;
+  unsigned int node_target_configurations;
+  {
+    unsigned int nodeConfigurationList =
+        dt_api->create_object(&dt, nodeObjects, "403CC53623EB479400558E07");
+    dt_api->set_object_comment(
+        &dt, nodeConfigurationList,
+        cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeConfigurationList, "isa"),
+                             "XCConfigurationList");
+    node_project_configurations =
+        dt_api->create_object(&dt, nodeConfigurationList, "buildConfigurations");
+    dt.objects[node_project_configurations].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationIsVisible"),
+        "0");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationName"),
+        "Release");
+  }
+
+  {
+    unsigned int nativeTarget =
+        dt_api->create_object(&dt, nodeObjects, "403CC54223EB479400558E07");
+    dt_api->set_object_comment(
+        &dt, nativeTarget,
+        cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nativeTarget, "isa"),
+                             "XCConfigurationList");
+    node_target_configurations = dt_api->create_object(&dt, nativeTarget, "buildConfigurations");
+    dt.objects[node_target_configurations].is_array = true;
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationIsVisible"), "0");
+    dt_api->set_object_value(
+        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationName"), "Release");
+  }
+
+  // Find Info.plist
+  const char* info_plist_path = NULL;
+  for (unsigned i = 0; i < files_count; i++) {
+    const char* filename = strip_path(p->file_data[i]->path);
+    if (strcmp(filename, "Info.plist") == 0) {
+      info_plist_path = p->file_data[i]->path;
+    }
+  }
+
+  const unsigned num_configurations = array_count(cc_data_.configurations);
   for (unsigned i = 0; i < num_configurations; ++i) {
     const cc_configuration_impl_t* config = cc_data_.configurations[i];
 
-    const char* preprocessor_defines =
-        "					"
-        "\"$(inherited)\",\n";
-    const char* additional_compiler_flags  = "";
-    const char* additional_include_folders = "(\n";
+    const char* config_name = cc_data_.configurations[i]->label;
+    const char* config_id   = xCodeUUID2String(xCodeGenerateUUID());
+
+    dt_api_add_child_value_and_comment(&dt, node_project_configurations, config_id, config_name);
+
+    const unsigned int nodeBuildConfigurationList =
+        dt_api->create_object(&dt, nodeObjects, config_id);
+    dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
+                             "XCBuildConfiguration");
+    const unsigned int nodeBuildSettings =
+        dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
+
+    const unsigned int node_preprocessor_defines =
+        dt_api->create_object(&dt, nodeBuildSettings, "GCC_PREPROCESSOR_DEFINITIONS");
+    dt.objects[node_preprocessor_defines].is_array = true;
+    dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"$(inherited)\"", NULL);
+    if (strcmp(config->label, "Debug") == 0) {
+      dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"DEBUG=1\"", NULL);
+      add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT", "dwarf");
+      add_build_setting(&dt, nodeBuildSettings, "ENABLE_TESTABILITY", "YES");
+      add_build_setting(&dt, nodeBuildSettings, "GCC_OPTIMIZATION_LEVEL", "0");
+    } else {
+      add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
+      add_build_setting(&dt, nodeBuildSettings, "ENABLE_NS_ASSERTIONS", "NO");
+    }
+
+    const unsigned int node_header_search_paths =
+        dt_api->create_object(&dt, nodeBuildSettings, "HEADER_SEARCH_PATHS");
+    dt.objects[node_header_search_paths].is_array = true;
+
+    const unsigned int node_additional_compiler_flags =
+        dt_api->create_object(&dt, nodeBuildSettings, "OTHER_CFLAGS");
+    dt.objects[node_additional_compiler_flags].is_array = true;
 
     EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
     bool shouldDisableWarningsAsError         = false;
@@ -846,23 +867,21 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       combined_warning_level       = flags->warningLevel;
 
       for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
-        preprocessor_defines = cc_printf("					\"%s\",\n%s",
-                                         flags->defines[pdi], preprocessor_defines);
+        dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines,
+                                           cc_printf("\"%s\"", flags->defines[pdi]), NULL);
       }
 
       for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
-        additional_compiler_flags =
-            cc_printf("%s					  \"%s\",\n",
-                      additional_compiler_flags, flags->compile_options[cfi]);
+        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                           cc_printf("\"%s\"", flags->compile_options[cfi]), NULL);
       }
       for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
         // Order matters here, so append
-        additional_include_folders =
-            cc_printf("%s					  \"%s%s\",\n",
-                      additional_include_folders, build_to_base_path, flags->include_folders[ifi]);
+        add_build_setting(&dt, node_header_search_paths,
+                          cc_printf("\"%s%s\"", build_to_base_path, flags->include_folders[ifi]),
+                          NULL);
       }
     }
-    additional_include_folders = cc_printf("%s               )", additional_include_folders);
     assert(array_count(cc_data_.architectures) == 1);
     assert(cc_data_.architectures[0]->type == EArchitectureX64);
     const char* resolved_output_folder = cc_substitute(
@@ -870,28 +889,17 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
     const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
 
-    const char* combined_preprocessor   = NULL;
     xcode_compiler_setting* config_data = {0};
-    if (strcmp(config->label, "Debug") == 0) {
-      combined_preprocessor = cc_printf(
-          "(\n					\"DEBUG=1\",\n%s				)",
-          preprocessor_defines);
-      add_setting(config_data, "DEBUG_INFORMATION_FORMAT", "dwarf");
-      add_setting(config_data, "ENABLE_TESTABILITY", "YES");
-      add_setting(config_data, "GCC_OPTIMIZATION_LEVEL", "0");
-    } else {
-      combined_preprocessor = cc_printf("(\n%s				)", preprocessor_defines);
-      add_setting(config_data, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
-      add_setting(config_data, "ENABLE_NS_ASSERTIONS", "NO");
-    }
-    add_setting(config_data, "GCC_PREPROCESSOR_DEFINITIONS", combined_preprocessor);
-    add_setting(config_data, "GCC_C_LANGUAGE_STANDARD", "c11");            // TODO:Expose this?
-    add_setting(config_data, "CLANG_CXX_LANGUAGE_STANDARD", "\"c++0x\"");  // TODO:Expose this?
+
+    add_build_setting(&dt, nodeBuildSettings, "GCC_C_LANGUAGE_STANDARD",
+                      "c11");  // TODO:Expose this?
+    add_build_setting(&dt, nodeBuildSettings, "CLANG_CXX_LANGUAGE_STANDARD",
+                      "\"c++0x\"");  // TODO:Expose this?
 
     if (!shouldDisableWarningsAsError) {
-      add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");
+      add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");
     } else {
-      add_setting(config_data, "GCC_TREAT_WARNINGS_AS_ERRORS", "NO");
+      add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "NO");
     }
     const char* default_enabled_warnings[] = {
         "CLANG_WARN_DELETE_NON_VIRTUAL_DTOR",
@@ -944,108 +952,66 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     };
     if (combined_warning_level == EStateWarningLevelHigh) {
       for (unsigned i = 0; i < countof(high_enabled_warnings); ++i) {
-        add_setting(config_data, high_enabled_warnings[i], "YES");
+        add_build_setting(&dt, nodeBuildSettings, high_enabled_warnings[i], "YES");
       }
       for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
-        add_setting(config_data, default_enabled_warnings[i], "YES");
+        add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[i], "YES");
       }
 
-      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
-                                            additional_compiler_flags, "-Wformat=2");
-      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
-                                            additional_compiler_flags, "-Wextra");
+      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wformat=2\"",
+                                         NULL);
+      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wextra\"", NULL);
       // disabling unused parameters needs to be done after -Wextra
-      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
-                                            additional_compiler_flags, "-Wno-unused-parameter");
+      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                         "\"-Wno-unused-parameter\"", NULL);
       // This warning can complain about my_struct s = {0};
       // Ref:
       // https://stackoverflow.com/questions/13905200/is-it-wise-to-ignore-gcc-clangs-wmissing-braces-warning
-      additional_compiler_flags = cc_printf("%s					  \"%s\",\n",
-                                            additional_compiler_flags, "-Wno-missing-braces");
+      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                         "\"-Wno-missing-braces\"", NULL);
 
       // https://github.com/boredzo/Warnings-xcconfig/wiki/Warnings-Explained
 
     } else if (combined_warning_level == EStateWarningLevelNone) {
-      add_setting(config_data, "GCC_WARN_INHIBIT_ALL_WARNINGS", "YES");
+      add_build_setting(&dt, nodeBuildSettings, "GCC_WARN_INHIBIT_ALL_WARNINGS", "YES");
     } else if (combined_warning_level == EStateWarningLevelMedium) {
       for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
-        add_setting(config_data, default_enabled_warnings[i], "YES");
+        add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[i], "YES");
       }
     }
-    // if (additional_compiler_flags[0] != 0)
-    { additional_compiler_flags = cc_printf("(\n%s               )", additional_compiler_flags); }
-    add_setting(config_data, "OTHER_CFLAGS", additional_compiler_flags);
 
-    add_setting(config_data, "ALWAYS_SEARCH_USER_PATHS", "NO");
-    add_setting(config_data, "CONFIGURATION_BUILD_DIR", safe_output_folder);
-    add_setting(config_data, "HEADER_SEARCH_PATHS", additional_include_folders);
-    add_setting(config_data, "ONLY_ACTIVE_ARCH", "YES");
+    add_build_setting(&dt, nodeBuildSettings, "ALWAYS_SEARCH_USER_PATHS", "NO");
+    add_build_setting(&dt, nodeBuildSettings, "CONFIGURATION_BUILD_DIR", safe_output_folder);
+
+    add_build_setting(&dt, nodeBuildSettings, "ONLY_ACTIVE_ARCH", "YES");
     assert(array_count(cc_data_.platforms) == 1);
     switch (cc_data_.platforms[0]->type) {
       case EPlatformDesktop:
-        add_setting(config_data, "MACOSX_DEPLOYMENT_TARGET", "10.14");
-        add_setting(config_data, "SDKROOT", "macosx");
+        add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+        add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "macosx");
         break;
       case EPlatformPhone:
-        add_setting(config_data, "IPHONEOS_DEPLOYMENT_TARGET", "13.2");
-        add_setting(config_data, "SDKROOT", "iphoneos");
-        add_setting(config_data, "CLANG_ENABLE_MODULES", "YES");
-        add_setting(config_data, "CLANG_ENABLE_OBJC_ARC", "YES");
-        add_setting(config_data, "CLANG_ENABLE_OBJC_WEAK", "YES");
+        add_build_setting(&dt, nodeBuildSettings, "IPHONEOS_DEPLOYMENT_TARGET", "13.2");
+        add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "iphoneos");
+        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_MODULES", "YES");
+        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_ARC", "YES");
+        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_WEAK", "YES");
 
         break;
     }
 
-    array_push(config_datas, config_data);
-  }
+    const xcode_compiler_setting* build_settings = config_data;
 
-  // fprintf(f, "/* Begin XCBuildConfiguration section */\n");
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    const char* config_name = cc_data_.configurations[i]->label;
-    xcode_uuid config_id    = configuration_ids[i];
-
-    unsigned int nodeBuildConfigurationList =
-        dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(config_id));
-    dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
-                             "XCBuildConfiguration");
-    unsigned int nodeBuildSettings =
-        dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
                              config_name);
-    const xcode_compiler_setting* config = config_datas[i];
-    for (unsigned ic = 0; ic < array_count(config); ++ic) {
-      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildSettings, config[ic].key),
-                               config[ic].value);
-    }
-  }
-
-  const char** native_target_ids = {0};
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    array_push(native_target_ids, xCodeUUID2String(xCodeGenerateUUID()));
-  }
-
-  // Find Info.plist
-  const char* info_plist_path = NULL;
-  for (unsigned i = 0; i < files_count; i++) {
-    const char* filename = strip_path(p->file_data[i]->path);
-    if (strcmp(filename, "Info.plist") == 0) {
-      info_plist_path = p->file_data[i]->path;
-    }
-  }
-
-  for (unsigned i = 0; i < num_configurations; ++i) {
-    const cc_configuration_impl_t* config = cc_data_.configurations[i];
 
     const char* link_additional_dependencies = "";
 
-    const char* substitution_keys[] = {"configuration", "platform"};
-    // For MacOS currently the only allowed platform is  64-bit
-    const char* substitution_values[] = {"$CONFIGURATION", "x64"};
-
     {
-      unsigned int nodeBuildConfigurationList =
-          dt_api->create_object(&dt, nodeObjects, native_target_ids[i]);
+      const char* config_name = cc_data_.configurations[i]->label;
+      const char* id          = xCodeUUID2String(xCodeGenerateUUID());
+      dt_api_add_child_value_and_comment(&dt, node_target_configurations, id, config_name);
+      unsigned int nodeBuildConfigurationList = dt_api->create_object(&dt, nodeObjects, id);
       dt_api->set_object_comment(&dt, nodeBuildConfigurationList,
                                  cc_data_.configurations[i]->label);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
@@ -1073,7 +1039,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
             const cc_state_impl_t* flags = &(p->state[ipc]);
 
-            // TODO ordering and combination so that more specific flags can override general ones
+            // TODO ordering and combination so that more specific flags can override general
+            // ones
             if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
 
             for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
@@ -1121,57 +1088,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
   }
 
-  {
-    unsigned int nodeConfigurationList =
-        dt_api->create_object(&dt, nodeObjects, "403CC53623EB479400558E07");
-    dt_api->set_object_comment(
-        &dt, nodeConfigurationList,
-        cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeConfigurationList, "isa"),
-                             "XCConfigurationList");
-    unsigned int nodeConfigurations =
-        dt_api->create_object(&dt, nodeConfigurationList, "buildConfigurations");
-    dt.objects[nodeConfigurations].is_array = true;
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationIsVisible"),
-        "0");
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nodeConfigurationList, "defaultConfigurationName"),
-        "Release");
-    for (unsigned i = 0; i < num_configurations; ++i) {
-      const char* config_name = cc_data_.configurations[i]->label;
-      xcode_uuid config_id    = configuration_ids[i];
-      unsigned int node       = dt_api->create_object(&dt, nodeConfigurations, "");
-      dt_api->set_object_value(&dt, node, xCodeUUID2String(config_id));
-      dt_api->set_object_comment(&dt, node, config_name);
-    }
-  }
-
-  {
-    unsigned int nativeTarget =
-        dt_api->create_object(&dt, nodeObjects, "403CC54223EB479400558E07");
-    dt_api->set_object_comment(
-        &dt, nativeTarget,
-        cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nativeTarget, "isa"),
-                             "XCConfigurationList");
-    unsigned int nodeConfigurations =
-        dt_api->create_object(&dt, nativeTarget, "buildConfigurations");
-    dt.objects[nodeConfigurations].is_array = true;
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationIsVisible"), "0");
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationName"), "Release");
-    for (unsigned i = 0; i < num_configurations; ++i) {
-      const char* config_name = cc_data_.configurations[i]->label;
-      unsigned int node       = dt_api->create_object(&dt, nodeConfigurations, "");
-      dt_api->set_object_value(&dt, node, native_target_ids[i]);
-      dt_api->set_object_comment(&dt, node, config_name);
-    }
-  }
-
   unsigned int nodeRootObject = dt_api->create_object(&dt, 0, "rootObject");
-  dt_api->set_object_value(&dt, nodeRootObject, "403CC53323EB479400558E07");
+  dt_api->set_object_value(&dt, nodeRootObject, project_object_id);
   dt_api->set_object_comment(&dt, nodeRootObject, "Project object");
 
   fprintf(f, "// !$*UTF8*$!\n");
