@@ -811,7 +811,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   for (unsigned i = 0; i < files_count; i++) {
     const char* filename = strip_path(p->file_data[i]->path);
     if (strcmp(filename, "Info.plist") == 0) {
-      info_plist_path = p->file_data[i]->path;
+      info_plist_path = file_ref_paths[i];
     }
   }
 
@@ -877,9 +877,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       }
       for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
         // Order matters here, so append
-        add_build_setting(&dt, node_header_search_paths,
-                          cc_printf("\"%s%s\"", build_to_base_path, flags->include_folders[ifi]),
-                          NULL);
+        add_build_setting(&dt, node_header_search_paths, flags->include_folders[ifi], NULL);
       }
     }
     assert(array_count(cc_data_.architectures) == 1);
@@ -1028,7 +1026,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           if (info_plist_path) {
             dt_api->set_object_value(
                 &dt, dt_api->create_object(&dt, nodeBuildSettings, "INFOPLIST_FILE"),
-                cc_printf("\"$(SRCROOT)/%s%s\"", build_to_base_path, info_plist_path));
+                info_plist_path);
           }
 
           unsigned int nodeSearchPaths =
