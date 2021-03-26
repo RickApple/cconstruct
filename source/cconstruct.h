@@ -38,6 +38,7 @@ typedef enum {
   CCProjectTypeConsoleApplication = 0,
   CCProjectTypeWindowedApplication,
   CCProjectTypeStaticLibrary,
+  CCProjectTypeDynamicLibrary,
 } EProjectType;
 typedef enum {
   EArchitectureX86 = 0,

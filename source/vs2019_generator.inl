@@ -263,11 +263,17 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       unsigned int ct      = data_tree_api.create_object(&dt, pg, "ConfigurationType");
       const char* ct_value = NULL;
-      if ((p->type == CCProjectTypeConsoleApplication) ||
-          (p->type == CCProjectTypeWindowedApplication)) {
-        ct_value = "Application";
-      } else {
-        ct_value = "StaticLibrary";
+      switch (p->type) {
+        case CCProjectTypeConsoleApplication:  // Intentional fallthrough
+        case CCProjectTypeWindowedApplication:
+          ct_value = "Application";
+          break;
+        case CCProjectTypeStaticLibrary:
+          ct_value = "StaticLibrary";
+          break;
+        case CCProjectTypeDynamicLibrary:
+          ct_value = "DynamicLibrary";
+          break;
       }
       data_tree_api.set_object_value(&dt, ct, ct_value);
 
@@ -396,6 +402,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         case CCProjectTypeStaticLibrary:
           preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
           break;
+        case CCProjectTypeDynamicLibrary: {
+          preprocessor_defines =
+              cc_printf("%s%s;%s", str_strip_spaces(p->name), "_EXPORTS", preprocessor_defines);
+        } break;
         default:
           LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n",
                              p->name);

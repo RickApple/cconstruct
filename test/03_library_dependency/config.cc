@@ -15,19 +15,28 @@ int main(int argc, const char** argv) {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  cc_project_t l = cc.createProject("my_library", CCProjectTypeStaticLibrary, NULL);
+  cc_project_t ls = cc.createProject("my_library", CCProjectTypeStaticLibrary, NULL);
   {
     const char* c_files[] = {"src/library/library.c"};
-    cc.project.addFiles(l, countof(c_files), c_files, NULL);
+    cc.project.addFiles(ls, countof(c_files), c_files, NULL);
     const char* h_files[] = {"src/library/function.h"};
-    cc.project.addFiles(l, countof(h_files), h_files, NULL);
+    cc.project.addFiles(ls, countof(h_files), h_files, NULL);
+  }
+
+  cc_project_t ld = cc.createProject("my_dynamic_library", CCProjectTypeDynamicLibrary, NULL);
+  {
+    const char* c_files[] = {"src/library/library_dynamic.c"};
+    cc.project.addFiles(ld, countof(c_files), c_files, NULL);
+    const char* h_files[] = {"src/library/function.h"};
+    cc.project.addFiles(ld, countof(h_files), h_files, NULL);
   }
 
   cc_project_t b = cc.createProject("my_binary", CCProjectTypeConsoleApplication, NULL);
   {
     const char* files[] = {"src/main.c"};
     cc.project.addFiles(b, countof(files), files, NULL);
-    cc.project.addInputProject(b, l);
+    cc.project.addInputProject(b, ls);
+    cc.project.addInputProject(b, ld);
   }
 
 #if defined(_MSC_VER)

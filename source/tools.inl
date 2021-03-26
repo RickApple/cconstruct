@@ -459,3 +459,17 @@ char* make_path_relative(const char* in_base_folder, const char* in_change_path)
 
   return output;
 }
+
+const char* str_strip_spaces(const char* in) {
+  static char project_name_nospaces[512];
+  char* po       = project_name_nospaces;
+  const char* pi = in;
+  while (*pi) {
+    if (*pi != ' ') {
+      *po++ = *pi;
+    }
+    pi++;
+  }
+  *po = 0;
+  return project_name_nospaces;
+}
