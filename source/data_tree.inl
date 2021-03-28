@@ -33,7 +33,7 @@ struct data_tree_api {
 
   /* Create a new child object under 'parent_object' with name 'name'
    * parent_object == 0 means it's a top level object, usually not allowed more than once anyway.
-   *
+   * name == 0 may mean the node is treated specially in output
    * returns index of created object
    */
   unsigned int (*create_object)(struct data_tree_t* tree, unsigned int parent_object,
@@ -78,9 +78,8 @@ unsigned int dt_create_object(struct data_tree_t* dt, unsigned int parent_object
                               const char* name) {
   assert(dt);
   assert((parent_object == 0) || (parent_object < array_count(dt->objects)));
-  assert(name);
 
-  struct data_tree_object_t obj = {cc_printf("%s", name)};
+  struct data_tree_object_t obj = {(name ? cc_printf("%s", name) : NULL)};
   array_push(dt->objects, obj);
 
   unsigned int node_index               = array_count(dt->objects) - 1;

@@ -78,16 +78,37 @@ const char* xcodeFileTypeFromExtension(const char* ext) {
   }
 }
 
-void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt, unsigned int node,
-                          unsigned int depth) {
+void export_tree_as_xcode_recursive_impl(FILE* f, const struct data_tree_t* dt, unsigned int node,
+                                         unsigned int depth, bool no_newlines) {
   assert(node < array_count(dt->objects));
 
   const struct data_tree_object_t* obj = dt->objects + node;
-  const char* preamble                 = "";
-  for (unsigned int i = 0; i < depth; i++) {
-    preamble = cc_printf("\t%s", preamble);
+
+  const bool is_root_section = (obj->name == NULL);
+
+  bool child_no_newlines = no_newlines;
+
+  // Skip the section if nothing is in it
+  if (is_root_section) {
+    if (obj->first_child == 0) {
+      return;
+    }
+
+    // For clarity of build file section, keep those on a single line, just like XCode does
+    if ((strstr(obj->comment, "PBXBuildFile") != NULL) ||
+        (strstr(obj->comment, "PBXFileReference") != NULL)) {
+      child_no_newlines = true;
+    }
   }
-  if (obj->name) {
+
+  const char* preamble = "";
+  if (!no_newlines) {
+    for (unsigned int i = 0; i < depth; i++) {
+      preamble = cc_printf("\t%s", preamble);
+    }
+  }
+
+  if (obj->name != NULL) {
     fprintf(f, "%s%s", preamble, obj->name);
     if (obj->has_children && obj->comment) {
       fprintf(f, " /* %s */", obj->comment);
@@ -98,38 +119,43 @@ void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt, unsigned int no
         fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value);
       } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
     }*/
+  } else if (node != 0) {
+    // Print as a top level comment in the file
+    fprintf(f, "\n/* Begin %s section */\n", obj->comment);
   }
 
+  const char newline_separator = (no_newlines ? ' ' : '\n');
+
   if (obj->has_children || obj->is_array) {
-    if (node == 0) {
-      fprintf(f, "{\n");
-    } else {
-      if (obj->name) {
-        if (obj->is_array) {
-          fprintf(f, " = (\n");
-        } else {
-          fprintf(f, " = {\n");
-        }
+    if (obj->name) {
+      if (obj->is_array) {
+        fprintf(f, " = (%c", newline_separator);
+      } else {
+        fprintf(f, " = {%c", newline_separator);
       }
     }
     unsigned int child_index = obj->first_child;
     if (child_index) {
       const struct data_tree_object_t* child_obj = dt->objects + child_index;
       const char child_separator                 = obj->is_array ? ',' : ';';
+      unsigned int child_depth                   = (obj->name) ? (depth + 1) : depth;
       do {
-        export_tree_as_xcode(f, dt, child_index, (node == 0) ? 1 : (depth + 1));
-        fprintf(f, "%c\n", child_separator);
+        if (!no_newlines && child_no_newlines) {
+          fprintf(f, "%s", preamble);
+        }
+        export_tree_as_xcode_recursive_impl(f, dt, child_index, child_depth, child_no_newlines);
+        if (child_obj->name) {
+          fprintf(f, "%c%c", child_separator, newline_separator);
+        }
       } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
                (child_obj = dt->objects + child_obj->next_sibling));
     }
-    if (node == 0) {
-      fprintf(f, "}\n");
-    } else if (obj->name) {
+    if (obj->name) {
       const char node_closer = obj->is_array ? ')' : '}';
       fprintf(f, "%s%c", preamble, node_closer);
     }
   } else if (obj->value) {
-    if (obj->name[0]) {
+    if (obj->name && obj->name[0]) {
       fprintf(f, " = %s", obj->value);
     } else {
       fprintf(f, "%s", obj->value);
@@ -138,6 +164,28 @@ void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt, unsigned int no
       fprintf(f, " /* %s */", obj->comment);
     }
   }
+
+  if (obj->name == NULL) {
+    // Print as a top level comment in the file
+    fprintf(f, "/* End %s section */\n", obj->comment);
+  }
+}
+
+void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt) {
+  fprintf(f, "// !$*UTF8*$!\n");
+  fprintf(f, "{\n");
+
+  const struct data_tree_object_t* obj = dt->objects;
+  unsigned int child_index             = obj->first_child;
+  if (child_index) {
+    const struct data_tree_object_t* child_obj = dt->objects + child_index;
+    do {
+      export_tree_as_xcode_recursive_impl(f, dt, child_index, 1, false);
+      fprintf(f, ";\n");
+    } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
+             (child_obj = dt->objects + child_obj->next_sibling));
+  }
+  fprintf(f, "}\n");
 }
 
 // Creates a child node with no name, and sets the value and comment on it. Used in XCode projects
@@ -201,11 +249,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     array_push(fileUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
-  const char** dependencyFileReferenceUUID = {0};
-  const char** dependencyBuildUUID         = {0};
+  const char** dependencyFileReferenceUUID   = {0};
+  const char** dependencyBuildUUID           = {0};
+  const char** dependencyEmbedLibrairiesUUID = {0};
   for (unsigned fi = 0; fi < array_count(p->dependantOn); ++fi) {
     array_push(dependencyFileReferenceUUID, xCodeUUID2String(xCodeGenerateUUID()));
     array_push(dependencyBuildUUID, xCodeUUID2String(xCodeGenerateUUID()));
+    array_push(dependencyEmbedLibrairiesUUID, xCodeUUID2String(xCodeGenerateUUID()));
   }
 
   // Extract frameworks from list of external libs
@@ -245,6 +295,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   const char* outputName = p->name;
   if (p->type == CCProjectTypeStaticLibrary) {
     outputName = cc_printf("lib%s.a", outputName);
+  } else if (p->type == CCProjectTypeDynamicLibrary) {
+    outputName = cc_printf("%s.dylib", outputName);
   }
 
   // Create list of groups needed.
@@ -284,11 +336,34 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
   const unsigned num_unique_groups = array_count(unique_groups);
 
+  // Setup the top level sections in the file
+  unsigned int PBXBuildFileSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXBuildFileSection, "PBXBuildFile");
+  unsigned int PBXCopyFilesBuildPhaseSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXCopyFilesBuildPhaseSection, "PBXCopyFilesBuildPhase");
+  unsigned int PBXFileReferenceSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXFileReferenceSection, "PBXFileReference");
+  unsigned int PBXFrameworksBuildPhaseSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXFrameworksBuildPhaseSection, "PBXFrameworksBuildPhase");
+  unsigned int PBXGroupSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXGroupSection, "PBXGroup");
+  unsigned int PBXNativeTargetSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXNativeTargetSection, "PBXNativeTarget");
+  unsigned int PBXProjectSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXProjectSection, "PBXProject");
+  unsigned int PBXResourcesBuildPhaseSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXResourcesBuildPhaseSection, "PBXResourcesBuildPhase");
+  unsigned int PBXSourcesBuildPhaseSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, PBXSourcesBuildPhaseSection, "PBXSourcesBuildPhase");
+  unsigned int XCBuildConfigurationSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, XCBuildConfigurationSection, "XCBuildConfiguration");
+  unsigned int XCConfigurationListSection = dt_api->create_object(&dt, nodeObjects, NULL);
+  dt_api->set_object_comment(&dt, XCConfigurationListSection, "XCConfigurationList");
   {
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename = p->file_data[fi]->path;
       if (is_source_file(filename) || is_buildable_resource_file(filename)) {
-        unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, fileUUID[fi]);
+        unsigned int nodeFile = dt_api->create_object(&dt, PBXBuildFileSection, fileUUID[fi]);
         dt_api->set_object_comment(&dt, nodeFile,
                                    cc_printf("%s in Sources", strip_path(filename)));
         dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
@@ -298,21 +373,43 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       }
     }
     for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-      const char* id            = dependencyFileReferenceUUID[i];
-      const char* buildID       = dependencyBuildUUID[i];
-      const char* dependantName = cc_printf("lib%s.a", p->dependantOn[i]->name);
-      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, buildID);
-      dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
-      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
-      unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
-      dt_api->set_object_value(&dt, fr, id);
-      dt_api->set_object_comment(&dt, fr, dependantName);
+      const char* id             = dependencyFileReferenceUUID[i];
+      const char* buildID        = dependencyBuildUUID[i];
+      const char* dependantName  = NULL;
+      bool is_dynamic_dependency = (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary);
+      if (!is_dynamic_dependency) {
+        dependantName = cc_printf("lib%s.a", p->dependantOn[i]->name);
+      } else {
+        dependantName = cc_printf("lib%s.dylib", p->dependantOn[i]->name);
+      }
+      {
+        unsigned int nodeFile = dt_api->create_object(&dt, PBXBuildFileSection, buildID);
+        dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
+        unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
+        dt_api->set_object_value(&dt, fr, id);
+        dt_api->set_object_comment(&dt, fr, dependantName);
+      }
+      if (is_dynamic_dependency) {
+        unsigned int nodeFile =
+            dt_api->create_object(&dt, PBXBuildFileSection, dependencyEmbedLibrairiesUUID[i]);
+        dt_api->set_object_comment(&dt, nodeFile,
+                                   cc_printf("%s in Embed Libraries", dependantName));
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
+        unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
+        dt_api->set_object_value(&dt, fr, id);
+        dt_api->set_object_comment(&dt, fr, dependantName);
+
+        unsigned int settings = dt_api->create_object(&dt, nodeFile, "settings");
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, settings, "ATTRIBUTES"),
+                                 "(CodeSignOnCopy, )");
+      }
     }
     for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
       const char* buildID       = dependencyExternalLibraryBuildUUID[i];
       const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, buildID);
+      unsigned int nodeFile     = dt_api->create_object(&dt, PBXBuildFileSection, buildID);
       dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
       unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
@@ -323,9 +420,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
   {
     for (unsigned fi = 0; fi < files_count; ++fi) {
-      const char* filename  = p->file_data[fi]->path;
-      const char* fileType  = xcodeFileTypeFromExtension(file_extension(filename));
-      unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, fileReferenceUUID[fi]);
+      const char* filename = p->file_data[fi]->path;
+      const char* fileType = xcodeFileTypeFromExtension(file_extension(filename));
+      unsigned int nodeFile =
+          dt_api->create_object(&dt, PBXFileReferenceSection, fileReferenceUUID[fi]);
       dt_api->set_object_comment(&dt, nodeFile, strip_path(filename));
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
                                "PBXFileReference");
@@ -345,17 +443,20 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
 
     {
-      unsigned int nodeFile =
-          dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(outputFileReferenceUIID));
+      unsigned int nodeFile = dt_api->create_object(&dt, PBXFileReferenceSection,
+                                                    xCodeUUID2String(outputFileReferenceUIID));
       dt_api->set_object_comment(&dt, nodeFile, outputName);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
                                "PBXFileReference");
       if (p->type == CCProjectTypeConsoleApplication) {
         dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
                                  "compiled.mach-o.executable");
-      } else {
+      } else if (p->type == CCProjectTypeStaticLibrary) {
         dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
                                  "archive.ar");
+      } else if (p->type == CCProjectTypeDynamicLibrary) {
+        dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
+                                 "compiled.mach-o.dylib");
       }
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "includeInIndex"), "0");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"), outputName);
@@ -364,16 +465,25 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
 
     for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-      const char* id        = dependencyFileReferenceUUID[i];
-      unsigned int nodeFile = dt_api->create_object(&dt, nodeObjects, id);
+      const char* id               = dependencyFileReferenceUUID[i];
+      unsigned int nodeFile        = dt_api->create_object(&dt, PBXFileReferenceSection, id);
+      const char* dependantName    = NULL;
+      const char* explicitFileType = NULL;
+      if (p->dependantOn[i]->type == CCProjectTypeStaticLibrary) {
+        dependantName    = cc_printf("lib%s.a", p->dependantOn[i]->name);
+        explicitFileType = "archive.ar";
+      } else {
+        dependantName    = cc_printf("lib%s.dylib", p->dependantOn[i]->name);
+        explicitFileType = "compiled.mach-o.dylib";
+      }
       dt_api->set_object_value(&dt, nodeFile, id);
-      dt_api->set_object_comment(&dt, nodeFile, cc_printf("lib%s.a", p->dependantOn[i]->name));
+      dt_api->set_object_comment(&dt, nodeFile, dependantName);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
                                "PBXFileReference");
+
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "explicitFileType"),
-                               "archive.ar");
-      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"),
-                               cc_printf("lib%s.a", p->dependantOn[i]->name));
+                               explicitFileType);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"), dependantName);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
                                "BUILT_PRODUCTS_DIR");
     }
@@ -381,7 +491,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
       const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
       const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
-      unsigned int nodeFile     = dt_api->create_object(&dt, nodeObjects, id);
+      unsigned int nodeFile     = dt_api->create_object(&dt, PBXFileReferenceSection, id);
       dt_api->set_object_value(&dt, nodeFile, id);
       dt_api->set_object_comment(&dt, nodeFile, dependantName);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
@@ -396,10 +506,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
   }
 
+  const char* main_group_id      = xCodeUUID2String(xCodeGenerateUUID());
+  const char* main_group_comment = "Main Group";
   {
     unsigned int group_children;
     {
-      unsigned int nodeNT = dt_api->create_object(&dt, nodeObjects, "403CC53223EB479400558E07");
+      unsigned int nodeNT = dt_api->create_object(&dt, PBXGroupSection, main_group_id);
+      dt_api->set_object_comment(&dt, nodeNT, main_group_comment);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "isa"), "PBXGroup");
       {
         unsigned int nodeChildren         = dt_api->create_object(&dt, nodeNT, "children");
@@ -428,7 +541,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       for (unsigned i = 0; i < num_unique_groups; ++i) {
         const cc_group_impl_t* g = unique_groups[i];
         unsigned int nodeGroup   = dt_api->create_object(
-            &dt, nodeObjects, xCodeStringFromGroup(unique_groups, unique_groups_id, g));
+            &dt, PBXGroupSection, xCodeStringFromGroup(unique_groups, unique_groups_id, g));
         dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
         unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
         dt.objects[nodeChildren].is_array = true;
@@ -458,13 +571,24 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     const bool references_libraries =
         (array_count(p->dependantOn) > 0) || (array_count(external_frameworks) > 0);
     if (references_libraries) {
-      const char* id = xCodeUUID2String(xCodeGenerateUUID());
-      dt_api_add_child_value_and_comment(&dt, group_children, id, "Frameworks");
-      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, id);
-      dt_api->set_object_comment(&dt, nodeGroup, "Frameworks");
+      const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+      const char* comment = "Frameworks";
+      dt_api_add_child_value_and_comment(&dt, group_children, id, comment);
+      unsigned int nodeGroup = dt_api->create_object(&dt, PBXGroupSection, id);
+      dt_api->set_object_comment(&dt, nodeGroup, comment);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
       unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
       dt.objects[nodeChildren].is_array = true;
+      for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+        const char* buildID       = dependencyFileReferenceUUID[i];
+        const char* dependentName = NULL;
+        if (p->dependantOn[i]->type == CCProjectTypeStaticLibrary) {
+          dependentName = cc_printf("lib%s.a", strip_path(p->dependantOn[i]->name));
+        } else if (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary) {
+          dependentName = cc_printf("lib%s.dylib", strip_path(p->dependantOn[i]->name));
+        }
+        dt_api_add_child_value_and_comment(&dt, nodeChildren, buildID, dependentName);
+      }
       for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
         const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
         const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
@@ -478,7 +602,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       const char* id = xCodeUUID2String(xCodeGenerateUUID());
       dt_api_add_child_value_and_comment(&dt, group_children, id, "Products");
 
-      unsigned int nodeGroup = dt_api->create_object(&dt, nodeObjects, id);
+      unsigned int nodeGroup = dt_api->create_object(&dt, PBXGroupSection, id);
       dt_api->set_object_comment(&dt, nodeGroup, "Products");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "isa"), "PBXGroup");
       unsigned int nodeChildren         = dt_api->create_object(&dt, nodeGroup, "children");
@@ -492,15 +616,19 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   unsigned int node_build_phases;
+
+  const char* build_configurations_id  = xCodeUUID2String(xCodeGenerateUUID());
+  const char* build_configurations_id2 = xCodeUUID2String(xCodeGenerateUUID());
+  const char* build_configurations_comment =
+      cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name);
   {
     unsigned int nodeNT =
-        dt_api->create_object(&dt, nodeObjects, xCodeUUID2String(outputTargetUIID));
+        dt_api->create_object(&dt, PBXNativeTargetSection, xCodeUUID2String(outputTargetUIID));
     dt_api->set_object_comment(&dt, nodeNT, p->name);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeNT, "isa"), "PBXNativeTarget");
     unsigned int nodeBCL = dt_api->create_object(&dt, nodeNT, "buildConfigurationList");
-    dt_api->set_object_comment(
-        &dt, nodeBCL, cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
-    dt_api->set_object_value(&dt, nodeBCL, "403CC54223EB479400558E07");
+    dt_api->set_object_value(&dt, nodeBCL, build_configurations_id2);
+    dt_api->set_object_comment(&dt, nodeBCL, build_configurations_comment);
     node_build_phases                      = dt_api->create_object(&dt, nodeNT, "buildPhases");
     dt.objects[node_build_phases].is_array = true;
 
@@ -525,13 +653,17 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       case CCProjectTypeStaticLibrary:
         dt_api->set_object_value(&dt, nodePT, "\"com.apple.product-type.library.static\"");
         break;
+      case CCProjectTypeDynamicLibrary:
+        dt_api->set_object_value(&dt, nodePT, "\"com.apple.product-type.library.dynamic\"");
+        break;
     }
   }
 
+  bool has_dynamic_lib_dependency = false;
   {
     const char* id = xCodeUUID2String(xCodeGenerateUUID());
     dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Frameworks");
-    unsigned int nodeFrameworks = dt_api->create_object(&dt, nodeObjects, id);
+    unsigned int nodeFrameworks = dt_api->create_object(&dt, PBXFrameworksBuildPhaseSection, id);
     dt_api->set_object_comment(&dt, nodeFrameworks, "Frameworks");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFrameworks, "isa"),
                              "PBXFrameworksBuildPhase");
@@ -544,9 +676,18 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         "0");
 
     for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-      const char* buildID = dependencyBuildUUID[i];
-      dt_api_add_child_value_and_comment(
-          &dt, nodeFiles, buildID, cc_printf("lib%s.a in Frameworks", p->dependantOn[i]->name));
+      const char* buildID       = dependencyBuildUUID[i];
+      const char* dependentName = NULL;
+      if (p->dependantOn[i]->type == CCProjectTypeStaticLibrary) {
+        dependentName = cc_printf("lib%s.a", p->dependantOn[i]->name);
+      } else if (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary) {
+        dependentName = cc_printf("lib%s.dylib", p->dependantOn[i]->name);
+      }
+      dt_api_add_child_value_and_comment(&dt, nodeFiles, buildID,
+                                         cc_printf("%s in Frameworks", dependentName));
+      if (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary) {
+        has_dynamic_lib_dependency = true;
+      }
     }
     for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* buildID       = dependencyExternalLibraryBuildUUID[i];
@@ -558,7 +699,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
   const char* project_object_id = xCodeUUID2String(xCodeGenerateUUID());
   {
-    unsigned int nodeProject = dt_api->create_object(&dt, nodeObjects, project_object_id);
+    unsigned int nodeProject = dt_api->create_object(&dt, PBXProjectSection, project_object_id);
     dt_api->set_object_comment(&dt, nodeProject, "Project object");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "isa"), "PBXProject");
     unsigned int nodeAttributes = dt_api->create_object(&dt, nodeProject, "attributes");
@@ -572,9 +713,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                              "11.3");
 
     unsigned int bcl = dt_api->create_object(&dt, nodeProject, "buildConfigurationList");
-    dt_api->set_object_value(&dt, bcl, "403CC53623EB479400558E07");
-    dt_api->set_object_comment(
-        &dt, bcl, cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
+    dt_api->set_object_value(&dt, bcl, build_configurations_id);
+    dt_api->set_object_comment(&dt, bcl, build_configurations_comment);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "compatibilityVersion"),
                              "\"Xcode 9.3\"");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "developmentRegion"),
@@ -586,7 +726,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, kr, ""), "en");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, kr, ""), "Base");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeProject, "mainGroup"),
-                             "403CC53223EB479400558E07");
+                             main_group_id);
     unsigned int prg = dt_api->create_object(&dt, nodeProject, "productRefGroup");
     dt_api->set_object_value(&dt, prg, "403CC53C23EB479400558E07");
     dt_api->set_object_comment(&dt, prg, "Products");
@@ -602,7 +742,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   {
     const char* id = xCodeUUID2String(xCodeGenerateUUID());
     dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Resources");
-    unsigned int nodeResources = dt_api->create_object(&dt, nodeObjects, id);
+    unsigned int nodeResources = dt_api->create_object(&dt, PBXResourcesBuildPhaseSection, id);
     dt_api->set_object_comment(&dt, nodeResources, "Resources");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeResources, "isa"),
                              "PBXResourcesBuildPhase");
@@ -677,10 +817,12 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   {
-    const char* id = xCodeUUID2String(xCodeGenerateUUID());
-    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, "Sources");
-    unsigned int nodeSourcesBuildPhase = dt_api->create_object(&dt, nodeObjects, id);
-    dt_api->set_object_comment(&dt, nodeSourcesBuildPhase, "Sources");
+    const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+    const char* comment = "Sources";
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+    unsigned int nodeSourcesBuildPhase =
+        dt_api->create_object(&dt, PBXSourcesBuildPhaseSection, id);
+    dt_api->set_object_comment(&dt, nodeSourcesBuildPhase, comment);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeSourcesBuildPhase, "isa"),
                              "PBXSourcesBuildPhase");
     dt_api->set_object_value(
@@ -703,11 +845,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   if (p->type == CCProjectTypeConsoleApplication) {
     // XCode builds to some internal location. Use an additional step to then copy the binary to
     // where CConstruct wants it.
-    const char* id = xCodeUUID2String(xCodeGenerateUUID());
-    dt_api_add_child_value_and_comment(&dt, node_build_phases, id,
-                                       "CopyFiles - Binary To CConstruct location");
-    unsigned int node = dt_api->create_object(&dt, nodeObjects, id);
-    dt_api->set_object_comment(&dt, node, "CopyFiles");
+    const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+    const char* comment = "CopyFiles - Binary To CConstruct location";
+    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+    unsigned int node = dt_api->create_object(&dt, PBXCopyFilesBuildPhaseSection, id);
+    dt_api->set_object_comment(&dt, node, comment);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
                              "PBXCopyFilesBuildPhase");
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
@@ -720,6 +862,34 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt.objects[nodeFiles].is_array = true;
     dt_api->set_object_value(
         &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
+
+    if (has_dynamic_lib_dependency) {
+      const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+      const char* comment = "Embed Libraries";
+      dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+      unsigned int node = dt_api->create_object(&dt, PBXCopyFilesBuildPhaseSection, id);
+      dt_api->set_object_comment(&dt, node, comment);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
+                               "PBXCopyFilesBuildPhase");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
+                               "2147483647");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"), "\"\"");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "10");
+      unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
+      dt.objects[nodeFiles].is_array = true;
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "name"),
+                               cc_printf("\"%s\"", comment));
+      dt_api->set_object_value(
+          &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "0");
+
+      for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+        if (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary) {
+          dt_api_add_child_value_and_comment(
+              &dt, nodeFiles, dependencyEmbedLibrairiesUUID[i],
+              cc_printf("lib%s.dylib in Embed Libraries", p->dependantOn[i]->name));
+        }
+      }
+    }
   }
 
   // This actually has to be added after Sources so that the binary has been built before the
@@ -773,10 +943,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   unsigned int node_target_configurations;
   {
     unsigned int nodeConfigurationList =
-        dt_api->create_object(&dt, nodeObjects, "403CC53623EB479400558E07");
-    dt_api->set_object_comment(
-        &dt, nodeConfigurationList,
-        cc_printf("Build configuration list for PBXProject \"%s\"", p->name));
+        dt_api->create_object(&dt, XCConfigurationListSection, build_configurations_id);
+    dt_api->set_object_comment(&dt, nodeConfigurationList, build_configurations_comment);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeConfigurationList, "isa"),
                              "XCConfigurationList");
     node_project_configurations =
@@ -791,19 +959,17 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   }
 
   {
-    unsigned int nativeTarget =
-        dt_api->create_object(&dt, nodeObjects, "403CC54223EB479400558E07");
-    dt_api->set_object_comment(
-        &dt, nativeTarget,
-        cc_printf("Build configuration list for PBXNativeTarget \"%s\"", p->name));
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nativeTarget, "isa"),
+    unsigned int node_xc =
+        dt_api->create_object(&dt, XCConfigurationListSection, build_configurations_id2);
+    dt_api->set_object_comment(&dt, node_xc, build_configurations_comment);
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node_xc, "isa"),
                              "XCConfigurationList");
-    node_target_configurations = dt_api->create_object(&dt, nativeTarget, "buildConfigurations");
+    node_target_configurations = dt_api->create_object(&dt, node_xc, "buildConfigurations");
     dt.objects[node_target_configurations].is_array = true;
     dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationIsVisible"), "0");
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, nativeTarget, "defaultConfigurationName"), "Release");
+        &dt, dt_api->create_object(&dt, node_xc, "defaultConfigurationIsVisible"), "0");
+    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node_xc, "defaultConfigurationName"),
+                             "Release");
   }
 
   // Find Info.plist
@@ -825,7 +991,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt_api_add_child_value_and_comment(&dt, node_project_configurations, config_id, config_name);
 
     const unsigned int nodeBuildConfigurationList =
-        dt_api->create_object(&dt, nodeObjects, config_id);
+        dt_api->create_object(&dt, XCBuildConfigurationSection, config_id);
     dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
                              "XCBuildConfiguration");
@@ -1009,7 +1175,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       const char* config_name = cc_data_.configurations[i]->label;
       const char* id          = xCodeUUID2String(xCodeGenerateUUID());
       dt_api_add_child_value_and_comment(&dt, node_target_configurations, id, config_name);
-      unsigned int nodeBuildConfigurationList = dt_api->create_object(&dt, nodeObjects, id);
+      unsigned int nodeBuildConfigurationList =
+          dt_api->create_object(&dt, XCBuildConfigurationSection, id);
       dt_api->set_object_comment(&dt, nodeBuildConfigurationList,
                                  cc_data_.configurations[i]->label);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
@@ -1062,6 +1229,13 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                 &dt, dt_api->create_object(&dt, nodeBuildSettings, "OTHER_LDFLAGS"),
                 cc_printf("\"%s\"", link_additional_dependencies));
           }
+          if (p->type == CCProjectTypeDynamicLibrary) {
+            dt_api->set_object_value(
+                &dt, dt_api->create_object(&dt, nodeBuildSettings, "EXECUTABLE_PREFIX"), "lib");
+            dt_api->set_object_value(&dt,
+                                     dt_api->create_object(&dt, nodeBuildSettings, "INSTALL_PATH"),
+                                     "\"@executable_path\"");
+          }
         } break;
         case EPlatformPhone: {
           dt_api->set_object_value(&dt,
@@ -1090,8 +1264,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   dt_api->set_object_value(&dt, nodeRootObject, project_object_id);
   dt_api->set_object_comment(&dt, nodeRootObject, "Project object");
 
-  fprintf(f, "// !$*UTF8*$!\n");
-  export_tree_as_xcode(f, &dt, 0, 0);
+  export_tree_as_xcode(f, &dt);
 }
 
 void xCode_addWorkspaceFolder(FILE* f, const size_t* unique_groups, const size_t parent_group,
