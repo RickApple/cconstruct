@@ -187,17 +187,32 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   fclose(filter_file);
 }
 
-typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group);
+typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group,
+                     const char* remaining_flag_value);
 
-void optionZi(struct data_tree_t* dt, unsigned int compile_group) {
+void optionZi(struct data_tree_t* dt, unsigned int compile_group,
+              const char* remaining_flag_value) {
   data_tree_api.set_object_value(
       dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
       "ProgramDatabase");
 }
-void optionZI(struct data_tree_t* dt, unsigned int compile_group) {
+void optionZI(struct data_tree_t* dt, unsigned int compile_group,
+              const char* remaining_flag_value) {
   data_tree_api.set_object_value(
       dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
       "EditAndContinue");
+}
+void optionPDB(struct data_tree_t* dt, unsigned int compile_group,
+               const char* remaining_flag_value) {
+  size_t len        = strlen(remaining_flag_value);
+  const char* value = remaining_flag_value;
+  // Strip exterior quotes as VS will add them again
+  if (value[0] == '"' && value[len - 1] == '"') {
+    value                   = cc_printf("%s", value + 1);
+    ((char*)value)[len - 2] = 0;
+  }
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "ProgramDatabaseFile"), value);
 }
 
 typedef struct vs_compiler_flag {
@@ -205,7 +220,8 @@ typedef struct vs_compiler_flag {
   const func action;
 } vs_compiler_flag;
 
-const vs_compiler_flag known_flags[] = {{"/Zi", &optionZi}, {"/ZI", &optionZI}};
+const vs_compiler_flag known_compiler_flags[] = {{"/Zi", &optionZi}, {"/ZI", &optionZI}};
+const vs_compiler_flag known_linker_flags[]   = {{"/PDB:", &optionPDB}};
 
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
                               const char** project_ids, const char* in_output_folder) {
@@ -432,11 +448,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         }
         for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
           // Index in known flags
-          bool found = false;
-          for (unsigned kfi = 0; kfi < countof(known_flags); kfi++) {
-            if (strcmp(known_flags[kfi].flag, flags->compile_options[cfi]) == 0) {
+          const char* current_flag = flags->compile_options[cfi];
+          bool found               = false;
+          for (unsigned kfi = 0; kfi < countof(known_compiler_flags); kfi++) {
+            if (strcmp(known_compiler_flags[kfi].flag, current_flag) == 0) {
               found = true;
-              known_flags[kfi].action(&dt, compile_obj);
+              known_compiler_flags[kfi].action(&dt, compile_obj, NULL);
             }
           }
           if (!found) {
@@ -445,8 +462,18 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           }
         }
         for (unsigned lfi = 0; lfi < array_count(flags->link_options); ++lfi) {
-          additional_link_flags =
-              cc_printf("%s %s", flags->link_options[lfi], additional_link_flags);
+          const char* current_flag = flags->link_options[lfi];
+          bool found               = false;
+          for (unsigned kfi = 0; kfi < countof(known_linker_flags); kfi++) {
+            if (strstr(current_flag, known_linker_flags[kfi].flag) == current_flag) {
+              found = true;
+              known_linker_flags[kfi].action(&dt, link_obj,
+                                             current_flag + strlen(known_linker_flags[kfi].flag));
+            }
+          }
+          if (!found) {
+            additional_link_flags = cc_printf("%s %s", current_flag, additional_link_flags);
+          }
         }
         for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
           // Order matters here, so append

@@ -20,7 +20,9 @@ int main(int argc, const char** argv) {
 
   cc_state_t flags = cc.createState();
 #ifdef WIN32
-  cc.state.addLinkerFlag(flags, "/PDB:\"$(OutDir)/link_flags_named.pdb");
+  // Note that some linker flags are integrated into the IDE, and other are simply forwarded to the
+  // Other Flags section.
+  cc.state.addLinkerFlag(flags, "/PDB:$(OutDir)/link_flags_named.pdb");
 #else
 #endif
   cc.project.setFlags(p, flags, NULL, NULL);
