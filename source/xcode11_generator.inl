@@ -1151,7 +1151,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     assert(array_count(cc_data_.platforms) == 1);
     switch (cc_data_.platforms[0]->type) {
       case EPlatformDesktop:
-        add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+        add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.15");
         add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "macosx");
         break;
       case EPlatformPhone:
