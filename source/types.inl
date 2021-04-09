@@ -1,8 +1,7 @@
 typedef struct cc_project_impl_t cc_project_impl_t;
 
 typedef struct cc_configuration_impl_t {
-  int placeholder;  // Else get errors in C
-  const char label[];
+  const char label[256];
 } cc_configuration_impl_t;
 typedef struct cc_architecture_impl_t {
   EArchitecture type;
@@ -103,9 +102,9 @@ cc_project_t cc_project_create_(const char* in_project_name, EProjectType in_pro
 
   cc_project_impl_t* p = (cc_project_impl_t*)malloc(sizeof(cc_project_impl_t));
   memset(p, 0, sizeof(cc_project_impl_t));
-  p->outputFolder      = "${platform}/${configuration}";
-  p->type              = in_project_type;
-  unsigned name_length = strlen(in_project_name);
+  p->outputFolder    = "${platform}/${configuration}";
+  p->type            = in_project_type;
+  size_t name_length = strlen(in_project_name);
 
   char* name_copy = (char*)cc_alloc_(name_length + 1);
   memcpy(name_copy, in_project_name, name_length);
@@ -141,7 +140,7 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
                                  const cc_group_t in_parent_group) {
   assert(in_out_project);
   assert(folder);
-  assert(num_files == 0 || (in_file_names!=NULL));
+  assert(num_files == 0 || (in_file_names != NULL));
 
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
   const char* relative_path  = make_path_relative(cc_data_.base_folder, folder);
@@ -291,8 +290,9 @@ cc_platform_t cc_platform_create(EPlatform in_type) {
   return (cc_platform_t)p;
 }
 cc_configuration_t cc_configuration_create(const char* in_label) {
-  unsigned byte_count        = strlen(in_label) + 1 + sizeof(cc_configuration_impl_t);
-  cc_configuration_impl_t* c = (cc_configuration_impl_t*)cc_alloc_(byte_count);
-  strcpy((char*)c->label, in_label);
+  cc_configuration_impl_t* c =
+      (cc_configuration_impl_t*)cc_alloc_(sizeof(cc_configuration_impl_t));
+  strncpy((char*)c->label, in_label, sizeof(c->label));
+  ((char*)c->label)[sizeof(c->label) - 1] = 0;
   return c;
 }

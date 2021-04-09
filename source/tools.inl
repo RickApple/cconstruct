@@ -11,8 +11,9 @@
 
 #define countof(a) sizeof(a) / sizeof(a[0])
 
-bool cc_is_verbose    = false;
-bool cc_only_generate = false;
+bool cc_is_verbose          = false;
+bool cc_only_generate       = false;
+bool cc_generate_cc_project = false;  // Generate a project for the CConstruct config itself
 
 #if defined(_MSC_VER)
 void printStack(void);

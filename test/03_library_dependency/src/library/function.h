@@ -1,4 +1,4 @@
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #if !defined(my_dynamic_library_EXPORTS)
 #define DLL_EXPORT __declspec(dllimport)
 #else

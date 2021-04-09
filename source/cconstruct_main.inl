@@ -112,6 +112,28 @@ int cc_runNewBuild_() {
   return result;
 }
 
+// Generates a project to build cconstruct itself. Use this when cconstruct crashes and you can't
+// figure out why.
+void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
+  printf("Generating project for CConstruct config\n");
+  cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
+  cc_platform_t platform = cc.createPlatform(EPlatformDesktop);
+  cc.workspace.addArchitecture(arch);
+  cc.workspace.addPlatform(platform);
+
+  cc_configuration_t configuration_debug = cc.createConfiguration("Debug");
+  cc.workspace.addConfiguration(configuration_debug);
+
+  cc_project_t p = cc.createProject("cconstruct", CCProjectTypeConsoleApplication, NULL);
+
+  const char* files[] = {strip_path(make_uri(cc_config_path))};
+  cc.project.addFiles(p, countof(files), files, NULL);
+
+  cc.workspace.setLabel("cconstruct");
+
+  cc_default_generator("build");
+}
+
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
 #if defined(_WIN32)
   (void)DeleteFile(cconstruct_old_binary_name);
@@ -152,6 +174,10 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     }
     if (strcmp(argv[i], "--generate-projects") == 0) {
       cc_only_generate = true;
+    }
+    if (strcmp(argv[i], "--generate-cconstruct-project") == 0) {
+      cc_only_generate       = true;
+      cc_generate_cc_project = true;
     }
   }
 
@@ -194,5 +220,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       },
       {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
+  if (cc_generate_cc_project) {
+    generate_cc_project(out, in_absolute_config_file_path);
+    exit(0);
+  }
   return out;
 }

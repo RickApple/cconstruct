@@ -42,6 +42,7 @@ typedef struct vs_compiler_setting {
   const char* value;
 } vs_compiler_setting;
 
+#pragma warning(disable : 4706)
 void export_tree_as_xml(FILE* f, const struct data_tree_t* dt, unsigned int node,
                         unsigned int depth) {
   assert(node < array_count(dt->objects));
@@ -54,8 +55,14 @@ void export_tree_as_xml(FILE* f, const struct data_tree_t* dt, unsigned int node
     if (obj->first_parameter) {
       const struct data_tree_object_t* param_obj = dt->objects + obj->first_parameter;
       do {
-        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value);
+        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value_or_child.value);
       } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
+
+      /*  // Prepare for next iteration
+        if (param_obj->next_sibling) {
+          param_obj = dt->objects + param_obj->next_sibling;
+        }
+      } while (param_obj->next_sibling && param_obj);*/
     }
   }
 
@@ -63,10 +70,19 @@ void export_tree_as_xml(FILE* f, const struct data_tree_t* dt, unsigned int node
     if (obj->name) {
       fprintf(f, ">\n");
     }
-    unsigned int child_index                   = obj->first_child;
+    unsigned int child_index                   = obj->value_or_child.first_child;
     const struct data_tree_object_t* child_obj = dt->objects + child_index;
     do {
       export_tree_as_xml(f, dt, child_index, (node == 0) ? 0 : (depth + 1));
+
+      /*// Prepare for next iteration
+      if (child_obj->next_sibling) {
+        child_index = child_obj->next_sibling;
+        if (child_index) {
+          child_obj = dt->objects + child_obj->next_sibling;
+        }
+      }
+    } while (child_obj);*/
     } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
              (child_obj = dt->objects + child_obj->next_sibling));
     fprintf(f, "%*s", depth * SPACES_PER_DEPTH, "");
@@ -74,8 +90,8 @@ void export_tree_as_xml(FILE* f, const struct data_tree_t* dt, unsigned int node
     if (obj->name) {
       fprintf(f, "</%s>\n", obj->name);
     }
-  } else if (obj->value) {
-    fprintf(f, ">%s</%s>\n", obj->value, obj->name);
+  } else if (obj->value_or_child.value) {
+    fprintf(f, ">%s</%s>\n", obj->value_or_child.value, obj->name);
   } else {
     fprintf(f, " />\n");
   }
@@ -95,15 +111,15 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
   bool* groups_needed        = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
   memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
-  for (unsigned fi = 0; fi < array_count(p->file_data); fi++) {
-    unsigned gi = p->file_data[fi]->parent_group_idx;
+  for (size_t fi = 0; fi < array_count(p->file_data); fi++) {
+    size_t gi = p->file_data[fi]->parent_group_idx;
     while (gi) {
       groups_needed[gi] = true;
       gi                = cc_data_.groups[gi].parent_group_idx;
     }
   }
-  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
-    unsigned gi = p->file_data_custom_command[fi]->parent_group_idx;
+  for (size_t fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
+    size_t gi = p->file_data_custom_command[fi]->parent_group_idx;
     while (gi) {
       groups_needed[gi] = true;
       gi                = cc_data_.groups[gi].parent_group_idx;
@@ -144,7 +160,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
 
     itemgroup                      = data_tree_api.create_object(&dt, project, "ItemGroup");
     const char* f                  = file->path;
-    const unsigned gi              = file->parent_group_idx;
+    const size_t gi                = file->parent_group_idx;
     const char* group_name         = NULL;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
@@ -168,7 +184,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
 
     const char* f                  = file->path;
-    const unsigned gi              = file->parent_group_idx;
+    const size_t gi                = file->parent_group_idx;
     const char* group_name         = NULL;
     const char* relative_file_path = make_path_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
@@ -192,12 +208,14 @@ typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group,
 
 void optionZi(struct data_tree_t* dt, unsigned int compile_group,
               const char* remaining_flag_value) {
+  (void)remaining_flag_value;
   data_tree_api.set_object_value(
       dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
       "ProgramDatabase");
 }
 void optionZI(struct data_tree_t* dt, unsigned int compile_group,
               const char* remaining_flag_value) {
+  (void)remaining_flag_value;
   data_tree_api.set_object_value(
       dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
       "EditAndContinue");
@@ -234,38 +252,42 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
   data_tree_api.set_object_parameter(&dt, project, "xmlns",
                                      "http://schemas.microsoft.com/developer/msbuild/2003");
 
-  unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
-  data_tree_api.set_object_parameter(&dt, itemgroup, "Label", "ProjectConfigurations");
-  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-    const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
+  {
+    unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
+    data_tree_api.set_object_parameter(&dt, itemgroup, "Label", "ProjectConfigurations");
+    for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
+      const char* c = cc_data_.configurations[ci]->label;
+      for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+        const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
 
-      unsigned int pc = data_tree_api.create_object(&dt, itemgroup, "ProjectConfiguration");
-      data_tree_api.set_object_parameter(&dt, pc, "Include",
-                                         cc_printf("%s|%s", c, platform_label));
-      unsigned int cobj = data_tree_api.create_object(&dt, pc, "Configuration");
-      data_tree_api.set_object_value(&dt, cobj, c);
-      unsigned int platformobj = data_tree_api.create_object(&dt, pc, "Platform");
-      data_tree_api.set_object_value(&dt, platformobj, platform_label);
+        unsigned int pc = data_tree_api.create_object(&dt, itemgroup, "ProjectConfiguration");
+        data_tree_api.set_object_parameter(&dt, pc, "Include",
+                                           cc_printf("%s|%s", c, platform_label));
+        unsigned int cobj = data_tree_api.create_object(&dt, pc, "Configuration");
+        data_tree_api.set_object_value(&dt, cobj, c);
+        unsigned int platformobj = data_tree_api.create_object(&dt, pc, "Platform");
+        data_tree_api.set_object_value(&dt, platformobj, platform_label);
+      }
     }
   }
 
-  unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
-  data_tree_api.set_object_parameter(&dt, pg, "Label", "Globals");
-  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "VCProjectVersion"),
-                                 "15.0");
-  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "ProjectGuid"),
-                                 cc_printf("{%s}", project_id));
-  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "Keyword"),
-                                 "Win32Proj");
-  data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "RootNamespace"),
-                                 "builder");
-  data_tree_api.set_object_value(
-      &dt, data_tree_api.create_object(&dt, pg, "WindowsTargetPlatformVersion"), "10.0");
+  {
+    unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
+    data_tree_api.set_object_parameter(&dt, pg, "Label", "Globals");
+    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "VCProjectVersion"),
+                                   "15.0");
+    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "ProjectGuid"),
+                                   cc_printf("{%s}", project_id));
+    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "Keyword"),
+                                   "Win32Proj");
+    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "RootNamespace"),
+                                   "builder");
+    data_tree_api.set_object_value(
+        &dt, data_tree_api.create_object(&dt, pg, "WindowsTargetPlatformVersion"), "10.0");
 
-  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
-                                     "Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
+    data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
+                                       "Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
+  }
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
@@ -527,9 +549,6 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
         preprocessor_defines = cc_printf("WIN32;%s", preprocessor_defines);
       }
 
-      vs_compiler_setting preprocessor_setting = {"PreprocessorDefinitions", preprocessor_defines};
-      vs_compiler_setting additionaloptions_setting = {"AdditionalOptions",
-                                                       additional_compiler_flags};
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "PreprocessorDefinitions"),
           preprocessor_defines);
@@ -642,8 +661,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
     unsigned int pr        = data_tree_api.create_object(&dt, itemgroup, "ProjectReference");
     data_tree_api.set_object_parameter(&dt, pr, "Include", cc_printf("%s.vcxproj", project_label));
-    unsigned int project = data_tree_api.create_object(&dt, pr, "Project");
-    data_tree_api.set_object_value(&dt, project, cc_printf("{%s}", id));
+    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pr, "Project"),
+                                   cc_printf("{%s}", id));
   }
 
   unsigned int importobj = data_tree_api.create_object(&dt, project, "Import");
@@ -659,8 +678,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 }
 
 const char* replaceSpacesWithUnderscores(const char* in) {
-  unsigned length = strlen(in);
-  char* out       = (char*)cc_alloc_(length + 1);  // +1 for terminating 0
+  size_t length = strlen(in);
+  char* out     = (char*)cc_alloc_(length + 1);  // +1 for terminating 0
   memcpy(out, in, length);
   out[length] = 0;
   char* it    = out;
@@ -759,8 +778,8 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   // Create list of groups needed.
   bool* groups_needed = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
   memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
-  for (unsigned i = 0; i < array_count(cc_data_.projects); i++) {
-    unsigned g = cc_data_.projects[i]->parent_group_idx;
+  for (size_t i = 0; i < array_count(cc_data_.projects); i++) {
+    size_t g = cc_data_.projects[i]->parent_group_idx;
     while (g) {
       groups_needed[g] = true;
       g                = cc_data_.groups[g].parent_group_idx;

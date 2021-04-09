@@ -1,9 +1,4 @@
 
-typedef struct xcode_compiler_setting {
-  const char* key;
-  const char* value;
-} xcode_compiler_setting;
-
 typedef struct xcode_uuid {
   unsigned int uuid[3];
 } xcode_uuid;
@@ -90,7 +85,7 @@ void export_tree_as_xcode_recursive_impl(FILE* f, const struct data_tree_t* dt, 
 
   // Skip the section if nothing is in it
   if (is_root_section) {
-    if (obj->first_child == 0) {
+    if (obj->value_or_child.first_child == 0) {
       return;
     }
 
@@ -116,7 +111,7 @@ void export_tree_as_xcode_recursive_impl(FILE* f, const struct data_tree_t* dt, 
     /*if (obj->first_parameter) {
       const struct data_tree_object_t* param_obj = dt->objects + obj->first_parameter;
       do {
-        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value);
+        fprintf(f, " %s=\"%s\"", param_obj->name, param_obj->value_or_child.value);
       } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
     }*/
   } else if (node != 0) {
@@ -134,7 +129,7 @@ void export_tree_as_xcode_recursive_impl(FILE* f, const struct data_tree_t* dt, 
         fprintf(f, " = {%c", newline_separator);
       }
     }
-    unsigned int child_index = obj->first_child;
+    unsigned int child_index = obj->value_or_child.first_child;
     if (child_index) {
       const struct data_tree_object_t* child_obj = dt->objects + child_index;
       const char child_separator                 = obj->is_array ? ',' : ';';
@@ -147,18 +142,21 @@ void export_tree_as_xcode_recursive_impl(FILE* f, const struct data_tree_t* dt, 
         if (child_obj->name) {
           fprintf(f, "%c%c", child_separator, newline_separator);
         }
-      } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
-               (child_obj = dt->objects + child_obj->next_sibling));
+
+        // Prepare for next iteration
+        child_index = child_obj->next_sibling;
+        child_obj   = (child_index > 0) ? (dt->objects + child_obj->next_sibling) : NULL;
+      } while (child_obj);
     }
     if (obj->name) {
       const char node_closer = obj->is_array ? ')' : '}';
       fprintf(f, "%s%c", preamble, node_closer);
     }
-  } else if (obj->value) {
+  } else if (obj->value_or_child.value) {
     if (obj->name && obj->name[0]) {
-      fprintf(f, " = %s", obj->value);
+      fprintf(f, " = %s", obj->value_or_child.value);
     } else {
-      fprintf(f, "%s", obj->value);
+      fprintf(f, "%s", obj->value_or_child.value);
     }
     if (obj->comment) {
       fprintf(f, " /* %s */", obj->comment);
@@ -176,14 +174,17 @@ void export_tree_as_xcode(FILE* f, const struct data_tree_t* dt) {
   fprintf(f, "{\n");
 
   const struct data_tree_object_t* obj = dt->objects;
-  unsigned int child_index             = obj->first_child;
+  unsigned int child_index             = obj->value_or_child.first_child;
   if (child_index) {
     const struct data_tree_object_t* child_obj = dt->objects + child_index;
     do {
       export_tree_as_xcode_recursive_impl(f, dt, child_index, 1, false);
       fprintf(f, ";\n");
-    } while (child_obj->next_sibling && (child_index = child_obj->next_sibling) &&
-             (child_obj = dt->objects + child_obj->next_sibling));
+
+      // Prepare for next iteration
+      child_index = child_obj->next_sibling;
+      child_obj   = (child_index > 0) ? (dt->objects + child_obj->next_sibling) : NULL;
+    } while (child_obj);
   }
   fprintf(f, "}\n");
 }
@@ -302,11 +303,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   // Create list of groups needed.
   const cc_group_impl_t** unique_groups = {0};
   const char** unique_groups_id         = {0};
-  for (unsigned ig = 0; ig < array_count(p->file_data); ++ig) {
-    unsigned g = p->file_data[ig]->parent_group_idx;
+  for (size_t ig = 0; ig < array_count(p->file_data); ++ig) {
+    size_t g = p->file_data[ig]->parent_group_idx;
     while (g) {
       bool already_contains_group = false;
-      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+      for (size_t i = 0; i < array_count(unique_groups); ++i) {
         if (&cc_data_.groups[g] == unique_groups[i]) {
           already_contains_group = true;
         }
@@ -318,11 +319,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       g = cc_data_.groups[g].parent_group_idx;
     }
   }
-  for (unsigned ig = 0; ig < array_count(p->file_data_custom_command); ++ig) {
-    unsigned g = p->file_data_custom_command[ig]->parent_group_idx;
+  for (size_t ig = 0; ig < array_count(p->file_data_custom_command); ++ig) {
+    size_t g = p->file_data_custom_command[ig]->parent_group_idx;
     while (g) {
       bool already_contains_group = false;
-      for (unsigned i = 0; i < array_count(unique_groups); ++i) {
+      for (size_t i = 0; i < array_count(unique_groups); ++i) {
         if (&cc_data_.groups[g] == unique_groups[i]) {
           already_contains_group = true;
         }
@@ -845,23 +846,25 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   if (p->type == CCProjectTypeConsoleApplication) {
     // XCode builds to some internal location. Use an additional step to then copy the binary to
     // where CConstruct wants it.
-    const char* id      = xCodeUUID2String(xCodeGenerateUUID());
-    const char* comment = "CopyFiles - Binary To CConstruct location";
-    dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
-    unsigned int node = dt_api->create_object(&dt, PBXCopyFilesBuildPhaseSection, id);
-    dt_api->set_object_comment(&dt, node, comment);
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
-                             "PBXCopyFilesBuildPhase");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
-                             "2147483647");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"),
-                             "/usr/share/man/man1/");
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "0");
+    {
+      const char* id      = xCodeUUID2String(xCodeGenerateUUID());
+      const char* comment = "CopyFiles - Binary To CConstruct location";
+      dt_api_add_child_value_and_comment(&dt, node_build_phases, id, comment);
+      unsigned int node = dt_api->create_object(&dt, PBXCopyFilesBuildPhaseSection, id);
+      dt_api->set_object_comment(&dt, node, comment);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "isa"),
+                               "PBXCopyFilesBuildPhase");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "buildActionMask"),
+                               "2147483647");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstPath"),
+                               "/usr/share/man/man1/");
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, node, "dstSubfolderSpec"), "0");
 
-    unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
-    dt.objects[nodeFiles].is_array = true;
-    dt_api->set_object_value(
-        &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
+      unsigned int nodeFiles         = dt_api->create_object(&dt, node, "files");
+      dt.objects[nodeFiles].is_array = true;
+      dt_api->set_object_value(
+          &dt, dt_api->create_object(&dt, node, "runOnlyForDeploymentPostprocessing"), "1");
+    }
 
     if (has_dynamic_lib_dependency) {
       const char* id      = xCodeUUID2String(xCodeGenerateUUID());
@@ -984,199 +987,196 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   const unsigned num_configurations = array_count(cc_data_.configurations);
   for (unsigned i = 0; i < num_configurations; ++i) {
     const cc_configuration_impl_t* config = cc_data_.configurations[i];
-
-    const char* config_name = cc_data_.configurations[i]->label;
-    const char* config_id   = xCodeUUID2String(xCodeGenerateUUID());
-
-    dt_api_add_child_value_and_comment(&dt, node_project_configurations, config_id, config_name);
-
-    const unsigned int nodeBuildConfigurationList =
-        dt_api->create_object(&dt, XCBuildConfigurationSection, config_id);
-    dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
-                             "XCBuildConfiguration");
-    const unsigned int nodeBuildSettings =
-        dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
-
-    const unsigned int node_preprocessor_defines =
-        dt_api->create_object(&dt, nodeBuildSettings, "GCC_PREPROCESSOR_DEFINITIONS");
-    dt.objects[node_preprocessor_defines].is_array = true;
-    dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"$(inherited)\"", NULL);
-    if (strcmp(config->label, "Debug") == 0) {
-      dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"DEBUG=1\"", NULL);
-      add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT", "dwarf");
-      add_build_setting(&dt, nodeBuildSettings, "ENABLE_TESTABILITY", "YES");
-      add_build_setting(&dt, nodeBuildSettings, "GCC_OPTIMIZATION_LEVEL", "0");
-    } else {
-      add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT", "\"dwarf-with-dsym\"");
-      add_build_setting(&dt, nodeBuildSettings, "ENABLE_NS_ASSERTIONS", "NO");
-    }
-
-    const unsigned int node_header_search_paths =
-        dt_api->create_object(&dt, nodeBuildSettings, "HEADER_SEARCH_PATHS");
-    dt.objects[node_header_search_paths].is_array = true;
-
-    const unsigned int node_additional_compiler_flags =
-        dt_api->create_object(&dt, nodeBuildSettings, "OTHER_CFLAGS");
-    dt.objects[node_additional_compiler_flags].is_array = true;
-
-    EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
-    bool shouldDisableWarningsAsError         = false;
-    for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
-      const cc_state_impl_t* flags = &(p->state[ipc]);
-
-      // TODO ordering and combination so that more specific flags can override general ones
-      if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
-      // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
-
-      shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
-      combined_warning_level       = flags->warningLevel;
-
-      for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
-        dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines,
-                                           cc_printf("\"%s\"", flags->defines[pdi]), NULL);
-      }
-
-      for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
-        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
-                                           cc_printf("\"%s\"", flags->compile_options[cfi]), NULL);
-      }
-      for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
-        // Order matters here, so append
-        add_build_setting(&dt, node_header_search_paths, flags->include_folders[ifi], NULL);
-      }
-    }
-    assert(array_count(cc_data_.architectures) == 1);
-    assert(cc_data_.architectures[0]->type == EArchitectureX64);
-    const char* resolved_output_folder = cc_substitute(
-        p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
-
-    const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
-
-    xcode_compiler_setting* config_data = {0};
-
-    add_build_setting(&dt, nodeBuildSettings, "GCC_C_LANGUAGE_STANDARD",
-                      "c11");  // TODO:Expose this?
-    add_build_setting(&dt, nodeBuildSettings, "CLANG_CXX_LANGUAGE_STANDARD",
-                      "\"c++0x\"");  // TODO:Expose this?
-
-    if (!shouldDisableWarningsAsError) {
-      add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");
-    } else {
-      add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "NO");
-    }
-    const char* default_enabled_warnings[] = {
-        "CLANG_WARN_DELETE_NON_VIRTUAL_DTOR",
-        "CLANG_WARN_DIRECT_OBJC_ISA_USAGE",
-        "CLANG_WARN_MISSING_NOESCAPE",
-        "CLANG_WARN_OBJC_ROOT_CLASS",
-        "CLANG_WARN_PRAGMA_PACK",
-        "CLANG_WARN_PRIVATE_MODULE",
-        "CLANG_WARN_UNGUARDED_AVAILABILITY",
-        "CLANG_WARN_VEXING_PARSE",
-        "CLANG_WARN__ARC_BRIDGE_CAST_NONARC",
-        "GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS",
-        "GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO",
-        "GCC_WARN_ABOUT_POINTER_SIGNEDNESS",
-        "GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL",
-        "GCC_WARN_CHECK_SWITCH_STATEMENTS",
-        "GCC_WARN_MISSING_PARENTHESES",
-        "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
-    };
-    const char* high_enabled_warnings[] = {
-        "CLANG_WARN_EMPTY_BODY",
-        "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
-        "CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY",
-        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
-        "CLANG_WARN_UNREACHABLE_CODE",
-        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
-        "CLANG_WARN_EMPTY_BODY",
-        "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
-        "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
-        "CLANG_WARN_UNREACHABLE_CODE",
-        "GCC_WARN_64_TO_32_BIT_CONVERSION",
-        "GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS",
-        "GCC_WARN_ABOUT_MISSING_NEWLINE",
-        "GCC_WARN_ABOUT_RETURN_TYPE",
-        "GCC_WARN_CHECK_SWITCH_STATEMENTS",
-        "GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS",
-        "GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED",
-        "GCC_WARN_MISSING_PARENTHESES",
-        "GCC_WARN_PEDANTIC",
-        "GCC_WARN_SHADOW",
-        "GCC_WARN_SIGN_COMPARE",
-        "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
-        "GCC_WARN_UNINITIALIZED_AUTOS",
-        "GCC_WARN_UNKNOWN_PRAGMAS",
-        "GCC_WARN_UNUSED_VALUE",
-        "GCC_WARN_UNUSED_FUNCTION",
-        "GCC_WARN_UNUSED_LABEL",
-        "GCC_WARN_UNUSED_VARIABLE",
-        //"RUN_CLANG_STATIC_ANALYZER",
-    };
-    if (combined_warning_level == EStateWarningLevelHigh) {
-      for (unsigned i = 0; i < countof(high_enabled_warnings); ++i) {
-        add_build_setting(&dt, nodeBuildSettings, high_enabled_warnings[i], "YES");
-      }
-      for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
-        add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[i], "YES");
-      }
-
-      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wformat=2\"",
-                                         NULL);
-      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wextra\"", NULL);
-      // disabling unused parameters needs to be done after -Wextra
-      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
-                                         "\"-Wno-unused-parameter\"", NULL);
-      // This warning can complain about my_struct s = {0};
-      // Ref:
-      // https://stackoverflow.com/questions/13905200/is-it-wise-to-ignore-gcc-clangs-wmissing-braces-warning
-      dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
-                                         "\"-Wno-missing-braces\"", NULL);
-
-      // https://github.com/boredzo/Warnings-xcconfig/wiki/Warnings-Explained
-
-    } else if (combined_warning_level == EStateWarningLevelNone) {
-      add_build_setting(&dt, nodeBuildSettings, "GCC_WARN_INHIBIT_ALL_WARNINGS", "YES");
-    } else if (combined_warning_level == EStateWarningLevelMedium) {
-      for (unsigned i = 0; i < countof(default_enabled_warnings); ++i) {
-        add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[i], "YES");
-      }
-    }
-
-    add_build_setting(&dt, nodeBuildSettings, "ALWAYS_SEARCH_USER_PATHS", "NO");
-    add_build_setting(&dt, nodeBuildSettings, "CONFIGURATION_BUILD_DIR", safe_output_folder);
-
-    add_build_setting(&dt, nodeBuildSettings, "ONLY_ACTIVE_ARCH", "YES");
-    assert(array_count(cc_data_.platforms) == 1);
-    switch (cc_data_.platforms[0]->type) {
-      case EPlatformDesktop:
-        add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.15");
-        add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "macosx");
-        break;
-      case EPlatformPhone:
-        add_build_setting(&dt, nodeBuildSettings, "IPHONEOS_DEPLOYMENT_TARGET", "13.2");
-        add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "iphoneos");
-        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_MODULES", "YES");
-        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_ARC", "YES");
-        add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_WEAK", "YES");
-
-        break;
-    }
-
-    const xcode_compiler_setting* build_settings = config_data;
-
-    dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
-                             config_name);
-
-    const char* link_additional_dependencies = "";
+    const char* config_name               = cc_data_.configurations[i]->label;
 
     {
-      const char* config_name = cc_data_.configurations[i]->label;
-      const char* id          = xCodeUUID2String(xCodeGenerateUUID());
-      dt_api_add_child_value_and_comment(&dt, node_target_configurations, id, config_name);
+      const char* config_id = xCodeUUID2String(xCodeGenerateUUID());
+
+      dt_api_add_child_value_and_comment(&dt, node_project_configurations, config_id, config_name);
+
+      const unsigned int nodeBuildConfigurationList =
+          dt_api->create_object(&dt, XCBuildConfigurationSection, config_id);
+      dt_api->set_object_comment(&dt, nodeBuildConfigurationList, config_name);
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
+                               "XCBuildConfiguration");
+      const unsigned int nodeBuildSettings =
+          dt_api->create_object(&dt, nodeBuildConfigurationList, "buildSettings");
+
+      const unsigned int node_preprocessor_defines =
+          dt_api->create_object(&dt, nodeBuildSettings, "GCC_PREPROCESSOR_DEFINITIONS");
+      dt.objects[node_preprocessor_defines].is_array = true;
+      dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"$(inherited)\"", NULL);
+      if (strcmp(config->label, "Debug") == 0) {
+        dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines, "\"DEBUG=1\"", NULL);
+        add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT", "dwarf");
+        add_build_setting(&dt, nodeBuildSettings, "ENABLE_TESTABILITY", "YES");
+        add_build_setting(&dt, nodeBuildSettings, "GCC_OPTIMIZATION_LEVEL", "0");
+      } else {
+        add_build_setting(&dt, nodeBuildSettings, "DEBUG_INFORMATION_FORMAT",
+                          "\"dwarf-with-dsym\"");
+        add_build_setting(&dt, nodeBuildSettings, "ENABLE_NS_ASSERTIONS", "NO");
+      }
+
+      const unsigned int node_header_search_paths =
+          dt_api->create_object(&dt, nodeBuildSettings, "HEADER_SEARCH_PATHS");
+      dt.objects[node_header_search_paths].is_array = true;
+
+      const unsigned int node_additional_compiler_flags =
+          dt_api->create_object(&dt, nodeBuildSettings, "OTHER_CFLAGS");
+      dt.objects[node_additional_compiler_flags].is_array = true;
+
+      EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+      bool shouldDisableWarningsAsError         = false;
+      for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+        const cc_state_impl_t* flags = &(p->state[ipc]);
+
+        // TODO ordering and combination so that more specific flags can override general ones
+        if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+        // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
+
+        shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+        combined_warning_level       = flags->warningLevel;
+
+        for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
+          dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines,
+                                             cc_printf("\"%s\"", flags->defines[pdi]), NULL);
+        }
+
+        for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
+          dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                             cc_printf("\"%s\"", flags->compile_options[cfi]),
+                                             NULL);
+        }
+        for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
+          // Order matters here, so append
+          add_build_setting(&dt, node_header_search_paths, flags->include_folders[ifi], NULL);
+        }
+      }
+      assert(array_count(cc_data_.architectures) == 1);
+      assert(cc_data_.architectures[0]->type == EArchitectureX64);
+      const char* resolved_output_folder = cc_substitute(
+          p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
+
+      const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
+
+      add_build_setting(&dt, nodeBuildSettings, "GCC_C_LANGUAGE_STANDARD",
+                        "c11");  // TODO:Expose this?
+      add_build_setting(&dt, nodeBuildSettings, "CLANG_CXX_LANGUAGE_STANDARD",
+                        "\"c++0x\"");  // TODO:Expose this?
+
+      if (!shouldDisableWarningsAsError) {
+        add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "YES");
+      } else {
+        add_build_setting(&dt, nodeBuildSettings, "GCC_TREAT_WARNINGS_AS_ERRORS", "NO");
+      }
+      const char* default_enabled_warnings[] = {
+          "CLANG_WARN_DELETE_NON_VIRTUAL_DTOR",
+          "CLANG_WARN_DIRECT_OBJC_ISA_USAGE",
+          "CLANG_WARN_MISSING_NOESCAPE",
+          "CLANG_WARN_OBJC_ROOT_CLASS",
+          "CLANG_WARN_PRAGMA_PACK",
+          "CLANG_WARN_PRIVATE_MODULE",
+          "CLANG_WARN_UNGUARDED_AVAILABILITY",
+          "CLANG_WARN_VEXING_PARSE",
+          "CLANG_WARN__ARC_BRIDGE_CAST_NONARC",
+          "GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS",
+          "GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO",
+          "GCC_WARN_ABOUT_POINTER_SIGNEDNESS",
+          "GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL",
+          "GCC_WARN_CHECK_SWITCH_STATEMENTS",
+          "GCC_WARN_MISSING_PARENTHESES",
+          "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
+      };
+      const char* high_enabled_warnings[] = {
+          "CLANG_WARN_EMPTY_BODY",
+          "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
+          "CLANG_WARN_SEMICOLON_BEFORE_METHOD_BODY",
+          "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+          "CLANG_WARN_UNREACHABLE_CODE",
+          "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+          "CLANG_WARN_EMPTY_BODY",
+          "CLANG_WARN_IMPLICIT_SIGN_CONVERSION",
+          "CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION",
+          "CLANG_WARN_UNREACHABLE_CODE",
+          "GCC_WARN_64_TO_32_BIT_CONVERSION",
+          "GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS",
+          "GCC_WARN_ABOUT_MISSING_NEWLINE",
+          "GCC_WARN_ABOUT_RETURN_TYPE",
+          "GCC_WARN_CHECK_SWITCH_STATEMENTS",
+          "GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS",
+          "GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED",
+          "GCC_WARN_MISSING_PARENTHESES",
+          "GCC_WARN_PEDANTIC",
+          "GCC_WARN_SHADOW",
+          "GCC_WARN_SIGN_COMPARE",
+          "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF",
+          "GCC_WARN_UNINITIALIZED_AUTOS",
+          "GCC_WARN_UNKNOWN_PRAGMAS",
+          "GCC_WARN_UNUSED_VALUE",
+          "GCC_WARN_UNUSED_FUNCTION",
+          "GCC_WARN_UNUSED_LABEL",
+          "GCC_WARN_UNUSED_VARIABLE",
+          //"RUN_CLANG_STATIC_ANALYZER",
+      };
+      if (combined_warning_level == EStateWarningLevelHigh) {
+        for (size_t ibs = 0; ibs < countof(high_enabled_warnings); ++ibs) {
+          add_build_setting(&dt, nodeBuildSettings, high_enabled_warnings[ibs], "YES");
+        }
+        for (size_t ibs = 0; ibs < countof(default_enabled_warnings); ++ibs) {
+          add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[ibs], "YES");
+        }
+
+        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wformat=2\"",
+                                           NULL);
+        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags, "\"-Wextra\"",
+                                           NULL);
+        // disabling unused parameters needs to be done after -Wextra
+        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                           "\"-Wno-unused-parameter\"", NULL);
+        // This warning can complain about my_struct s = {0};
+        // Ref:
+        // https://stackoverflow.com/questions/13905200/is-it-wise-to-ignore-gcc-clangs-wmissing-braces-warning
+        dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                           "\"-Wno-missing-braces\"", NULL);
+
+        // https://github.com/boredzo/Warnings-xcconfig/wiki/Warnings-Explained
+
+      } else if (combined_warning_level == EStateWarningLevelNone) {
+        add_build_setting(&dt, nodeBuildSettings, "GCC_WARN_INHIBIT_ALL_WARNINGS", "YES");
+      } else if (combined_warning_level == EStateWarningLevelMedium) {
+        for (size_t iw = 0; iw < countof(default_enabled_warnings); ++iw) {
+          add_build_setting(&dt, nodeBuildSettings, default_enabled_warnings[iw], "YES");
+        }
+      }
+
+      add_build_setting(&dt, nodeBuildSettings, "ALWAYS_SEARCH_USER_PATHS", "NO");
+      add_build_setting(&dt, nodeBuildSettings, "CONFIGURATION_BUILD_DIR", safe_output_folder);
+
+      add_build_setting(&dt, nodeBuildSettings, "ONLY_ACTIVE_ARCH", "YES");
+      assert(array_count(cc_data_.platforms) == 1);
+      switch (cc_data_.platforms[0]->type) {
+        case EPlatformDesktop:
+          add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.14");
+          add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "macosx");
+          break;
+        case EPlatformPhone:
+          add_build_setting(&dt, nodeBuildSettings, "IPHONEOS_DEPLOYMENT_TARGET", "13.2");
+          add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "iphoneos");
+          add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_MODULES", "YES");
+          add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_ARC", "YES");
+          add_build_setting(&dt, nodeBuildSettings, "CLANG_ENABLE_OBJC_WEAK", "YES");
+
+          break;
+      }
+
+      dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
+                               config_name);
+    }
+    {
+      const char* id2 = xCodeUUID2String(xCodeGenerateUUID());
+      dt_api_add_child_value_and_comment(&dt, node_target_configurations, id2, config_name);
       unsigned int nodeBuildConfigurationList =
-          dt_api->create_object(&dt, XCBuildConfigurationSection, id);
+          dt_api->create_object(&dt, XCBuildConfigurationSection, id2);
       dt_api->set_object_comment(&dt, nodeBuildConfigurationList,
                                  cc_data_.configurations[i]->label);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "isa"),
@@ -1201,6 +1201,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           dt.objects[nodeSearchPaths].is_array = true;
           unsigned int node                    = dt_api->create_object(&dt, nodeSearchPaths, "");
           dt_api->set_object_value(&dt, node, "\"$(inherited)\"");
+          const char* link_additional_dependencies = "";
           for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
             const cc_state_impl_t* flags = &(p->state[ipc]);
 
@@ -1212,7 +1213,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
               const char* lib_path_from_base = flags->external_libs[di];
               const char* relative_lib_path =
                   make_path_relative(build_to_base_path, lib_path_from_base);
-              const char* lib_name            = strip_path(lib_path_from_base);
+              const char* lib_name            = strip_path(relative_lib_path);
               const char* lib_folder          = make_uri(folder_path_only(lib_path_from_base));
               const char* resolved_lib_folder = cc_substitute(
                   lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
@@ -1350,7 +1351,7 @@ void xcode_generateInFolder(const char* in_project_output_path) {
     const cc_project_impl_t* p = cc_data_.projects[i];
 
     const char* project_path = cc_printf("%s.xcodeproj", p->name);
-    int result               = make_folder(project_path);
+    (void)make_folder(project_path);
 
     const char* project_file_path = cc_printf("%s/project.pbxproj", project_path);
 
@@ -1365,8 +1366,8 @@ void xcode_generateInFolder(const char* in_project_output_path) {
   }
 
   {
-    const char* workspace_path      = cc_printf("%s.xcworkspace", cc_data_.workspaceLabel);
-    int result                      = make_folder(workspace_path);
+    const char* workspace_path = cc_printf("%s.xcworkspace", cc_data_.workspaceLabel);
+    (void)make_folder(workspace_path);
     const char* workspace_file_path = cc_printf("%s/contents.xcworkspacedata", workspace_path);
     FILE* f                         = fopen(workspace_file_path, "wb");
     if (f) {

@@ -17,7 +17,7 @@ struct data_tree_object_t {
   union {
     const char* value;
     unsigned int first_child;  // !=0 if has childen, ==0 if no children
-  };
+  } value_or_child;
   unsigned int next_sibling;  // !=0 if has more siblings, ==0 if no more siblings (siblings can be
                               // objects or parameters)
 
@@ -85,14 +85,14 @@ unsigned int dt_create_object(struct data_tree_t* dt, unsigned int parent_object
   unsigned int node_index               = array_count(dt->objects) - 1;
   struct data_tree_object_t* parent_obj = dt->objects + parent_object;
   if (parent_obj->has_children) {
-    struct data_tree_object_t* sibling_obj = dt->objects + parent_obj->first_child;
+    struct data_tree_object_t* sibling_obj = dt->objects + parent_obj->value_or_child.first_child;
     while (sibling_obj->next_sibling) {
       sibling_obj = dt->objects + sibling_obj->next_sibling;
     }
     sibling_obj->next_sibling = node_index;
   } else {
-    parent_obj->has_children = true;
-    parent_obj->first_child  = node_index;
+    parent_obj->has_children               = true;
+    parent_obj->value_or_child.first_child = node_index;
   }
 
   return node_index;
@@ -108,11 +108,17 @@ unsigned int dt_get_or_create_object(struct data_tree_t* dt, unsigned int parent
   struct data_tree_object_t* parent_obj  = dt->objects + parent_object;
   struct data_tree_object_t* sibling_obj = NULL;
   if (parent_obj->has_children) {
-    unsigned int child_id = parent_obj->first_child;
+    unsigned int child_id = parent_obj->value_or_child.first_child;
     sibling_obj           = dt->objects + child_id;
     do {
       if (strcmp(sibling_obj->name, name) == 0) return child_id;
-    } while ((child_id = sibling_obj->next_sibling) && (sibling_obj = (dt->objects + child_id)));
+
+      // Prepare for next iteration
+      child_id = sibling_obj->next_sibling;
+      if (child_id) {
+        sibling_obj = dt->objects + child_id;
+      }
+    } while (child_id);
   }
 
   struct data_tree_object_t obj = {cc_printf("%s", name)};
@@ -122,8 +128,8 @@ unsigned int dt_get_or_create_object(struct data_tree_t* dt, unsigned int parent
   if (sibling_obj) {
     sibling_obj->next_sibling = node_index;
   } else {
-    parent_obj->has_children = true;
-    parent_obj->first_child  = node_index;
+    parent_obj->has_children               = true;
+    parent_obj->value_or_child.first_child = node_index;
   }
 
   return node_index;
@@ -133,7 +139,7 @@ void dt_set_object_value(struct data_tree_t* dt, unsigned int object, const char
   struct data_tree_object_t* obj = dt->objects + object;
   obj->has_children              = false;
   if (object_value) {
-    obj->value = cc_printf("%s", object_value);
+    obj->value_or_child.value = cc_printf("%s", object_value);
   }
 }
 
@@ -152,15 +158,20 @@ void dt_set_object_parameter(struct data_tree_t* dt, unsigned int object, const 
     param_obj = dt->objects + obj->first_parameter;
     do {
       if (strcmp(param_obj->name, param_name) == 0) {
-        param_obj->value = cc_printf("%s", param_value);
+        param_obj->value_or_child.value = cc_printf("%s", param_value);
         return;
       }
-    } while (param_obj->next_sibling && (param_obj = dt->objects + param_obj->next_sibling));
+
+      // Prepare for next iteration
+      if( param_obj->next_sibling ) {
+        param_obj = dt->objects + param_obj->next_sibling;
+      }
+    } while (param_obj->next_sibling);
   }
 
   struct data_tree_object_t new_param_obj = {0};
   new_param_obj.name                      = cc_printf("%s", param_name);
-  new_param_obj.value                     = cc_printf("%s", param_value);
+  new_param_obj.value_or_child.value      = cc_printf("%s", param_value);
 
   if (param_obj) {
     param_obj->next_sibling = array_count(dt->objects);

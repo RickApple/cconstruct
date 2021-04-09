@@ -139,13 +139,6 @@ static int create_child_process(system_np_t* system) {
   return b ? 0 : err;
 }
 
-bool is_running(system_np_t* system) {
-  DWORD exit_code = 0;
-  if (GetExitCodeProcess(system->pi.hProcess, &exit_code)) {
-    return exit_code == STILL_ACTIVE;
-  }
-  return false;
-}
 int system_np(const char* command, int timeout_milliseconds, char* stdout_data,
               int stdout_data_size, char* stderr_data, int stderr_data_size, int* exit_code) {
   system_np_t system = {0};
@@ -165,7 +158,6 @@ int system_np(const char* command, int timeout_milliseconds, char* stdout_data,
   system.stdout_data_size = stdout_data_size;
   system.stderr_data_size = stderr_data_size;
   int r                   = create_child_process(&system);
-  bool ir                 = is_running(&system);
   if (r == 0) {
     // auto thr = new std::thread(read_from_all_pipes_fully, &system);
     system.reader = CreateThread(NULL, 0, read_from_all_pipes_fully, &system, 0, NULL);
