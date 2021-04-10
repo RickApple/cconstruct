@@ -103,8 +103,8 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
     } else {
       // Succesfully ran the command, but there was an error, likely an issue compiling the config
       // file
-      printf("stdout %s\n", stdout_data);
-      printf("stderr %s\n", stderr_data);
+      printf("stdout: %s\n", stdout_data);
+      printf("stderr: %s\n", stderr_data);
 
       LOG_ERROR_AND_QUIT(
           ERR_COMPILING,

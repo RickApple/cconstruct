@@ -242,7 +242,8 @@ const vs_compiler_flag known_compiler_flags[] = {{"/Zi", &optionZi}, {"/ZI", &op
 const vs_compiler_flag known_linker_flags[]   = {{"/PDB:", &optionPDB}};
 
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
-                              const char** project_ids, const char* in_output_folder) {
+                              const char** project_ids, const char* in_output_folder,
+                              const char* build_to_base_path) {
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
 
   struct data_tree_t dt = data_tree_api.create();
@@ -450,8 +451,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       }
       const char* additional_compiler_flags    = "%(AdditionalOptions)";
       const char* additional_link_flags        = "%(AdditionalOptions)";
-      const char* additional_include_folders   = "";
-      const char* link_additional_directories  = "";
+      const char** additional_include_folders  = NULL;
+      const char** link_additional_directories = NULL;
       const char* link_additional_dependencies = "";
 
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
@@ -498,13 +499,18 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           }
         }
         for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
-          // Order matters here, so append
-          additional_include_folders =
-              cc_printf("%s;%s", additional_include_folders, flags->include_folders[ifi]);
+          array_push(additional_include_folders, flags->include_folders[ifi]);
         }
 
         for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
           const char* lib_path_from_base = flags->external_libs[di];
+          const bool is_absolute_path =
+              (lib_path_from_base[0] == '/') || (lib_path_from_base[1] == ':');
+          const bool starts_with_env_variable = (lib_path_from_base[0] == '$');
+          if (!is_absolute_path && !starts_with_env_variable) {
+            lib_path_from_base = cc_printf("%s%s", build_to_base_path, lib_path_from_base);
+          }
+
           const char* relative_lib_path = make_path_relative(in_output_folder, lib_path_from_base);
           const char* lib_name          = strip_path(relative_lib_path);
           const char* lib_folder        = make_uri(folder_path_only(relative_lib_path));
@@ -514,8 +520,15 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
           link_additional_dependencies =
               cc_printf("%s;%s", link_additional_dependencies, lib_name);
-          link_additional_directories =
-              cc_printf("%s;%s", link_additional_directories, resolved_lib_folder);
+          // Check if this path is already in there
+          bool did_find = false;
+          for (size_t ilf = 0; ilf < array_count(link_additional_directories); ilf++) {
+            if (strcmp(link_additional_directories[ilf], resolved_lib_folder) == 0)
+              did_find = true;
+          }
+          if (!did_find) {
+            array_push(link_additional_directories, resolved_lib_folder);
+          }
         }
       }
 
@@ -556,13 +569,18 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalOptions"),
           additional_compiler_flags);
 
-      if (*additional_include_folders != 0) {
+      if (array_count(additional_include_folders) != 0) {
+        // Put later folders before earlier ones
+        const char* combined_include_folders = additional_include_folders[0];
+        for (size_t i = 1; i < array_count(additional_include_folders); i++) {
+          combined_include_folders =
+              cc_printf("%s;%s", additional_include_folders[i], combined_include_folders);
+        }
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
-        // Skip the starting ;
         data_tree_api.set_object_value(
             &dt,
             data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalIncludeDirectories"),
-            additional_include_folders + 1);
+            combined_include_folders);
       }
 
       data_tree_api.set_object_value(
@@ -571,9 +589,19 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       link_additional_dependencies =
           cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalLibraryDirectories"),
-          link_additional_directories);
+
+      if (array_count(link_additional_directories) != 0) {
+        // Put later folders in front of earlier folders
+        const char* combined_link_folders = link_additional_directories[0];
+        for (size_t i = 1; i < array_count(link_additional_directories); i++) {
+          combined_link_folders =
+              cc_printf("%s;%s", link_additional_directories[i], combined_link_folders);
+        }
+        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalLibraryDirectories"),
+            combined_link_folders);
+      }
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalDependencies"),
           link_additional_dependencies);
@@ -610,8 +638,6 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     data_tree_api.set_object_parameter(&dt, obj, "Include", relative_file_path);
   }
 
-  const char* build_to_base_path = make_path_relative(in_output_folder, cc_data_.base_folder);
-  vs_replaceForwardSlashWithBackwardSlashInPlace((char*)build_to_base_path);
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
     const char* relative_in_file_path = make_path_relative(in_output_folder, file->path);
@@ -739,15 +765,6 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
               cc_printf("%s%s", build_to_base_path, include_path);
         }
       }
-      // And referenced external libs
-      for (unsigned libs_idx = 0; libs_idx < array_count(state->external_libs); libs_idx++) {
-        const char* lib_path                = state->external_libs[libs_idx];
-        const bool is_absolute_path         = (lib_path[0] == '/') || (lib_path[1] == ':');
-        const bool starts_with_env_variable = (lib_path[0] == '$');
-        if (!is_absolute_path && !starts_with_env_variable) {
-          state->external_libs[libs_idx] = cc_printf("%s%s", build_to_base_path, lib_path);
-        }
-      }
     }
   }
 
@@ -770,7 +787,7 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
     const cc_project_impl_t* p = cc_data_.projects[i];
     const char* project_id     = project_ids[i];
     vs2019_createFilters(p, output_folder);
-    vs2019_createProjectFile(p, project_id, project_ids, output_folder);
+    vs2019_createProjectFile(p, project_id, project_ids, output_folder, build_to_base_path);
 
     printf("Constructed VS2019 project '%s.vcxproj'\n", p->name);
   }

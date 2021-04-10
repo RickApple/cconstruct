@@ -290,7 +290,7 @@ const char* cc_printf(const char* format, ...) {
   unsigned output_length = (unsigned)vsnprintf(out, alloc_size - 1, format, args);
   va_end(args);
 
-  if (output_length > alloc_size) {
+  if (output_length >= alloc_size) {
     alloc_size = output_length + 1;
     out        = (char*)cc_alloc_(alloc_size);
     va_start(args, format);
