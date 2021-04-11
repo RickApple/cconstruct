@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(_WIN32)
+#else
+#include <errno.h>
+#include <sys/stat.h>
+#endif
 
 #include "../source/tools.inl"
 

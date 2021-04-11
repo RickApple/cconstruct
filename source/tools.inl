@@ -1,14 +1,3 @@
-#if defined(_MSC_VER)
-#include <Windows.h>
-#include <direct.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#else
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
-
 #define countof(a) sizeof(a) / sizeof(a[0])
 
 bool cc_is_verbose          = false;
@@ -146,9 +135,6 @@ int make_folder(const char* folder_path) {
   return 0;
 }
 #else
-#include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 int make_folder(const char* folder_path) {
   char buffer[1024] = {0};

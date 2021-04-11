@@ -1,12 +1,3 @@
-
-#if defined(_WIN32)
-// First
-#include <Windows.h>
-// Later
-#include <DbgHelp.h>
-#pragma comment(lib, "DbgHelp.lib")
-#endif
-
 #if defined(_WIN32)
 void PrintStrackFromContext(PCONTEXT Context) {
   SymSetOptions(SYMOPT_LOAD_LINES);

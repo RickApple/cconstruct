@@ -1,8 +1,4 @@
 #ifdef _WIN32
-#include <malloc.h>
-#include <stdio.h>
-#include <tchar.h>
-#include <windows.h>
 
 #pragma warning(disable : 4996)
 

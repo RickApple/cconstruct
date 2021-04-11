@@ -1,5 +1,20 @@
 #if defined(_WIN32)
+// First
 #include <Windows.h>
+// Later
+#include <DbgHelp.h>
+#include <direct.h>
+#include <errno.h>
+#include <malloc.h>
+#include <tchar.h>
+#pragma comment(lib, "DbgHelp.lib")
+#else
+#include <err.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 #include <assert.h>
@@ -9,17 +24,18 @@
 #include <string.h>
 
 // Tools
+// clang-format off
 #include "stack.inl"
 #include "tools.inl"
 #include "types.inl"
 #include "data_tree.inl"
 
 // Constructors
-#include "vs2019_generator.inl"
-#include "xcode11_generator.inl"
-
-#include "process.inl"
 #include "builder.inl"
+#include "process.inl"
+#include "vs2019_constructor.inl"
+#include "xcode11_constructor.inl"
+// clang-format on
 
 #if defined(_WIN32)
 LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
@@ -29,9 +45,6 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
   exit(ERR_CONSTRUCTION);
 }
 #else
-#include <signal.h>
-
-#include <err.h>
 void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
   (void)sig;
   (void)siginfo;
