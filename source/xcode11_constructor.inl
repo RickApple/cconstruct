@@ -198,6 +198,20 @@ void dt_api_add_child_value_and_comment(struct data_tree_t* dt, unsigned int par
   data_tree_api.set_object_comment(dt, node, comment);
 }
 
+
+void optionDeploymentTarget(struct data_tree_t* dt, unsigned int compile_group,
+               const char* remaining_flag_value) {
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "MACOSX_DEPLOYMENT_TARGET"), remaining_flag_value);
+}
+
+typedef struct xcode_compiler_flag {
+  const char* flag;
+  const func action;
+} xcode_compiler_flag;
+
+const xcode_compiler_flag xcode_known_compiler_flags_[] = {{"MACOSX_DEPLOYMENT_TARGET=", &optionDeploymentTarget}};
+
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
                             const char* build_to_base_path) {
@@ -989,6 +1003,19 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     const cc_configuration_impl_t* config = cc_data_.configurations[i];
     const char* config_name               = cc_data_.configurations[i]->label;
 
+    EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+    bool shouldDisableWarningsAsError         = false;
+    for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+      const cc_state_impl_t* flags = &(p->state[ipc]);
+
+      // TODO ordering and combination so that more specific flags can override general ones
+      if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+      // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
+
+      shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+      combined_warning_level       = flags->warningLevel;
+    }
+    
     {
       const char* config_id = xCodeUUID2String(xCodeGenerateUUID());
 
@@ -1025,33 +1052,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           dt_api->create_object(&dt, nodeBuildSettings, "OTHER_CFLAGS");
       dt.objects[node_additional_compiler_flags].is_array = true;
 
-      EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
-      bool shouldDisableWarningsAsError         = false;
-      for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
-        const cc_state_impl_t* flags = &(p->state[ipc]);
 
-        // TODO ordering and combination so that more specific flags can override general ones
-        if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
-        // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
-
-        shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
-        combined_warning_level       = flags->warningLevel;
-
-        for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
-          dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines,
-                                             cc_printf("\"%s\"", flags->defines[pdi]), NULL);
-        }
-
-        for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
-          dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
-                                             cc_printf("\"%s\"", flags->compile_options[cfi]),
-                                             NULL);
-        }
-        for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
-          // Order matters here, so append
-          add_build_setting(&dt, node_header_search_paths, flags->include_folders[ifi], NULL);
-        }
-      }
       assert(array_count(cc_data_.architectures) == 1);
       assert(cc_data_.architectures[0]->type == EArchitectureX64);
       const char* resolved_output_folder = cc_substitute(
@@ -1169,6 +1170,45 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           break;
       }
 
+      EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+      bool shouldDisableWarningsAsError         = false;
+      for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+        const cc_state_impl_t* flags = &(p->state[ipc]);
+
+        // TODO ordering and combination so that more specific flags can override general ones
+        if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
+        // if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
+
+        shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+        combined_warning_level       = flags->warningLevel;
+
+        for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
+          dt_api_add_child_value_and_comment(&dt, node_preprocessor_defines,
+                                             cc_printf("\"%s\"", flags->defines[pdi]), NULL);
+        }
+
+        for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
+          // Index in known flags
+          const char* current_flag = flags->compile_options[cfi];
+          bool found               = false;
+          for (unsigned kfi = 0; kfi < countof(known_compiler_flags); kfi++) {
+            const char* foundString = strstr(current_flag, xcode_known_compiler_flags_[kfi].flag);
+            if ( foundString) {
+              found = true;
+              xcode_known_compiler_flags_[kfi].action(&dt, nodeBuildSettings, foundString+strlen(xcode_known_compiler_flags_[kfi].flag));
+            }
+          }
+          if (!found) {
+            dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
+                                              cc_printf("\"%s\"", flags->compile_options[cfi]),
+                                              NULL);
+          }
+        }
+        for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
+          // Order matters here, so append
+          add_build_setting(&dt, node_header_search_paths, flags->include_folders[ifi], NULL);
+        }
+      }
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeBuildConfigurationList, "name"),
                                config_name);
     }
