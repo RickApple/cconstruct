@@ -176,22 +176,7 @@ static uintptr_t cc_next_free           = (uintptr_t)NULL;
 static uintptr_t cc_end_next_free       = (uintptr_t)NULL;
 static size_t cc_total_bytes_allocated_ = 0;
 
-static void cc_print_statistics_(void) {
-  if (cc_total_bytes_allocated_) {
-    printf("======================\nCConstruct used %u bytes of memory\n",
-           (unsigned int)cc_total_bytes_allocated_);
-  }
-}
-
-static void cc_disable_statistics_printing_(void) { cc_total_bytes_allocated_ = 0; }
-
 void* cc_alloc_(size_t size) {
-  if (cc_total_bytes_allocated_ == 0) {
-    if (atexit(cc_print_statistics_) != 0) {
-      // Oh well, failed to install that, but don't care much
-    }
-  }
-
   cc_total_bytes_allocated_ += size;
   if ((cc_end_next_free - cc_next_free) < size) {
     // Doesn't fit, allocate a new block

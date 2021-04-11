@@ -116,15 +116,15 @@ int cc_runNewBuild_() {
 // figure out why.
 void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
   printf("Generating project for CConstruct config\n");
-  cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
-  cc_platform_t platform = cc.createPlatform(EPlatformDesktop);
+  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
+  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug = cc.createConfiguration("Debug");
+  cc_configuration_t configuration_debug = cc.configuration.create("Debug");
   cc.workspace.addConfiguration(configuration_debug);
 
-  cc_project_t p = cc.createProject("cconstruct", CCProjectTypeConsoleApplication, NULL);
+  cc_project_t p = cc.project.create("cconstruct", CCProjectTypeConsoleApplication, NULL);
 
   const char* files[] = {strip_path(make_uri(cc_config_path))};
   cc.project.addFiles(p, countof(files), files, NULL);
@@ -132,6 +132,13 @@ void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
   cc.workspace.setLabel("cconstruct");
 
   cc_default_generator("build");
+}
+
+static void cc_print_statistics_(void) {
+  if (cc_total_bytes_allocated_) {
+    printf("======================\nCConstruct used %u KiB of memory\n",
+           (unsigned int)(cc_total_bytes_allocated_ / 1024));
+  }
 }
 
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
@@ -181,10 +188,6 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     }
   }
 
-  // First group is no group
-  cc_group_impl_t null_group = {0};
-  array_push(cc_data_.groups, null_group);
-
   // If not only generating, then a new binary is built, that is run, and only then do we attempt
   // to clean up this existing version. This binary doesn't do any construction of projects.
   if (!cc_only_generate) {
@@ -195,34 +198,40 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     if (result == 0) {
       cc_activateNewBuild_();
     }
-    // Don't print any statistics from the bootstrap CConstruct binary
-    cc_disable_statistics_printing_();
     exit(result);
   }
+
+  if (atexit(cc_print_statistics_) != 0) {
+    // Oh well, failed to install that, but don't care much as it doesn't affect operation of
+    // CConstruct.
+  }
+
+  // First group is no group
+  cc_group_impl_t null_group = {0};
+  array_push(cc_data_.groups, null_group);
 
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
 
   // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
-  cconstruct_t out = {
-      &cc_configuration_create,
-      &cc_architecture_create,
-      &cc_platform_create,
-      &cc_project_create_,
-      &cc_group_create,
-      &cc_state_create,
-      {&cc_state_reset, &cc_state_addIncludeFolder, &cc_state_addPreprocessorDefine,
-       &cc_state_addCompilerFlag, &cc_state_addLinkerFlag, &cc_state_linkExternalLibrary,
-       &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
-      {
-          &addFilesToProject,
-          &addFilesFromFolderToProject,
-          &cc_project_addFileWithCustomCommand,
-          &cc_project_addInputProject,
-          &cc_project_setFlags_,
-          &addPostBuildAction,
-          &cc_project_setOutputFolder,
-      },
-      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
+  cconstruct_t out = {{&cc_configuration_create},
+                      {&cc_architecture_create},
+                      {&cc_platform_create},
+                      {&cc_group_create},
+                      {&cc_state_create, &cc_state_reset, &cc_state_addIncludeFolder,
+                       &cc_state_addPreprocessorDefine, &cc_state_addCompilerFlag,
+                       &cc_state_addLinkerFlag, &cc_state_linkExternalLibrary,
+                       &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
+                      {
+                          &cc_project_create_,
+                          &addFilesToProject,
+                          &addFilesFromFolderToProject,
+                          &cc_project_addFileWithCustomCommand,
+                          &cc_project_addInputProject,
+                          &cc_project_setFlags_,
+                          &addPostBuildAction,
+                          &cc_project_setOutputFolder,
+                      },
+                      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
   if (cc_generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);

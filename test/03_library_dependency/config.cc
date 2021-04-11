@@ -5,17 +5,17 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setLabel("library_dependency");
 
-  cc_architecture_t arch = cc.createArchitecture(EArchitectureX64);
-  cc_platform_t platform = cc.createPlatform(EPlatformDesktop);
+  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
+  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug   = cc.createConfiguration("Debug");
-  cc_configuration_t configuration_release = cc.createConfiguration("Release");
+  cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
+  cc_configuration_t configuration_release = cc.configuration.create("Release");
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  cc_project_t ls = cc.createProject("my_library", CCProjectTypeStaticLibrary, NULL);
+  cc_project_t ls = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);
   {
     const char* c_files[] = {"src/library/library.c"};
     cc.project.addFiles(ls, countof(c_files), c_files, NULL);
@@ -23,7 +23,7 @@ int main(int argc, const char** argv) {
     cc.project.addFiles(ls, countof(h_files), h_files, NULL);
   }
 
-  cc_project_t ld = cc.createProject("my_dynamic_library", CCProjectTypeDynamicLibrary, NULL);
+  cc_project_t ld = cc.project.create("my_dynamic_library", CCProjectTypeDynamicLibrary, NULL);
   {
     const char* c_files[] = {"src/library/library_dynamic.c"};
     cc.project.addFiles(ld, countof(c_files), c_files, NULL);
@@ -31,7 +31,7 @@ int main(int argc, const char** argv) {
     cc.project.addFiles(ld, countof(h_files), h_files, NULL);
   }
 
-  cc_project_t b = cc.createProject("my_binary", CCProjectTypeConsoleApplication, NULL);
+  cc_project_t b = cc.project.create("my_binary", CCProjectTypeConsoleApplication, NULL);
   {
     const char* files[] = {"src/main.c"};
     cc.project.addFiles(b, countof(files), files, NULL);

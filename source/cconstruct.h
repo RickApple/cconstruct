@@ -67,22 +67,31 @@ typedef struct cc_configuration_impl_t* cc_configuration_t;
 typedef struct cc_state_impl_t* cc_state_t;
 
 typedef struct cconstruct_t {
-  cc_configuration_t (*createConfiguration)(const char* in_label);
-  cc_architecture_t (*createArchitecture)(EArchitecture in_type);
-  cc_platform_t (*createPlatform)(EPlatform in_type);
-  cc_project_t (*createProject)(const char* in_project_name, EProjectType in_project_type,
-                                const cc_group_t in_parent_group);
+  struct {
+    cc_configuration_t (*create)(const char* in_label);
+  } configuration;
 
-  /* Create a group/folder in the workspace, at any level (files and projects can go into groups).
-   *
-   * @param in_parent may be NULL, the parent will then be whatever is applicable at that level
-   * (workspace/project)
-   */
-  cc_group_t (*createGroup)(const char* in_group_name, const cc_group_t in_parent_group);
+  struct {
+    cc_architecture_t (*create)(EArchitecture in_type);
+  } architecture;
+  
+  struct {
+    cc_platform_t (*create)(EPlatform in_type);
+  } platform;
 
-  cc_state_t (*createState)();
+  struct {
+    /* Create a group/folder in the workspace, at any level (files and projects can go into groups).
+    *
+    * @param in_parent may be NULL, the parent will then be whatever is applicable at that level
+    * (workspace/project)
+    */
+    cc_group_t (*create)(const char* in_group_name, const cc_group_t in_parent_group);
+  } group;
 
+  
   const struct {
+    cc_state_t (*create)();
+
     void (*reset)(cc_state_t in_out_state);
     void (*addIncludeFolder)(cc_state_t in_out_state, const char* in_include_folder);
     void (*addPreprocessorDefine)(cc_state_t in_out_state, const char* in_define);
@@ -98,6 +107,9 @@ typedef struct cconstruct_t {
   } state;
 
   const struct {
+    cc_project_t (*create)(const char* in_project_name, EProjectType in_project_type,
+                                const cc_group_t in_parent_group);
+
     /* Add files to a project. .c/.cpp files are automatically added to be compiled, everything
      * else is treated as a header file.
      */
