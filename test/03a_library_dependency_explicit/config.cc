@@ -1,12 +1,10 @@
 #include "../../source/cconstruct.h"
 
-
 #if defined(_MSC_VER)
   #define OUTPUT_FOLDER "build/msvc"
 #else
   #define OUTPUT_FOLDER "build/xcode"
 #endif
-
 
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);

@@ -1,11 +1,11 @@
 #if defined(_WIN32)
-#if !defined(my_dynamic_library_EXPORTS)
-#define DLL_EXPORT __declspec(dllimport)
-#else
-#define DLL_EXPORT __declspec(dllexport)
-#endif
+  #if !defined(my_dynamic_library_EXPORTS)
+    #define DLL_EXPORT __declspec(dllimport)
+  #else
+    #define DLL_EXPORT __declspec(dllexport)
+  #endif
 #elif defined(__clang__)
-#define DLL_EXPORT
+  #define DLL_EXPORT
 #endif
 
 #if defined(__cplusplus)

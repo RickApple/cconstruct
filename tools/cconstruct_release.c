@@ -5,9 +5,13 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(_WIN32)
+  // First
+  #include <Windows.h>
+  // Later
+  #include <direct.h>
 #else
-#include <errno.h>
-#include <sys/stat.h>
+  #include <errno.h>
+  #include <sys/stat.h>
 #endif
 
 #include "../source/tools.inl"

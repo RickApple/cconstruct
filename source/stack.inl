@@ -9,26 +9,26 @@ void PrintStrackFromContext(PCONTEXT Context) {
   STACKFRAME64 stack_frame = {0};
 
   // Set up stack frame.
-#ifdef _M_IX86
+  #ifdef _M_IX86
   machine_type                 = IMAGE_FILE_MACHINE_I386;
   stack_frame.AddrPC.Offset    = Context->Eip;
   stack_frame.AddrFrame.Offset = Context->Ebp;
   stack_frame.AddrStack.Offset = Context->Esp;
-#elif _M_X64
+  #elif _M_X64
   machine_type                 = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset    = Context->Rip;
   stack_frame.AddrFrame.Offset = Context->Rsp;
   stack_frame.AddrStack.Offset = Context->Rsp;
-#elif _M_IA64
+  #elif _M_IA64
   machine_type                  = IMAGE_FILE_MACHINE_IA64;
   stack_frame.AddrPC.Offset     = Context->StIIP;
   stack_frame.AddrFrame.Offset  = Context->IntSp;
   stack_frame.AddrBStore.Offset = Context->RsBSP;
   stack_frame.AddrBStore.Mode   = AddrModeFlat;
   stack_frame.AddrStack.Offset  = Context->IntSp;
-#else
-#error "Unsupported platform"
-#endif
+  #else
+    #error "Unsupported platform"
+  #endif
   stack_frame.AddrPC.Mode    = AddrModeFlat;
   stack_frame.AddrFrame.Mode = AddrModeFlat;
   stack_frame.AddrStack.Mode = AddrModeFlat;

@@ -1,20 +1,20 @@
 #if defined(_WIN32)
-// First
-#include <Windows.h>
-// Later
-#include <DbgHelp.h>
-#include <direct.h>
-#include <errno.h>
-#include <malloc.h>
-#include <tchar.h>
-#pragma comment(lib, "DbgHelp.lib")
+  // First
+  #include <Windows.h>
+  // Later
+  #include <DbgHelp.h>
+  #include <direct.h>
+  #include <errno.h>
+  #include <malloc.h>
+  #include <tchar.h>
+  #pragma comment(lib, "DbgHelp.lib")
 #else
-#include <err.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+  #include <err.h>
+  #include <errno.h>
+  #include <signal.h>
+  #include <sys/stat.h>
+  #include <sys/types.h>
+  #include <unistd.h>
 #endif
 
 #include <assert.h>
@@ -31,8 +31,8 @@
 #include "data_tree.inl"
 
 // Constructors
-#include "builder.inl"
 #include "process.inl"
+#include "builder.inl"
 #include "vs2019_constructor.inl"
 #include "xcode11_constructor.inl"
 // clang-format on
@@ -75,13 +75,13 @@ void set_signal_handler() {
     sig_action.sa_sigaction     = posix_signal_handler;
     sigemptyset(&sig_action.sa_mask);
 
-#ifdef __APPLE__
+  #ifdef __APPLE__
     /* for some reason we backtrace() doesn't work on osx
        when we use an alternate stack */
     sig_action.sa_flags = SA_SIGINFO;
-#else
+  #else
     sig_action.sa_flags = SA_SIGINFO | SA_ONSTACK;
-#endif
+  #endif
 
     if (sigaction(SIGSEGV, &sig_action, NULL) != 0) {
       err(1, "sigaction");

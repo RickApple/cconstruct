@@ -163,7 +163,7 @@ void dt_set_object_parameter(struct data_tree_t* dt, unsigned int object, const 
       }
 
       // Prepare for next iteration
-      if( param_obj->next_sibling ) {
+      if (param_obj->next_sibling) {
         param_obj = dt->objects + param_obj->next_sibling;
       }
     } while (param_obj->next_sibling);

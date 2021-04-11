@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#pragma warning(disable : 4996)
+  #pragma warning(disable : 4996)
 
 typedef struct system_np_s {
   HANDLE child_stdout_read;

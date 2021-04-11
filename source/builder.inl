@@ -9,7 +9,7 @@ const char* cconstruct_old_binary_name      = "cconstruct.old";
 #endif
 
 #if defined(_WIN32)
-#include <Windows.h>
+  #include <Windows.h>
 
 static char stdout_data[16 * 1024 * 1024] = {0};
 static char stderr_data[16 * 1024 * 1024] = {0};
@@ -45,11 +45,11 @@ const char* cc_find_VcDevCmd_bat_() {
     s++;
   }
 
-#if _M_X64
+  #if _M_X64
   return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars64.bat", stdout_data);
-#else
+  #else
   return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars32.bat", stdout_data);
-#endif
+  #endif
 }
 
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
@@ -65,19 +65,19 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       // Would prefer to embed them into binary, but that isn't possible. The binary will reference
       // the PDB file in the %TEMP% folder where it was built.
       "/ZI "
-#ifndef NDEBUG
+  #ifndef NDEBUG
       "/DEBUG "
-#endif
+  #endif
       "/Fe%s %s "
       "/nologo "
       "/INCREMENTAL:NO "
-#ifdef __cplusplus
+  #ifdef __cplusplus
       // Set compiler option so that the file is compiled as C or C++, depending on the compiler
       // settings used to manually compile the first CConstruct binary.
       "/TP "
-#else
+  #else
       "/TC "
-#endif
+  #endif
       "&& popd",
       VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path);
 
@@ -166,27 +166,27 @@ void cc_activateNewBuild_() {
 }
 
 #elif defined(__APPLE__)
-#include <stdio.h>
+  #include <stdio.h>
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
-#if __cplusplus
+  #if __cplusplus
   const char* language_revision =
-#if (__cplusplus > 201700)
+    #if (__cplusplus > 201700)
       "17";
-#elif (__cplusplus > 201400)
+    #elif (__cplusplus > 201400)
       "14";
-#elif (__cplusplus > 201100)
+    #elif (__cplusplus > 201100)
       "11";
-#else
+    #else
       "98";
-#endif
+    #endif
   const char* recompile_command =
       cc_printf("clang++ %s -x c++ -std=c++%s -o %s", cconstruct_config_file_path,
                 language_revision, cconstruct_internal_binary_name);
 
-#else
+  #else
   const char* recompile_command = cc_printf("clang %s -x c -o %s", cconstruct_config_file_path,
                                             cconstruct_internal_binary_name);
-#endif
+  #endif
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
               recompile_command);
 

@@ -6,9 +6,9 @@
 //  Copyright © 2020 Daedalus Development. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+#import <UIKit/UIKit.h>
 #import "Renderer.h"
 
 // Our iOS view controller

@@ -1,9 +1,8 @@
 class C {
-public:
+ public:
   int i;
   float f;
 };
-
 
 extern "C" int cFunction();
 

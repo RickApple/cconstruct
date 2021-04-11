@@ -7,7 +7,7 @@ bool cc_generate_cc_project = false;  // Generate a project for the CConstruct c
 #if defined(_MSC_VER)
 void printStack(void);
 void printStack(void) {
-#if 0
+  #if 0
      unsigned int   i;
      void         * stack[ 100 ];
      unsigned short frames;
@@ -34,15 +34,15 @@ void printStack(void) {
            printf("%s(%i)\n", lineInfo.FileName, lineInfo.LineNumber);
          }
 
-#if defined(_WIN64)
+    #if defined(_WIN64)
          printf( "%i: %s - 0x%0llX\n", frames - i - 1, symbol->Name, symbol->Address );
-#else
+    #else
          printf( "%i: %s - 0x%0X\n", frames - i - 1, symbol->Name, symbol->Address );
-#endif
+    #endif
      }
 
      free( symbol );
-#endif
+  #endif
 }
 #else
 void printStack() {
@@ -261,8 +261,8 @@ void* array_reserve(void* a, unsigned element_size, unsigned new_capacity) {
 }
 
 #if !defined(_MSC_VER)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wformat-nonliteral"
 #endif
 const char* cc_printf(const char* format, ...) {
   unsigned length = (unsigned)strlen(format);
@@ -290,7 +290,7 @@ const char* cc_printf(const char* format, ...) {
   return out;
 }
 #if !defined(_MSC_VER)
-#pragma clang diagnostic pop
+  #pragma clang diagnostic pop
 #endif
 
 const char* cc_substitute(const char* in_original, const char** keys, const char** values,
