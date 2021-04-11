@@ -188,11 +188,15 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   // If not only generating, then a new binary is built, that is run, and only then do we attempt
   // to clean up this existing version. This binary doesn't do any construction of projects.
   if (!cc_only_generate) {
+    printf("Rebuilding CConstruct ...");
     cc_recompile_binary_(in_absolute_config_file_path);
+    printf(" done\n");
     int result = cc_runNewBuild_();
     if (result == 0) {
       cc_activateNewBuild_();
     }
+    // Don't print any statistics from the bootstrap CConstruct binary
+    cc_disable_statistics_printing_();
     exit(result);
   }
 
