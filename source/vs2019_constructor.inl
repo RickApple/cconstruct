@@ -680,6 +680,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     data_tree_api.set_object_value(&dt, outputs_obj, out_file_path);
   }
 
+  // Add Visual Studio references (automatically links projects).
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const char* id            = vs_findUUIDForProject(project_ids, p->dependantOn[i]);
     const char* project_label = p->dependantOn[i]->name;
@@ -729,69 +730,7 @@ const char* solutionArch2String_(EArchitecture arch) {
   return "";
 }
 
-void vs2019_generateInFolder(const char* in_workspace_path) {
-  in_workspace_path = make_uri(in_workspace_path);
-  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
-    in_workspace_path = cc_printf("%s/", in_workspace_path);
-
-  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
-
-  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
-
-  for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
-    // Adjust all the files to be relative to the build output folder
-    cc_project_impl_t* project = cc_data_.projects[project_idx];
-    for (unsigned file_idx = 0; file_idx < array_count(project->file_data); file_idx++) {
-      project->file_data[file_idx]->path =
-          cc_printf("%s%s", build_to_base_path, project->file_data[file_idx]->path);
-    }
-    for (unsigned file_idx = 0; file_idx < array_count(project->file_data_custom_command);
-         file_idx++) {
-      project->file_data_custom_command[file_idx]->path =
-          cc_printf("%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->path);
-      project->file_data_custom_command[file_idx]->output_file = cc_printf(
-          "%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->output_file);
-    }
-    for (unsigned state_idx = 0; state_idx < array_count(project->state); state_idx++) {
-      const cc_state_impl_t* state = project->state + state_idx;
-      // Also all the include paths
-      for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
-           includes_idx++) {
-        const char* include_path            = state->include_folders[includes_idx];
-        const bool is_absolute_path         = (include_path[0] == '/') || (include_path[1] == ':');
-        const bool starts_with_env_variable = (include_path[0] == '$');
-        if (!is_absolute_path && !starts_with_env_variable) {
-          state->include_folders[includes_idx] =
-              cc_printf("%s%s", build_to_base_path, include_path);
-        }
-      }
-    }
-  }
-
-  printf("Generating Visual Studio 2019 solution and projects in '%s'...\n", output_folder);
-
-  int result = make_folder(output_folder);
-  if (result != 0) {
-    fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
-  }
-  (void)chdir(output_folder);
-
-  const char** project_ids =
-      (const char**)cc_alloc_(sizeof(const char*) * array_count(cc_data_.projects));
-
-  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-    project_ids[i] = vs_generateUUID();
-  }
-
-  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-    const cc_project_impl_t* p = cc_data_.projects[i];
-    const char* project_id     = project_ids[i];
-    vs2019_createFilters(p, output_folder);
-    vs2019_createProjectFile(p, project_id, project_ids, output_folder, build_to_base_path);
-
-    printf("Constructed VS2019 project '%s.vcxproj'\n", p->name);
-  }
-
+void vs2019_createSolutionFile(const char** project_ids) {
   // Create list of groups needed.
   bool* groups_needed = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
   memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
@@ -814,6 +753,7 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
           "Microsoft Visual Studio Solution File, Format Version 12.00\n# Visual Studio Version "
           "16\nVisualStudioVersion = 16.0.29709.97\nMinimumVisualStudioVersion = 10.0.40219.1\n");
 
+  // Add projects
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const char* projectId      = project_ids[i];
     const cc_project_impl_t* p = cc_data_.projects[i];
@@ -821,6 +761,17 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
             "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"%s\", \"%s.vcxproj\", "
             "\"{%s}\"\n",
             p->name, replaceSpacesWithUnderscores(p->name), projectId);
+
+    // Add Visual Studio dependencies (only influences build order, does not automatically link).
+    if (array_count(p->dependantOnNoLink) > 0) {
+      fprintf(workspace, "\tProjectSection(ProjectDependencies) = postProject\n");
+      for (unsigned ipnl = 0; ipnl < array_count(p->dependantOnNoLink); ++ipnl) {
+        const char* id = vs_findUUIDForProject(project_ids, p->dependantOnNoLink[ipnl]);
+        fprintf(workspace, "\t\t{%s} = {%s}\n", id, id);
+      }
+      fprintf(workspace, "\tEndProjectSection\n");
+    }
+
     fprintf(workspace, "EndProject\n");
   }
 
@@ -901,5 +852,72 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
           "	EndGlobalSection\nEndGlobal\n");
 
   fclose(workspace);
+
   printf("Constructed VS2019 workspace at '%s'\n", workspace_file_path);
+}
+
+void vs2019_generateInFolder(const char* in_workspace_path) {
+  in_workspace_path = make_uri(in_workspace_path);
+  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
+
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
+
+  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+
+  for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
+    // Adjust all the files to be relative to the build output folder
+    cc_project_impl_t* project = cc_data_.projects[project_idx];
+    for (unsigned file_idx = 0; file_idx < array_count(project->file_data); file_idx++) {
+      project->file_data[file_idx]->path =
+          cc_printf("%s%s", build_to_base_path, project->file_data[file_idx]->path);
+    }
+    for (unsigned file_idx = 0; file_idx < array_count(project->file_data_custom_command);
+         file_idx++) {
+      project->file_data_custom_command[file_idx]->path =
+          cc_printf("%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->path);
+      project->file_data_custom_command[file_idx]->output_file = cc_printf(
+          "%s%s", build_to_base_path, project->file_data_custom_command[file_idx]->output_file);
+    }
+    for (unsigned state_idx = 0; state_idx < array_count(project->state); state_idx++) {
+      const cc_state_impl_t* state = project->state + state_idx;
+      // Also all the include paths
+      for (unsigned includes_idx = 0; includes_idx < array_count(state->include_folders);
+           includes_idx++) {
+        const char* include_path            = state->include_folders[includes_idx];
+        const bool is_absolute_path         = (include_path[0] == '/') || (include_path[1] == ':');
+        const bool starts_with_env_variable = (include_path[0] == '$');
+        if (!is_absolute_path && !starts_with_env_variable) {
+          state->include_folders[includes_idx] =
+              cc_printf("%s%s", build_to_base_path, include_path);
+        }
+      }
+    }
+  }
+
+  printf("Generating Visual Studio 2019 solution and projects in '%s'...\n", output_folder);
+
+  int result = make_folder(output_folder);
+  if (result != 0) {
+    fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
+  }
+  (void)chdir(output_folder);
+
+  const char** project_ids =
+      (const char**)cc_alloc_(sizeof(const char*) * array_count(cc_data_.projects));
+
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    project_ids[i] = vs_generateUUID();
+  }
+
+  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
+    const cc_project_impl_t* p = cc_data_.projects[i];
+    const char* project_id     = project_ids[i];
+    vs2019_createFilters(p, output_folder);
+    vs2019_createProjectFile(p, project_id, project_ids, output_folder, build_to_base_path);
+
+    printf("Constructed VS2019 project '%s.vcxproj'\n", p->name);
+  }
+
+  vs2019_createSolutionFile(project_ids);
 }

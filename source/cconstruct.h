@@ -74,21 +74,21 @@ typedef struct cconstruct_t {
   struct {
     cc_architecture_t (*create)(EArchitecture in_type);
   } architecture;
-  
+
   struct {
     cc_platform_t (*create)(EPlatform in_type);
   } platform;
 
   struct {
-    /* Create a group/folder in the workspace, at any level (files and projects can go into groups).
-    *
-    * @param in_parent may be NULL, the parent will then be whatever is applicable at that level
-    * (workspace/project)
-    */
+    /* Create a group/folder in the workspace, at any level (files and projects can go into
+     * groups).
+     *
+     * @param in_parent may be NULL, the parent will then be whatever is applicable at that level
+     * (workspace/project)
+     */
     cc_group_t (*create)(const char* in_group_name, const cc_group_t in_parent_group);
   } group;
 
-  
   const struct {
     cc_state_t (*create)();
 
@@ -108,7 +108,7 @@ typedef struct cconstruct_t {
 
   const struct {
     cc_project_t (*create)(const char* in_project_name, EProjectType in_project_type,
-                                const cc_group_t in_parent_group);
+                           const cc_group_t in_parent_group);
 
     /* Add files to a project. .c/.cpp files are automatically added to be compiled, everything
      * else is treated as a header file.
@@ -126,6 +126,11 @@ typedef struct cconstruct_t {
      * in the IDE. It will *NOT* automatically add include-folders.
      */
     void (*addInputProject)(cc_project_t target_project, const cc_project_t on_project);
+
+    /* Add dependency between projects. This will only set the build order in the IDE. It will
+     * *NOT* automatically add include-folders or link the earlier project.
+     */
+    void (*setBuildOrder)(cc_project_t earlier_project, const cc_project_t later_project);
 
     /* Set state on a project.
      *

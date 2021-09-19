@@ -54,6 +54,7 @@ typedef struct cc_project_impl_t {
   struct cc_file_t_** file_data;                               /* stretch array */
   struct cc_file_custom_command_t_** file_data_custom_command; /* stretch array */
   cc_project_impl_t** dependantOn;                             /* stretch array */
+  cc_project_impl_t** dependantOnNoLink;                       /* stretch array */
 
   cc_state_impl_t* state;                 /* stretch array */
   cc_configuration_impl_t** configs;      /* stretch array */
@@ -181,6 +182,15 @@ void cc_project_addInputProject(cc_project_t target_project, const cc_project_t 
   assert(on_project);
 
   array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
+}
+
+void cc_project_addDependency(cc_project_t earlier_project,
+                              const cc_project_t later_project) {
+  assert(earlier_project);
+  assert(later_project);
+
+  array_push(((cc_project_impl_t*)later_project)->dependantOnNoLink,
+             (cc_project_impl_t*)earlier_project);
 }
 
 void addConfiguration(const cc_configuration_t in_configuration) {

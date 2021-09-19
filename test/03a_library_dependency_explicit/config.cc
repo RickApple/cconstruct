@@ -25,27 +25,13 @@ int main(int argc, const char** argv) {
   cc.workspace.addConfiguration(configuration_debug);
   cc.workspace.addConfiguration(configuration_release);
 
-  cc_project_t l = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);
-  cc.project.setOutputFolder(l, "${platform}/${configuration}/lib");
-  {
-    const char* c_files[] = {"src/library/library.c"};
-    cc.project.addFiles(l, countof(c_files), c_files, NULL);
-    const char* h_files[] = {"src/library/function.h"};
-    cc.project.addFiles(l, countof(h_files), h_files, NULL);
-  }
-  {
-    cc_state_t s = cc.state.create();
-    cc.state.addPreprocessorDefine(s, "IS_DEBUG=1");
-    cc.project.setFlags(l, s, NULL, configuration_debug);
-  }
-
+  // Describe binary
   cc_project_t b = cc.project.create("my_binary", CCProjectTypeConsoleApplication, NULL);
   cc.project.setOutputFolder(b, "${platform}/${configuration}/bin");
   {
     const char* files[] = {"src/main.c"};
     cc.project.addFiles(b, countof(files), files, NULL);
   }
-
 #if defined(_WIN32)
   {
     cc_state_t s = cc.state.create();
@@ -69,6 +55,28 @@ int main(int argc, const char** argv) {
     cc.project.setFlags(b, s, NULL, configuration_release);
   }
 #endif
+
+  // Describe library
+  cc_project_t l = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);
+  cc.project.setOutputFolder(l, "${platform}/${configuration}/lib");
+  {
+    const char* c_files[] = {"src/library/library.c"};
+    cc.project.addFiles(l, countof(c_files), c_files, NULL);
+    const char* h_files[] = {"src/library/function.h"};
+    cc.project.addFiles(l, countof(h_files), h_files, NULL);
+  }
+  {
+    cc_state_t s = cc.state.create();
+    cc.state.addPreprocessorDefine(s, "IS_DEBUG=1");
+    cc.project.setFlags(l, s, NULL, configuration_debug);
+  }
+
+  // The order in which projects are created determines the default build order.
+  // Because this example explicitly links the library files, instead of adding reference,
+  // the build would fail because the binary builds before the library.
+  //
+  // Adding an explicit build order between the two projects solves this.
+  cc.project.setBuildOrder(l, b);
 
   cc_default_generator(OUTPUT_FOLDER);
 

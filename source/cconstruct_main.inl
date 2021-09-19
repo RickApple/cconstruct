@@ -226,25 +226,27 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
 
   // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
-  cconstruct_t out = {{&cc_configuration_create},
-                      {&cc_architecture_create},
-                      {&cc_platform_create},
-                      {&cc_group_create},
-                      {&cc_state_create, &cc_state_reset, &cc_state_addIncludeFolder,
-                       &cc_state_addPreprocessorDefine, &cc_state_addCompilerFlag,
-                       &cc_state_addLinkerFlag, &cc_state_linkExternalLibrary,
-                       &cc_state_setWarningLevel, &cc_state_disableWarningsAsErrors},
-                      {
-                          &cc_project_create_,
-                          &addFilesToProject,
-                          &addFilesFromFolderToProject,
-                          &cc_project_addFileWithCustomCommand,
-                          &cc_project_addInputProject,
-                          &cc_project_setFlags_,
-                          &addPostBuildAction,
-                          &cc_project_setOutputFolder,
-                      },
-                      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
+  cconstruct_t out = {
+      {&cc_configuration_create},
+      {&cc_architecture_create},
+      {&cc_platform_create},
+      {&cc_group_create},
+      {&cc_state_create, &cc_state_reset, &cc_state_addIncludeFolder,
+       &cc_state_addPreprocessorDefine, &cc_state_addCompilerFlag, &cc_state_addLinkerFlag,
+       &cc_state_linkExternalLibrary, &cc_state_setWarningLevel,
+       &cc_state_disableWarningsAsErrors},
+      {
+          &cc_project_create_,
+          &addFilesToProject,
+          &addFilesFromFolderToProject,
+          &cc_project_addFileWithCustomCommand,
+          &cc_project_addInputProject,  // Visual Studio terminology, add a reference
+          &cc_project_addDependency,  // Visual Studio terminology, add a dependency
+          &cc_project_setFlags_,
+          &addPostBuildAction,
+          &cc_project_setOutputFolder,
+      },
+      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
   if (cc_generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);
