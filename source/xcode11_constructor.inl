@@ -1170,8 +1170,6 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           break;
       }
 
-      EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
-      bool shouldDisableWarningsAsError         = false;
       for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
         const cc_state_impl_t* flags = &(p->state[ipc]);
 
