@@ -4,7 +4,7 @@ echo on
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
 
-
+echo %username%
 
 
 
