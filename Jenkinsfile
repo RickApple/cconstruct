@@ -3,7 +3,8 @@ pipeline {
   stages {
     stage('') {
       steps {
-        bat 'test/run_tests.bat'
+        dir 'test'
+        bat 'run_tests.bat'
       }
     }
 
