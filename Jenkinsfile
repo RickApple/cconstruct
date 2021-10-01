@@ -8,6 +8,10 @@ pipeline {
         }
       }
     }
-
+  }
+  post {
+    success {
+      archiveArtifacts artifacts: 'build/cconstruct.h', fingerprint: false
+    }
   }
 }
