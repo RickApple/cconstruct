@@ -1,7 +1,7 @@
 pipeline {
   agent any
   stages {
-    stage('') {
+    stage('Build') {
       steps {
         dir ('test') {
           bat 'run_tests.bat'
