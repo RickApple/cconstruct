@@ -140,6 +140,10 @@ typedef struct cconstruct_t {
     void (*setFlags)(cc_project_t in_out_project, const cc_state_t in_state,
                      cc_architecture_t in_architecture, cc_configuration_t in_configuration);
 
+    /* Add a command line instruction to execute before the build is started.
+     */
+    void (*addPreBuildAction)(cc_project_t in_out_project, const char* in_action_command);
+
     /* Add a command line instruction to execute after the build has finished successfully.
      */
     void (*addPostBuildAction)(cc_project_t in_out_project, const char* in_action_command);

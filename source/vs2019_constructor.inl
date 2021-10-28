@@ -606,13 +606,21 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalDependencies"),
           link_additional_dependencies);
 
-      bool have_post_build_action = (p->postBuildAction != 0);
+      const bool have_pre_build_action = (p->preBuildAction != 0);
+      if (have_pre_build_action) {
+        const char* windowsPreBuildAction = cc_printf("%s", p->preBuildAction);
+        windowsPreBuildAction             = cc_substitute(windowsPreBuildAction, substitution_keys,
+                                              substitution_values, countof(substitution_keys));
+        unsigned int pbe                  = data_tree_api.create_object(&dt, idg, "PreBuildEvent");
+        data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
+                                       windowsPreBuildAction);
+      }
+      const bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
         const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
         windowsPostBuildAction = cc_substitute(windowsPostBuildAction, substitution_keys,
                                                substitution_values, countof(substitution_keys));
-        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
-        unsigned int pbe = data_tree_api.create_object(&dt, idg, "PostBuildEvent");
+        unsigned int pbe       = data_tree_api.create_object(&dt, idg, "PostBuildEvent");
         data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
                                        windowsPostBuildAction);
       }

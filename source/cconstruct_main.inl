@@ -241,9 +241,10 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           &addFilesFromFolderToProject,
           &cc_project_addFileWithCustomCommand,
           &cc_project_addInputProject,  // Visual Studio terminology, add a reference
-          &cc_project_addDependency,  // Visual Studio terminology, add a dependency
+          &cc_project_addDependency,    // Visual Studio terminology, add a dependency
           &cc_project_setFlags_,
-          &addPostBuildAction,
+          &cc_project_addPreBuildAction,
+          &cc_project_addPostBuildAction,
           &cc_project_setOutputFolder,
       },
       {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};

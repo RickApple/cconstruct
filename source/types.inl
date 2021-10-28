@@ -59,6 +59,7 @@ typedef struct cc_project_impl_t {
   cc_state_impl_t* state;                 /* stretch array */
   cc_configuration_impl_t** configs;      /* stretch array */
   cc_architecture_impl_t** architectures; /* stretch array */
+  const char* preBuildAction;
   const char* postBuildAction;
 
   size_t parent_group_idx;
@@ -184,8 +185,7 @@ void cc_project_addInputProject(cc_project_t target_project, const cc_project_t 
   array_push(((cc_project_impl_t*)target_project)->dependantOn, (cc_project_impl_t*)on_project);
 }
 
-void cc_project_addDependency(cc_project_t earlier_project,
-                              const cc_project_t later_project) {
+void cc_project_addDependency(cc_project_t earlier_project, const cc_project_t later_project) {
   assert(earlier_project);
   assert(later_project);
 
@@ -261,7 +261,11 @@ void cc_state_disableWarningsAsErrors(cc_state_t in_state) {
   ((cc_state_impl_t*)in_state)->disableWarningsAsErrors = true;
 }
 
-void addPostBuildAction(cc_project_t in_out_project, const char* in_action_command) {
+void cc_project_addPreBuildAction(cc_project_t in_out_project, const char* in_action_command) {
+  ((cc_project_impl_t*)in_out_project)->preBuildAction = cc_printf("%s", in_action_command);
+}
+
+void cc_project_addPostBuildAction(cc_project_t in_out_project, const char* in_action_command) {
   ((cc_project_impl_t*)in_out_project)->postBuildAction = cc_printf("%s", in_action_command);
 }
 
