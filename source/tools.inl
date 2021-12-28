@@ -418,7 +418,8 @@ char* make_path_relative(const char* in_base_folder, const char* in_change_path)
   } else {
     // Find common root
     char* end_common_root = base_folder;
-    while ((*end_common_root == *change_path) && *end_common_root && *change_path) {
+    while ((tolower(*end_common_root) == tolower(*change_path)) && *end_common_root &&
+           *change_path) {
       end_common_root++;
       change_path++;
     }
