@@ -2,6 +2,9 @@ tools/build/
 **/cconstruct
 return_value.inl
 test/**/build
+test/**/*.pdb
+test/**/*.ilk
+test/**/*.exe
 .vs
 build
 cconstruct.exe.old

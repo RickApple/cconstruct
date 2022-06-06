@@ -8,25 +8,26 @@
       "name": "(Windows) Launch",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/test/library_dependency/cconstruct.exe",
-      "args": [],
+      "program": "${workspaceFolder}/test/22_cconstruct_architecture/cconstruct.exe",
+      "args": [
+        "--verbose"
+      ],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/test/library_dependency/",
+      "cwd": "${workspaceFolder}/test/22_cconstruct_architecture/",
       "environment": [],
-      "externalConsole": false
+      "console": false
     },
     {
       "name": "(lldb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/test/19_macos_framework/cconstruct",
+      "program": "${workspaceFolder}/test/22_cconstruct_architecture/cconstruct",
       "args": [
-        "--generate-projects"
       ],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/test/19_macos_framework/",
+      "cwd": "${workspaceFolder}/test/22_cconstruct_architecture/",
       "environment": [],
-      "externalConsole": false,
+      "console": false,
       "MIMode": "lldb",
       //"preLaunchTask": "Build"
     }

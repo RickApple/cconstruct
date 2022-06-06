@@ -23,7 +23,8 @@ const char* cc_find_VcDevCmd_bat_() {
 
   int exit_code       = 0;
   const char* command = cc_printf(
-      "\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -latest -property "
+      //"\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -latest -property "
+      "\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -version [16,17) -property "
       "installationPath",
       program_files_x86_path);
   int r = system_np(command, 100 * 1000, stdout_data, sizeof(stdout_data), stderr_data,
@@ -85,7 +86,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
               recompile_command);
   int exit_code = 0;
   int result    = system_np(recompile_command, 100 * 1000, stdout_data, sizeof(stdout_data),
-                         stderr_data, sizeof(stderr_data), &exit_code);
+                            stderr_data, sizeof(stderr_data), &exit_code);
   if (result != 0) {
     char* message;
     DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,

@@ -17,7 +17,7 @@ Warnings are set to a high level by default, and treated as errors by default. S
 Currently there is no way to prevent CConstruct from setting the warnings it wants to, but you could disable those warnings again with regular compiler flags, as they are applied after the chosen warning level is applied.
 
 ## TODO
-
+- Using VS2022 gives errors most of the time when building the replacement cconstruct_internal.exe. Not sure why.
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported [MacOS]
 - Remove some of the conversions between filename, and clarify what path is what path. It's a bit of a mess, especially for VS2019.
 - Compile for Itanium, 32bit and 64bit to check for errors.

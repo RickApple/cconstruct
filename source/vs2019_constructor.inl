@@ -227,6 +227,34 @@ void optionZI(struct data_tree_t* dt, unsigned int compile_group,
       dt, data_tree_api.get_or_create_object(dt, compile_group, "DebugInformationFormat"),
       "EditAndContinue");
 }
+void optionMT(struct data_tree_t* dt, unsigned int compile_group,
+              const char* remaining_flag_value) {
+  (void)remaining_flag_value;
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "RuntimeLibrary"),
+      "MultiThreaded");
+}
+void optionMTd(struct data_tree_t* dt, unsigned int compile_group,
+               const char* remaining_flag_value) {
+  (void)remaining_flag_value;
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "RuntimeLibrary"),
+      "MultiThreadedDebug");
+}
+void optionMD(struct data_tree_t* dt, unsigned int compile_group,
+              const char* remaining_flag_value) {
+  (void)remaining_flag_value;
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "RuntimeLibrary"),
+      "MultiThreadedDLL");
+}
+void optionMDd(struct data_tree_t* dt, unsigned int compile_group,
+               const char* remaining_flag_value) {
+  (void)remaining_flag_value;
+  data_tree_api.set_object_value(
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "RuntimeLibrary"),
+      "MultiThreadedDebugDLL");
+}
 void optionPDB(struct data_tree_t* dt, unsigned int compile_group,
                const char* remaining_flag_value) {
   size_t len        = strlen(remaining_flag_value);
@@ -245,7 +273,9 @@ typedef struct vs_compiler_flag {
   const func action;
 } vs_compiler_flag;
 
-const vs_compiler_flag known_compiler_flags[] = {{"/Zi", &optionZi}, {"/ZI", &optionZI}};
+const vs_compiler_flag known_compiler_flags[] = {{"/Zi", &optionZi}, {"/ZI", &optionZI},
+                                                 {"/MT", &optionMT}, {"/MTd", &optionMTd},
+                                                 {"/MD", &optionMD}, {"/MDd", &optionMDd}};
 const vs_compiler_flag known_linker_flags[]   = {{"/PDB:", &optionPDB}};
 
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
@@ -425,6 +455,16 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, link_obj, "GenerateDebugInformation"),
           "true");
+
+      if (is_debug_build) {
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "RuntimeLibrary"),
+            "MultiThreadedDebugDLL");
+      } else {
+        data_tree_api.set_object_value(
+            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "RuntimeLibrary"),
+            "MultiThreadedDLL");
+      }
 
       if (is_debug_build) {
         data_tree_api.set_object_value(
@@ -617,7 +657,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       if (have_pre_build_action) {
         const char* windowsPreBuildAction = cc_printf("%s", p->preBuildAction);
         windowsPreBuildAction             = cc_substitute(windowsPreBuildAction, substitution_keys,
-                                              substitution_values, countof(substitution_keys));
+                                                          substitution_values, countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPreBuildAction);
         unsigned int pbe = data_tree_api.create_object(&dt, idg, "PreBuildEvent");
         data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
@@ -678,7 +718,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                                       out_file_path_from_base};
 
     const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
-                                             substitution_values, countof(substitution_keys));
+                                               substitution_values, countof(substitution_keys));
     const char* custom_command = cc_substitute(file->command, substitution_keys,
                                                substitution_values, countof(substitution_keys));
     custom_command =
