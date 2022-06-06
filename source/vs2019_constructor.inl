@@ -31,8 +31,15 @@ const char* vs_projectArch2String_(EArchitecture arch) {
 void vs_replaceForwardSlashWithBackwardSlashInPlace(char* in_out) {
   if (in_out == 0) return;
 
+  char* in_out_start = in_out;
+
   while (*in_out) {
-    if (*in_out == '/') *in_out = '\\';
+    if (*in_out == '/') {
+      // On Windows commands may use / for flags (eg xcopy ... /s). Don't want to change those.
+      if (in_out == in_out_start || *(in_out - 1) != ' ') {
+        *in_out = '\\';
+      }
+    }
     in_out++;
   }
 }
