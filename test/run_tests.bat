@@ -6,20 +6,16 @@ echo on
 
 echo %username%
 
-
-
-
-
-
-
-
-
+@rem Find location of Visual Studio
+for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
+    set VSPATH=%%i
+)
 
 @rem Do this test case first, as it needs to change the build environment around. Doing that with SETLOCAL/ENDLOCAL.
 @SETLOCAL
 pushd 22_cconstruct_architecture
 @rd /S /Q build
-call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
@@ -30,7 +26,7 @@ if %errorlevel% neq 64 exit /b %errorlevel%
 @SETLOCAL
 @pushd 22_cconstruct_architecture
 @rd /S /Q build
-call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
+call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
@@ -46,7 +42,7 @@ popd
 SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
-call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
 
 
 pushd 01_hello_world
