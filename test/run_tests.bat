@@ -19,7 +19,7 @@ echo %username%
 @SETLOCAL
 pushd 22_cconstruct_architecture
 @rd /S /Q build
-call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
@@ -30,7 +30,7 @@ if %errorlevel% neq 64 exit /b %errorlevel%
 @SETLOCAL
 @pushd 22_cconstruct_architecture
 @rd /S /Q build
-call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
+call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
@@ -46,7 +46,7 @@ popd
 SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
-call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat"
+call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
 
 
 pushd 01_hello_world
