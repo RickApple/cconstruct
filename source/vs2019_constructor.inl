@@ -278,6 +278,50 @@ const vs_compiler_flag known_compiler_flags[] = {{"/Zi", &optionZi}, {"/ZI", &op
                                                  {"/MD", &optionMD}, {"/MDd", &optionMDd}};
 const vs_compiler_flag known_linker_flags[]   = {{"/PDB:", &optionPDB}};
 
+void vs_search_platform_toolset_version(const char* directory, char* platform_toolset_version,
+                                        const size_t length) {
+  WIN32_FIND_DATA findFileData;
+  HANDLE hFind              = INVALID_HANDLE_VALUE;
+  char subdirPath[MAX_PATH] = {0};
+  char searchPath[MAX_PATH] = {0};
+
+  // Prepare the search pattern
+  snprintf(searchPath, sizeof(searchPath), "%s\\*", directory);
+
+  // Start search
+  hFind = FindFirstFile(searchPath, &findFileData);
+  if (hFind == INVALID_HANDLE_VALUE) {
+    printf("FindFirstFile failed (%d)\n", GetLastError());
+    return;
+  }
+
+  do {
+    // Skip "." and ".." directories
+    if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0)
+      continue;
+
+    // Check if it is a directory
+    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      // printf("Checking folder %s\\%s\n", directory, findFileData.cFileName);
+      //  Check if the directory name matches pattern "VC/v???"
+      if (strstr(directory, "PlatformToolsets") != NULL && strlen(findFileData.cFileName) == 4 &&
+          findFileData.cFileName[0] == 'v') {
+        int res = strcmp(platform_toolset_version, findFileData.cFileName);
+        if (res < 0) {
+          strncpy(platform_toolset_version, findFileData.cFileName, length - 1);
+        }
+      }
+
+      // Prepare the path for the next search
+      snprintf(subdirPath, sizeof(subdirPath), "%s\\%s", directory, findFileData.cFileName);
+      vs_search_platform_toolset_version(subdirPath, platform_toolset_version,
+                                         length);  // Recursively search this directory
+    }
+  } while (FindNextFile(hFind, &findFileData) != 0);
+
+  FindClose(hFind);
+}
+
 void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id,
                               const char** project_ids, const char* in_output_folder,
                               const char* build_to_base_path) {
@@ -327,6 +371,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
                                        "Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
   }
 
+  char platform_toolset_version[5] = {0};
+  vs_search_platform_toolset_version(cc_find_VcDev_install_folder_(), platform_toolset_version,
+                                     countof(platform_toolset_version));
+
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
@@ -355,8 +403,9 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       data_tree_api.set_object_value(
           &dt, data_tree_api.create_object(&dt, pg, "UseDebugLibraries"), "true");
+
       data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "PlatformToolset"),
-                                     "v142");
+                                     platform_toolset_version);
       data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "CharacterSet"),
                                      "MultiByte");
     }

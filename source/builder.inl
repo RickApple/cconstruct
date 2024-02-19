@@ -14,17 +14,14 @@ const char* cconstruct_old_binary_name      = "cconstruct.old";
 static char stdout_data[16 * 1024 * 1024] = {0};
 static char stderr_data[16 * 1024 * 1024] = {0};
 
-// This function finds the location of the VcDevCmd.bat file on your system. This is needed to set
-// the environment when compiling a new version of CConstruct binary.
 // It currently used vswhere executable which should be at a fixed location.
-const char* cc_find_VcDevCmd_bat_() {
+const char* cc_find_VcDev_install_folder_() {
   char program_files_x86_path[MAX_PATH];
   GetEnvironmentVariable("ProgramFiles(x86)", program_files_x86_path, MAX_PATH);
 
   int exit_code       = 0;
   const char* command = cc_printf(
-      //"\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -latest -property "
-      "\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -version [16,17) -property "
+      "\"%s\\Microsoft Visual Studio\\Installer\\vswhere\" -latest -property "
       "installationPath",
       program_files_x86_path);
   int r = system_np(command, 100 * 1000, stdout_data, sizeof(stdout_data), stderr_data,
@@ -46,10 +43,17 @@ const char* cc_find_VcDevCmd_bat_() {
     s++;
   }
 
+  return stdout_data;
+}
+
+// This function finds the location of the VcDevCmd.bat file on your system. This is needed to set
+// the environment when compiling a new version of CConstruct binary.
+const char* cc_find_VcDevCmd_bat_() {
+  const char* install_path = cc_find_VcDev_install_folder_();
   #if _M_X64
-  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars64.bat", stdout_data);
+  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars64.bat", install_path);
   #else
-  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars32.bat", stdout_data);
+  return cc_printf("%s\\VC\\Auxiliary\\Build\\vcvars32.bat", install_path);
   #endif
 }
 
