@@ -1,6 +1,6 @@
 echo on
 @set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /W4 /WX /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-@set COMPILE_CONSTRUCT_COMMAND=cl.exe /ZI /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+@set COMPILE_CONSTRUCT_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
 
@@ -141,7 +141,7 @@ popd
 pushd 07_changed_config
 rd /S /Q build
 copy return_value1.inl return_value.inl
-cl.exe /EHsc /FC /Fecconstruct.exe config.cc /nologo || exit /b
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe
 devenv.com build\workspace.sln /Build "Debug|x64" || exit /b
 build\x64\Debug\changed_config.exe
