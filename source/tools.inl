@@ -345,6 +345,15 @@ const char* strip_path(const char* path) {
     return path;
 }
 
+/* Strip extension from the path */
+const char* strip_extension(const char* path) {
+  const char* last_period = strrchr(path, '.');
+  if (last_period)
+    return cc_printf("%.*s", last_period - path, path);
+  else
+    return path;
+}
+
 char* make_uri(const char* in_path) {
   // Win32 api PathCanonicalize only handles '\' instead of '/', doesn't handle multiple // next to
   // each other
