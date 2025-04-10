@@ -199,6 +199,13 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       cc_only_generate       = true;
       cc_generate_cc_project = true;
     }
+    if (strcmp(argv[i], "--help") == 0) {
+      printf("Options:\n");
+      printf("  --verbose\n");
+      printf("  --generate-projects: only generate projects, don't rebuild cconstruct binary.\n");
+      printf("  --generate-cconstruct-project: Don't rebuild cconstruct binary. Generate projects and generate a project to debug cconstruct itself.\n");
+      exit(0);
+    }
   }
 
   // If not only generating, then a new binary is built, that is run, and only then do we attempt
