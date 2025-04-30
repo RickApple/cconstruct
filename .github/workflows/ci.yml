@@ -32,13 +32,29 @@ jobs:
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
       # Ref: https://chadgolden.com/blog/github-actions-hosted-windows-runners-slower-than-expected-ci-and-you
-      - name: Setup RAM Disk
+      - name: Install Chocolatey
         if: runner.os == 'Windows'
-        uses: chad-golden/setup-ramdisk@v1
-        with:
-          size-in-mb: 2048    # Optional: Default is 2048
-          drive-letter: 'R'   # Optional: Default is R
-          copy-workspace: true # Optional: Default is false
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force; 
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+      - name: Install ImDisk Toolkit
+        if: runner.os == 'Windows'
+        run: |
+          choco install imdisk-toolkit -y  # Install ImDisk via Chocolatey (use self-hosted runners for this)
+
+      - name: Create RAM Disk
+        if: runner.os == 'Windows'
+        run: |
+          imdisk -a -s 1G -m R: -p "/fs:ntfs /q"  # Creates 1GB RAM disk with NTFS formatting on R:
+
+      - name: Run tests (Windows) on R
+        if: runner.os == 'Windows'
+        working-directory: R:\
+        shell: cmd
+        run: |
+          dir
 
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
