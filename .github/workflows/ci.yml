@@ -42,7 +42,7 @@ jobs:
       - name: Copy Folder to RAM Disk
         if: runner.os == 'Windows'
         run: |
-          xcopy /E /I /H /Y "$(System.DefaultWorkingDirectory)" R:\  # Copy folder to the RAM disk
+          xcopy /E /I /H /Y "$env:GITHUB_WORKSPACE" R:\  # Copy folder to the RAM disk
 
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
