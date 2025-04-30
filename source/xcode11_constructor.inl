@@ -1192,7 +1192,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           // Index in known flags
           const char* current_flag = flags->compile_options[cfi];
           bool found               = false;
-          for (unsigned kfi = 0; kfi < countof(known_compiler_flags); kfi++) {
+          for (unsigned kfi = 0; kfi < countof(xcode_known_compiler_flags_); kfi++) {
             const char* foundString = strstr(current_flag, xcode_known_compiler_flags_[kfi].flag);
             if (foundString) {
               found = true;
