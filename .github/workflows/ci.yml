@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 1  # speeds up checkout by avoiding full history
 
-      - name: Set up MSVC or Xcode environment
+      - name: Set up MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
