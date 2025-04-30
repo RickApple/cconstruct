@@ -4,8 +4,6 @@ echo on
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
 
-echo %username%
-
 @rem Find location of Visual Studio
 for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
     set VSPATH=%%i
