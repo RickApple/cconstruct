@@ -8,24 +8,35 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.platform }}  # Use matrix to dynamically select platform
 
     strategy:
       matrix:
-        platform: [windows-msvc]
-        # Expand later with entries like: ubuntu-latest, macos-latest, etc.
+        platform: [windows-latest, macos-latest]  # Add macOS here
+        # You can add more platforms later, such as ubuntu-latest.
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (shallow)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 1  # speeds up checkout by avoiding full history
 
-      - name: Set up MSVC environment
+      - name: Set up MSVC or Xcode environment
+        if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Xcode environment
+        if: runner.os == 'macOS'
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
       - name: Run tests
         working-directory: test
-        shell: cmd
+        shell: cmd  # Default shell for Windows, we'll override it for macOS
         run: |
-          run_tests.bat
+          if [ $RUNNER_OS == "Windows" ]; then
+            run_tests.bat
+          elif [ $RUNNER_OS == "macOS" ]; then
+            ./run_tests.sh  # Assuming you have a bash script for macOS
+          fi
