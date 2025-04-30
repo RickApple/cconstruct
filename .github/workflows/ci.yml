@@ -16,6 +16,28 @@ jobs:
         # You can add more platforms later, such as ubuntu-latest.
 
     steps:
+      # Ref: https://chadgolden.com/blog/github-actions-hosted-windows-runners-slower-than-expected-ci-and-you
+      - name: Install ImDisk Toolkit
+        if: runner.os == 'Windows'
+        run: |
+          choco install imdisk-toolkit -y  # Install ImDisk via Chocolatey (use self-hosted runners for this)
+
+      - name: Create RAM Disk
+        if: runner.os == 'Windows'
+        run: |
+          imdisk -a -s 1G -m R: -p "/fs:ntfs /q"  # Creates 1GB RAM disk with NTFS formatting on R:
+
+      - name: Check Disk Partition
+        if: runner.os == 'Windows'
+        run: |
+          diskpart /s check_disk.txt
+
+      - name: Run tests (Windows) on R
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          dir R:\
+
       - name: Checkout code (shallow)
         uses: actions/checkout@v4
         with:
@@ -31,23 +53,12 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
-      # Ref: https://chadgolden.com/blog/github-actions-hosted-windows-runners-slower-than-expected-ci-and-you
-      - name: Install ImDisk Toolkit
+
+      - name: Copy Folder to RAM Disk
         if: runner.os == 'Windows'
         run: |
-          choco install imdisk-toolkit -y  # Install ImDisk via Chocolatey (use self-hosted runners for this)
-
-      - name: Create RAM Disk
-        if: runner.os == 'Windows'
-        run: |
-          imdisk -a -s 1G -m R: -p "/fs:ntfs /q"  # Creates 1GB RAM disk with NTFS formatting on R:
-
-      - name: Run tests (Windows) on R
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          dir R:\
-
+          xcopy /E /I /H /Y "$(System.DefaultWorkingDirectory)" R:\  # Copy folder to the RAM disk
+      
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
         working-directory: R:\test
