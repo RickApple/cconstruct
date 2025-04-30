@@ -32,13 +32,6 @@ jobs:
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
       # Ref: https://chadgolden.com/blog/github-actions-hosted-windows-runners-slower-than-expected-ci-and-you
-      - name: Install Chocolatey
-        if: runner.os == 'Windows'
-        run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force; 
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
-          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
       - name: Install ImDisk Toolkit
         if: runner.os == 'Windows'
         run: |
@@ -51,10 +44,9 @@ jobs:
 
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
-        working-directory: R:\
         shell: cmd
         run: |
-          dir
+          dir R:\
 
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
