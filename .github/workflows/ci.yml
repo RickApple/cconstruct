@@ -25,7 +25,7 @@ jobs:
       - name: Create RAM Disk
         if: runner.os == 'Windows'
         run: |
-          imdisk -a -s 1G -m R: -p "/fs:ntfs /q"  # Creates 1GB RAM disk with NTFS formatting on R:
+          imdisk -a -t vm -s 1G -m R: -p "/fs:ntfs /q /y"  # Creates 1GB RAM disk with NTFS formatting on R:
 
       - name: Check Disk Partition
         if: runner.os == 'Windows'
