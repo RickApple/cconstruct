@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        platform: [windows-msvc]
+        # Expand later with entries like: ubuntu-latest, macos-latest, etc.
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build project
+        run: |
+          echo "Run your build command here"
+          # e.g., msbuild your_project.sln /p:Configuration=Release
+
+      - name: Run tests
+        run: |
+          echo "Run your test command here"
+          # e.g., ctest --output-on-failure
