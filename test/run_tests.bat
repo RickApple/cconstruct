@@ -6,8 +6,6 @@ echo on
 @set BUILD_DEBUG_COMMAND=msbuild /p:Configuration=Debug /p:Platform=x64
 @set BUILD_RELEASE_COMMAND=msbuild /p:Configuration=Release /p:Platform=x64
 
-echo %username%
-
 @rem Find location of Visual Studio
 for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
     set VSPATH=%%i

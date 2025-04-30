@@ -18,12 +18,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Run tests
         working-directory: test
+        shell: cmd
         run: |
-          dir
-          cmd /c run_tests.bat
+          run_tests.bat
