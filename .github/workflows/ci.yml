@@ -31,6 +31,22 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
+      # Ref: https://chadgolden.com/blog/github-actions-hosted-windows-runners-slower-than-expected-ci-and-you
+      - name: Setup RAM Disk
+        if: runner.os == 'Windows'
+        uses: chad-golden/setup-ramdisk@v1
+        with:
+          size-in-mb: 2048    # Optional: Default is 2048
+          drive-letter: 'R'   # Optional: Default is R
+          copy-workspace: true # Optional: Default is false
+
+      - name: Run tests (Windows) on R
+        if: runner.os == 'Windows'
+        working-directory: R:\test
+        shell: cmd
+        run: |
+          run_tests.bat
+        
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         working-directory: test
