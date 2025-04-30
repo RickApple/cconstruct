@@ -30,7 +30,9 @@ jobs:
       - name: Check Disk Partition
         if: runner.os == 'Windows'
         run: |
-          diskpart /s check_disk.txt
+          Get-WmiObject Win32_LogicalDisk | 
+            Where-Object { $_.DriveType -eq 2 -or $_.DriveType -eq 3 } |  # Filter for RAM drives (DriveType 2) and local disks (DriveType 3)
+            Format-Table -Property DeviceID, MediaType, @{Label="Size(GB)"; Expression={[math]::round($_.Size / 1GB, 2)}}, @{Label="Free Space(GB)"; Expression={[math]::round($_.FreeSpace / 1GB, 2)}}
 
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
