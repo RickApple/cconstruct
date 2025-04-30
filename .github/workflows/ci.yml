@@ -26,4 +26,4 @@ jobs:
         working-directory: test
         run: |
           dir
-          run_tests.bat
+          cmd /c run_tests.bat
