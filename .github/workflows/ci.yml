@@ -34,11 +34,13 @@ jobs:
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         working-directory: test
+        shell: cmd
         run: |
-          cmd /c run_tests.bat
+          run_tests.bat
         
       - name: Run tests (MacOS)
         if: runner.os == 'macOS'
         working-directory: test
+        shell: bash
         run: |
-          bash ./run_tests.sh  # Assuming you have a bash script for macOS
+          ./run_tests.sh  # Assuming you have a bash script for macOS
