@@ -23,5 +23,6 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Run tests
+        working-directory: test
         run: |
-          test\run_tests.bat
+          run_tests.bat
