@@ -33,10 +33,9 @@ jobs:
 
       - name: Run tests
         working-directory: test
-        shell: cmd  # Default shell for Windows, we'll override it for macOS
         run: |
           if [ $RUNNER_OS == "Windows" ]; then
-            run_tests.bat
+            cmd /c run_tests.bat
           elif [ $RUNNER_OS == "macOS" ]; then
-            ./run_tests.sh  # Assuming you have a bash script for macOS
+            bash ./run_tests.sh  # Assuming you have a bash script for macOS
           fi
