@@ -31,11 +31,14 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
 
-      - name: Run tests
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
         working-directory: test
         run: |
-          if [ $RUNNER_OS == "Windows" ]; then
-            cmd /c run_tests.bat
-          elif [ $RUNNER_OS == "macOS" ]; then
-            bash ./run_tests.sh  # Assuming you have a bash script for macOS
-          fi
+          cmd /c run_tests.bat
+        
+      - name: Run tests (MacOS)
+        if: runner.os == 'macOS'
+        working-directory: test
+        run: |
+          bash ./run_tests.sh  # Assuming you have a bash script for macOS
