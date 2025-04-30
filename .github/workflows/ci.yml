@@ -25,4 +25,5 @@ jobs:
       - name: Run tests
         working-directory: test
         run: |
+          dir
           run_tests.bat
