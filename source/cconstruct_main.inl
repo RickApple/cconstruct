@@ -18,6 +18,7 @@
 #endif
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +34,11 @@
 // Constructors
 #include "process.inl"
 #include "builder.inl"
+#ifdef _WIN32
 #include "vs2019_constructor.inl"
+#else
 #include "xcode11_constructor.inl"
+#endif
 // clang-format on
 
 #if defined(_WIN32)

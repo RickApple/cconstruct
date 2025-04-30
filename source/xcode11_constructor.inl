@@ -198,19 +198,23 @@ void dt_api_add_child_value_and_comment(struct data_tree_t* dt, unsigned int par
   data_tree_api.set_object_comment(dt, node, comment);
 }
 
-
 void optionDeploymentTarget(struct data_tree_t* dt, unsigned int compile_group,
-               const char* remaining_flag_value) {
+                            const char* remaining_flag_value) {
   data_tree_api.set_object_value(
-      dt, data_tree_api.get_or_create_object(dt, compile_group, "MACOSX_DEPLOYMENT_TARGET"), remaining_flag_value);
+      dt, data_tree_api.get_or_create_object(dt, compile_group, "MACOSX_DEPLOYMENT_TARGET"),
+      remaining_flag_value);
 }
+
+typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group,
+                     const char* remaining_flag_value);
 
 typedef struct xcode_compiler_flag {
   const char* flag;
   const func action;
 } xcode_compiler_flag;
 
-const xcode_compiler_flag xcode_known_compiler_flags_[] = {{"MACOSX_DEPLOYMENT_TARGET=", &optionDeploymentTarget}};
+const xcode_compiler_flag xcode_known_compiler_flags_[] = {
+    {"MACOSX_DEPLOYMENT_TARGET=", &optionDeploymentTarget}};
 
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
@@ -1015,7 +1019,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
       combined_warning_level       = flags->warningLevel;
     }
-    
+
     {
       const char* config_id = xCodeUUID2String(xCodeGenerateUUID());
 
@@ -1051,7 +1055,6 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       const unsigned int node_additional_compiler_flags =
           dt_api->create_object(&dt, nodeBuildSettings, "OTHER_CFLAGS");
       dt.objects[node_additional_compiler_flags].is_array = true;
-
 
       assert(array_count(cc_data_.architectures) == 1);
       assert(cc_data_.architectures[0]->type == EArchitectureX64);
@@ -1191,15 +1194,17 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           bool found               = false;
           for (unsigned kfi = 0; kfi < countof(known_compiler_flags); kfi++) {
             const char* foundString = strstr(current_flag, xcode_known_compiler_flags_[kfi].flag);
-            if ( foundString) {
+            if (foundString) {
               found = true;
-              xcode_known_compiler_flags_[kfi].action(&dt, nodeBuildSettings, foundString+strlen(xcode_known_compiler_flags_[kfi].flag));
+              xcode_known_compiler_flags_[kfi].action(
+                  &dt, nodeBuildSettings,
+                  foundString + strlen(xcode_known_compiler_flags_[kfi].flag));
             }
           }
           if (!found) {
             dt_api_add_child_value_and_comment(&dt, node_additional_compiler_flags,
-                                              cc_printf("\"%s\"", flags->compile_options[cfi]),
-                                              NULL);
+                                               cc_printf("\"%s\"", flags->compile_options[cfi]),
+                                               NULL);
           }
         }
         for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
