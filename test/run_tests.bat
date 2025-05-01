@@ -17,10 +17,8 @@ pushd 22_cconstruct_architecture
 @rd /S /Q build
 call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-echo did first compile
 cconstruct.exe || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-echo did first build
 build\amd64\cconstruct_architecture.exe
 if %errorlevel% neq 64 exit /b %errorlevel%
 @popd
