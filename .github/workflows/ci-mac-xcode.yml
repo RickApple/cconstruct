@@ -1,0 +1,101 @@
+name: macOS CI
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        compiler: [xcode, clang]
+
+    steps:
+      - name: Checkout code (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.10.0
+      
+      - name: Set up Xcode environment
+        if: matrix.compiler == 'xcode'
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
+      
+      - name: Run Clang
+        if: matrix.compiler == 'clang'
+        run: |
+          clang --version
+
+      - name: Run Ninja
+        if: matrix.compiler == 'clang'
+        run: |
+          ninja --version
+
+      - name: Run tests
+        if: matrix.compiler == 'xcode'
+        working-directory: test
+        shell: bash
+        run: |
+          ./run_tests.sh  # Assuming you have a bash script for macOS
+
+  build-construct-macos:
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          echo 'COMPILE_CCONSTRUCT_COMMAND=clang -x c' >> $GITHUB_ENV
+        shell: bash
+
+      - name: Build and generate header
+        run: |
+          pushd tools
+
+          # Clean previous build
+          rm -rf build
+
+          # Compile config.cc to cconstruct
+          $COMPILE_CCONSTRUCT_COMMAND "$PWD/config.cc" -o cconstruct
+          if [ $? -ne 0 ]; then exit 1; fi
+
+          # Run cconstruct
+          ./cconstruct
+          if [ $? -ne 0 ]; then exit 1; fi
+
+          # Build using Xcode
+          xcodebuild -quiet -workspace build/workspace.xcworkspace \
+            -scheme cconstruct_release \
+            -destination 'platform=macOS,arch=x86_64'
+          if [ $? -ne 0 ]; then exit 1; fi
+
+          # Create output directory
+          mkdir -p ../build
+
+          # Generate cconstruct.h
+          ./build/x64/Debug/cconstruct_release ../source/cconstruct.h ../build/cconstruct.h
+          if [ $? -ne 0 ]; then exit 1; fi
+
+          popd
+
+          echo "All Tests Finished"
+        shell: bash
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cconstruct-header
+          path: build/cconstruct.h
+
