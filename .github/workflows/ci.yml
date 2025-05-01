@@ -25,6 +25,12 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Pre-warm MSVC compiler
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          cl
+
       - name: Set up Xcode environment
         if: runner.os == 'macOS'
         run: |
