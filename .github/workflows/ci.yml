@@ -40,6 +40,8 @@ jobs:
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         working-directory: test
+        env:
+          VSINSTALLER_NO_UPDATE: 1
         shell: cmd
         run: |
           run_tests.bat
