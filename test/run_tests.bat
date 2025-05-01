@@ -3,8 +3,8 @@ echo on
 @set COMPILE_CONSTRUCT_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 
-@set BUILD_DEBUG_COMMAND=msbuild /p:Configuration=Debug /p:Platform=x64
-@set BUILD_RELEASE_COMMAND=msbuild /p:Configuration=Release /p:Platform=x64
+@set BUILD_DEBUG_COMMAND=msbuild /p:Configuration=Debug /p:Platform=x64 /v:minimal
+@set BUILD_RELEASE_COMMAND=msbuild /p:Configuration=Release /p:Platform=x64 /v:minimal
 
 @rem Find location of Visual Studio
 for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do (
