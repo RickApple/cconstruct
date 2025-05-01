@@ -44,12 +44,6 @@ jobs:
         run: |
           xcopy /E /I /H /Y "$env:GITHUB_WORKSPACE" R:\  # Copy folder to the RAM disk
 
-      - name: Run tests (Windows) on R
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          dir R:\
-
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -63,6 +57,20 @@ jobs:
       - name: Run tests (Windows) on R
         if: runner.os == 'Windows'
         working-directory: R:\test
+        shell: cmd
+        run: |
+          run_tests.bat
+        
+      - name: Run tests (Windows) on R
+        if: runner.os == 'Windows'
+        working-directory: R:\test
+        shell: cmd
+        run: |
+          run_tests.bat
+        
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        working-directory: test
         shell: cmd
         run: |
           run_tests.bat
