@@ -217,7 +217,7 @@ pushd 18_custom_commands
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
-TEST_TIME=`date`
+TEST_TIME=$(date "+%Y-%m-%d %H:%M:%S")
 echo $TEST_TIME > src/test_source.txt
 xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme custom_commands -destination 'platform=macOS,arch=x86_64'
 CMD_OUTPUT=$(./build/x64/Debug/custom_commands)
