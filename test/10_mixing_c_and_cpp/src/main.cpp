@@ -6,7 +6,7 @@ class C {
 
 extern "C" int cFunction();
 
-int main(int argc, const char* argv[]) {
+int main() {
   C c;
   c.i = cFunction();
   return c.i;

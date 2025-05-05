@@ -464,8 +464,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   // const char** link_additional_directories = NULL;
   // const char* link_additional_dependencies = "";
 
-  // EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
-  // bool shouldDisableWarningsAsError         = false;
+  EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+  bool shouldDisableWarningsAsError         = false;
   for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
     const cc_state_impl_t* flags = &(p->state[ipc]);
 
@@ -475,10 +475,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       continue;
 #if 0
         if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
-
-        shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
-        combined_warning_level       = flags->warningLevel;
 #endif
+
+    shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
+    combined_warning_level       = flags->warningLevel;
+
     for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
       preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, flags->defines[pdi]);
     }
@@ -524,18 +525,21 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
           }
         }
       }
+#endif
 
-      {
-        const char* warning_strings[] = {"Level4", "Level3", "Level2", "EnableAllWarnings",
-                                         "TurnOffAllWarnings"};
-        assert(EStateWarningLevelHigh == 0);
-        assert(EStateWarningLevelAll == 3);
-        assert(EStateWarningLevelNone == 4);
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "WarningLevel"),
-            warning_strings[combined_warning_level]);
-      }
+    {
+      const char* warning_strings[] = {"/W4", "/W3", "/W2", "/Wall", "/W0"};
+      assert(EStateWarningLevelHigh == 0);
+      assert(EStateWarningLevelAll == 3);
+      assert(EStateWarningLevelNone == 4);
+      additional_compiler_flags =
+          cc_printf("%s %s", additional_compiler_flags, warning_strings[combined_warning_level]);
+    }
 
+    if (!shouldDisableWarningsAsError) {
+      additional_compiler_flags = cc_printf("%s /WX", additional_compiler_flags);
+    }
+#if 0
       // Disable unreferenced parameter warning
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "DisableSpecificWarnings"),

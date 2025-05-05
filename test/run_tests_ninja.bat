@@ -106,3 +106,14 @@ changed_config.exe
 if %errorlevel% neq 1 exit /b %errorlevel%
 popd
 popd
+
+
+pushd 09_warning_level
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+rem Without doing something about warnings, the following builds would fail.
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND% || exit /b
+cconstruct.exe --generator=ninja --generate-projects --config=Release|| exit /b
+%BUILD_COMMAND% || exit /b
+popd
