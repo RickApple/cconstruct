@@ -52,7 +52,6 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 build\preprocessor.exe
 rem Debug build has the expected value for the define, so should return 0
 if %errorlevel% neq 0 exit /b 1
-ninja -C build -t clean
 cconstruct.exe --generator=ninja --generate-projects --config=Release || exit /b
 %BUILD_COMMAND% --verbose || exit /b
 build\preprocessor.exe
@@ -78,4 +77,32 @@ rem The build is expected to give an error, since the post build action doesn't 
 if %errorlevel% equ 0 exit /b %errorlevel%
 rem ... However, the executable has been built, so test it is there and works correctly
 build\post_build_action.exe || exit /b
+popd
+
+
+pushd 07_changed_config
+if exist build rd /S /Q build
+mkdir build
+copy return_value1.inl return_value.inl
+echo. >> return_value.inl
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects
+pushd build
+ninja || exit /b
+changed_config.exe
+rem The first config builds the program so that it returns 1, so check for that specifically
+if %errorlevel% neq 1 exit /b %errorlevel%
+copy /Y ..\return_value2.inl ..\return_value.inl
+echo. >> ..\return_value.inl
+ninja || exit /b
+changed_config.exe
+rem The second config builds the program so that it returns 2, so check for that specifically
+if %errorlevel% neq 2 exit /b %errorlevel%
+rem Now set back the first config, Ninja should automatically rebuild cconstruct
+copy /Y ..\return_value1.inl ..\return_value.inl
+echo. >> ..\return_value.inl
+ninja || exit /b
+changed_config.exe
+if %errorlevel% neq 1 exit /b %errorlevel%
+popd
 popd

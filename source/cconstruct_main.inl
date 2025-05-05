@@ -33,7 +33,8 @@
 
 struct {
   const char* active_config;
-} _internal = {"Debug"};
+  bool show_includes;
+} _internal = {"Debug", false};
 
 // Constructors
 #include "process.inl"
@@ -125,9 +126,6 @@ int cc_runNewBuild_(char const* const argv[], const int argc) {
     new_construct_command = cc_printf("%s %s", new_construct_command, argv[i]);
   }
 
-  if (cc_is_verbose) {
-    new_construct_command = cc_printf("%s --verbose", new_construct_command);
-  }
   LOG_VERBOSE("Executing new binary: '%s'\n", new_construct_command);
   int result = system(new_construct_command);
 #if !defined(_WIN32)
@@ -227,6 +225,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     }
     if (strcmp(argv[i], "--generator=ninja") == 0) {
       cc_default_generator = ninja_generateInFolder;
+      _internal.show_includes = true;
     }
 #else
 #endif

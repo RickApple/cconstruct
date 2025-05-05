@@ -630,7 +630,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
                                       countof(substitution_keys));
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)post_build_action);
 
-
     fprintf(ninja_file, "rule postbuild_%i_%s\n", 0, p->name);
     fprintf(ninja_file, "  command = %s\n", post_build_action);
     fprintf(ninja_file, "  description = Running post-build action\n");
@@ -759,7 +758,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   fprintf(ninja_file, "\n");
 
   if (have_post_build_action) {
-    fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s%s\n", p->name, p->name, p->name, project_type_suffix[p->type]);
+    fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s%s\n", p->name, p->name, p->name,
+            project_type_suffix[p->type]);
   }
 }
 
@@ -858,6 +858,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* ninja_file_path = cc_printf("%s/build.ninja", output_folder);
   FILE* ninja_file            = fopen(ninja_file_path, "wt");
   fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
+  fprintf(ninja_file, "msvc_deps_prefix = Note: including file:\n\n");
 
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     project_ids[i] = ninja_generateUUID();
@@ -868,6 +869,26 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     const char* project_id     = project_ids[i];
     ninja_createProjectFile(ninja_file, p, project_id, project_ids, output_folder,
                             build_to_base_path);
+  }
+
+  {  // Add dependency on config file
+    fprintf(ninja_file, "\nrule build_cconstruct\n");
+    fprintf(ninja_file,
+            "  command = cl.exe /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe../cconstruct.exe "
+            "/showIncludes /nologo /TC ../config.cc\n");
+    fprintf(ninja_file, "  description = Building CConstruct ...\n");
+    fprintf(ninja_file, "  deps = msvc\n");
+
+    fprintf(ninja_file,
+            "\nbuild ../cconstruct.exe cconstruct.obj: build_cconstruct ../config.cc\n");
+
+    fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
+    fprintf(ninja_file, "  command = ../cconstruct.exe --generator=ninja --generate-projects\n");
+    fprintf(ninja_file, "  description = Re-running CConstruct ...\n");
+    fprintf(ninja_file, "  generator = 1\n");
+
+    fprintf(ninja_file, "\nbuild build.ninja: RERUN_CCONSTRUCT ../cconstruct.exe\n");
+    fprintf(ninja_file, "  pool = console\n");
   }
 
   fclose(ninja_file);

@@ -61,7 +61,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   char temp_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_path, MAX_PATH);
 
-  const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
+  const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
   const char* recompile_command = cc_printf(
       "\"%s\" > nul && pushd %s && cl.exe "
       // Enable exception handling so can help users fix issues in their config files.
@@ -75,6 +75,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   #endif
       "/Fe%s %s "
       "/nologo "
+      "%s"  // space for /showIncludes or not
       "/INCREMENTAL:NO "
   #ifdef __cplusplus
       // Set compiler option so that the file is compiled as C or C++, depending on the compiler
@@ -84,7 +85,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       "/TC "
   #endif
       "&& popd",
-      VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path);
+      VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path, _internal.show_includes ? "/showIncludes " : "" );
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
               recompile_command);
@@ -105,6 +106,10 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   } else {
     if (exit_code == 0) {
       LOG_VERBOSE("Built new CConstruct binary at '%s'\n", cconstruct_internal_binary_name);
+      // TODO: if Ninja,
+      if (_internal.show_includes) {
+        printf(stdout_data);
+      }
     } else {
       // Succesfully ran the command, but there was an error, likely an issue compiling the config
       // file
