@@ -235,6 +235,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   (void)project_id;
   (void)in_output_folder;
 
+  const char* substitution_keys[]   = {"configuration", "platform"};
+  const char* substitution_values[] = {_internal.active_config, "$(Platform)"};
+
 #if 0
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
 
@@ -347,9 +350,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       data_tree_api.set_object_parameter(&dt, import_obj, "Label", "LocalAppDataPlatform");
     }
   }
-
-  const char* substitution_keys[]   = {"configuration", "platform"};
-  const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
@@ -623,6 +623,19 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 #endif
   }
 
+  const bool have_post_build_action = (p->postBuildAction != 0);
+  if (have_post_build_action) {
+    const char* post_build_action = cc_printf("%s", p->postBuildAction);
+    post_build_action = cc_substitute(post_build_action, substitution_keys, substitution_values,
+                                      countof(substitution_keys));
+    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)post_build_action);
+
+
+    fprintf(ninja_file, "rule postbuild_%i_%s\n", 0, p->name);
+    fprintf(ninja_file, "  command = %s\n", post_build_action);
+    fprintf(ninja_file, "  description = Running post-build action\n");
+  }
+
 #if 0
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f                  = p->file_data[fi]->path;
@@ -744,6 +757,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
             deps);
   }
   fprintf(ninja_file, "\n");
+
+  if (have_post_build_action) {
+    fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s%s\n", p->name, p->name, p->name, project_type_suffix[p->type]);
+  }
 }
 
 void ninja_generateInFolder(const char* in_workspace_path) {
@@ -769,9 +786,9 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     } else {
       if (exit_code == 0) {
         const char* bin_folder = folder_path_only(stdout_data);
-        compiler_path = cc_printf("%scl.exe", bin_folder);
-        lib_linker_path = cc_printf("%slib.exe", bin_folder);
-        linker_path = cc_printf("%slink.exe", bin_folder);
+        compiler_path          = cc_printf("%scl.exe", bin_folder);
+        lib_linker_path        = cc_printf("%slib.exe", bin_folder);
+        linker_path            = cc_printf("%slink.exe", bin_folder);
       } else {
         // Succesfully ran the command, but there was an error, likely an issue compiling the
         // config file
@@ -840,7 +857,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 
   const char* ninja_file_path = cc_printf("%s/build.ninja", output_folder);
   FILE* ninja_file            = fopen(ninja_file_path, "wt");
-  fprintf(ninja_file, "ninja_required_version = 1.5\n");
+  fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
 
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     project_ids[i] = ninja_generateUUID();

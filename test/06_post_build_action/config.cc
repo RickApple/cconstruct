@@ -9,9 +9,7 @@ int main(int argc, const char** argv) {
   cc.workspace.addPlatform(platform);
 
   cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
-  cc_configuration_t configuration_release = cc.configuration.create("Release");
   cc.workspace.addConfiguration(configuration_debug);
-  cc.workspace.addConfiguration(configuration_release);
 
   cc_project_t p = cc.project.create("post_build_action", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};

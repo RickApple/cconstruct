@@ -68,3 +68,14 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 if %errorlevel% neq 1 exit /b %errorlevel%
 REM building should cause an error because flag has been added to set warnings as errors
 popd
+
+pushd 06_post_build_action
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND%
+rem The build is expected to give an error, since the post build action doesn't succeed ...
+if %errorlevel% equ 0 exit /b %errorlevel%
+rem ... However, the executable has been built, so test it is there and works correctly
+build\post_build_action.exe || exit /b
+popd
