@@ -109,12 +109,16 @@ void set_signal_handler() {
 }
 #endif
 
-int cc_runNewBuild_() {
+int cc_runNewBuild_(char const* const argv[], const int argc) {
   const char* new_construct_command =
       cc_printf("%s --generate-projects", cconstruct_internal_binary_name);
 #if !defined(_WIN32)
   new_construct_command = cc_printf("./%s", new_construct_command);
 #endif
+
+  for (int i = 1; i < argc; ++i) {
+    new_construct_command = cc_printf("%s %s", new_construct_command, argv[i]);
+  }
 
   if (cc_is_verbose) {
     new_construct_command = cc_printf("%s --verbose", new_construct_command);
@@ -192,6 +196,13 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   }
   cc_data_.is_inited = true;
 
+  cc_default_generator =
+#if defined(_MSC_VER)
+      vs2019_generateInFolder;
+#else
+      xcode_generateInFolder;
+#endif
+
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--verbose") == 0) {
       cc_is_verbose = true;
@@ -203,11 +214,25 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       cc_only_generate       = true;
       cc_generate_cc_project = true;
     }
+
+    // Choose generator
+#if defined(_MSC_VER)
+    if (strcmp(argv[i], "--generator=msvc") == 0) {
+      cc_default_generator = vs2019_generateInFolder;
+    }
+#else
+#endif
+
     if (strcmp(argv[i], "--help") == 0) {
       printf("Options:\n");
       printf("  --verbose\n");
       printf("  --generate-projects: only generate projects, don't rebuild cconstruct binary.\n");
-      printf("  --generate-cconstruct-project: Don't rebuild cconstruct binary. Generate projects and generate a project to debug cconstruct itself.\n");
+      printf(
+          "  --generate-cconstruct-project: Don't rebuild cconstruct binary. Generate projects "
+          "and generate a project to debug cconstruct itself.\n");
+#if defined(_MSC_VER)
+      printf("  --generator=[msvc]: generate MSVC project.");
+#endif
       exit(0);
     }
   }
@@ -218,7 +243,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     printf("Rebuilding CConstruct ...");
     cc_recompile_binary_(in_absolute_config_file_path);
     printf(" done\n");
-    int result = cc_runNewBuild_();
+    int result = cc_runNewBuild_(argv, argc);
     if (result == 0) {
       cc_activateNewBuild_();
     }

@@ -179,13 +179,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
  *                                             Implementation starts here
  ***********************************************************************************************************************/
 
-#include "cconstruct_main.inl"
-
 // For ease of use set a default CConstruct generator for each OS
-#if defined(_MSC_VER)
-void (*cc_default_generator)(const char* workspace_folder) = vs2019_generateInFolder;
-#else
-void (*cc_default_generator)(const char* workspace_folder) = xcode_generateInFolder;
-#endif
+void (*cc_default_generator)(const char* workspace_folder) = (void (*)(const char*))0;
+
+#include "cconstruct_main.inl"
 
 #endif  // CC_CONSTRUCT_H
