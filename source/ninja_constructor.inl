@@ -2,6 +2,8 @@ char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 
 char const* compiler_path =
     "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe";
+char const* lib_linker_path =
+    "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe";
 char const* linker_path =
     "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe";
 
@@ -434,37 +436,36 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
             &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "BasicRuntimeChecks"),
             "Default");
       }
-
-      const char* preprocessor_defines = "%(PreprocessorDefinitions)";
-      switch (p->type) {
-        case CCProjectTypeConsoleApplication:
-          preprocessor_defines = cc_printf("%s;%s", "_CONSOLE", preprocessor_defines);
-          break;
-        case CCProjectTypeWindowedApplication:
-          preprocessor_defines = cc_printf("%s;%s", "_WINDOWS", preprocessor_defines);
-          break;
-        case CCProjectTypeStaticLibrary:
-          preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
-          break;
-        case CCProjectTypeDynamicLibrary: {
-          preprocessor_defines =
-              cc_printf("%s%s;%s", str_strip_spaces(p->name), "_EXPORTS", preprocessor_defines);
-        } break;
-        default:
-          LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n",
-                             p->name);
-      }
 #endif
 
- // const char* additional_compiler_flags    = "%(AdditionalOptions)";
-  //const char* additional_link_flags        = "%(AdditionalOptions)";
-  const char** additional_include_folders  = NULL;
-  const char* includes_command = "";
-  //const char** link_additional_directories = NULL;
-  //const char* link_additional_dependencies = "";
+  const char* preprocessor_defines = "";
+  switch (p->type) {
+    case CCProjectTypeConsoleApplication:
+      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_CONSOLE");
+      break;
+    case CCProjectTypeWindowedApplication:
+      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_WINDOWS");
+      break;
+    case CCProjectTypeStaticLibrary:
+      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_LIB");
+      break;
+    case CCProjectTypeDynamicLibrary: {
+      preprocessor_defines =
+          cc_printf("%s /D \"%s%s\"", preprocessor_defines, str_strip_spaces(p->name), "_EXPORTS");
+    } break;
+    default:
+      LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
+  }
 
-  //EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
-  //bool shouldDisableWarningsAsError         = false;
+  // const char* additional_compiler_flags    = "%(AdditionalOptions)";
+  // const char* additional_link_flags        = "%(AdditionalOptions)";
+  const char** additional_include_folders = NULL;
+  const char* includes_command            = "";
+  // const char** link_additional_directories = NULL;
+  // const char* link_additional_dependencies = "";
+
+  // EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
+  // bool shouldDisableWarningsAsError         = false;
   for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
     const cc_state_impl_t* flags = &(p->state[ipc]);
 
@@ -638,7 +639,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     }
   }
 #endif
-}
+  }
 
 #if 0
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
@@ -701,65 +702,58 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     unsigned int outputs_obj = data_tree_api.create_object(&dt, cb, "Outputs");
     data_tree_api.set_object_value(&dt, outputs_obj, out_file_path);
   }
-
-  // Add Visual Studio references (automatically links projects).
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const char* id            = ninja_findUUIDForProject(project_ids, p->dependantOn[i]);
-    const char* project_label = p->dependantOn[i]->name;
-
-    unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
-    unsigned int pr        = data_tree_api.create_object(&dt, itemgroup, "ProjectReference");
-    data_tree_api.set_object_parameter(&dt, pr, "Include", cc_printf("%s.vcxproj", project_label));
-    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pr, "Project"),
-                                   cc_printf("{%s}", id));
-  }
-
-  unsigned int importobj = data_tree_api.create_object(&dt, project, "Import");
-  data_tree_api.set_object_parameter(&dt, importobj, "Project",
-                                     "$(VCTargetsPath)\\Microsoft.Cpp.targets");
-  unsigned int importgroup = data_tree_api.create_object(&dt, project, "ImportGroup");
-  data_tree_api.set_object_parameter(&dt, importgroup, "Label", "ExtensionTargets");
-
-  FILE* project_file = fopen(project_file_path, "wb");
-  fprintf(project_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-  // ninja export_tree_as_xml(project_file, &dt, 0, 0);
-  fclose(project_file);
 #endif
 
-fprintf(ninja_file, "\nrule compile\n");
-fprintf(ninja_file, "  command = %s -c $in%s /Fo$out\n", compiler_path, includes_command);
+  fprintf(ninja_file, "\nrule compile_%s\n", p->name);
+  fprintf(ninja_file, "  command = %s%s%s -c $in /Fo$out\n", compiler_path, preprocessor_defines,
+          includes_command);
 
-fprintf(ninja_file, "\nrule link\n");
-fprintf(ninja_file, "  command = %s $in /OUT:$out\n", linker_path);
+  fprintf(ninja_file, "\nrule link_%s\n", p->name);
+  if (p->type == CCProjectTypeStaticLibrary)
+    fprintf(ninja_file, "  command = %s $in /OUT:$out\n", lib_linker_path);
+  else if (p->type == CCProjectTypeDynamicLibrary)
+    fprintf(ninja_file, "  command = %s $in /DLL /OUT:$dyn_lib /IMPLIB:$imp_lib\n", linker_path);
+  else
+    fprintf(ninja_file, "  command = %s $in /OUT:$out\n", linker_path);
 
-/*
-/LIBPATH:"C:\Program Files\Microsoft Visual
-Studio\2022\Community\VC\Tools\MSVC\14.42.34433\lib\x64" $ /LIBPATH:"C:\Program Files\Microsoft
-Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\ATLMFC\lib\x64" $ /LIBPATH:"C:\Program
-Files\Microsoft Visual
-Studio\2022\Community\VC\Tools\MSVC\14.42.34433\lib\x86\store\references" $
-/LIBPATH:"C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.26100.0" $
-    /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\References\10.0.26100.0" $
-    /LIBPATH:"C:\Windows\Microsoft.NET\Framework64\v4.0.30319" $
-    /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\um\x64" $
-    /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\ucrt\x64" $
-    /*/
-
-const char* deps = "";
-for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
-  const char* f = p->file_data[fi]->path;
-  // const char* relative_file_path = make_path_relative(in_output_folder, f);
-  if (is_header_file(f)) {
-  } else if (is_source_file(f)) {
-    const char* obj_file_path = cc_printf("%s.o", strip_extension(f));
-    const char* src_file_path = cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path);
-    fprintf(ninja_file, "\nbuild %s: compile %s\n", obj_file_path, src_file_path);
-    deps = cc_printf("%s %s", deps, obj_file_path);
-  } else {
+  const char* deps = "";
+  for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
+    const char* f = p->file_data[fi]->path;
+    // const char* relative_file_path = make_path_relative(in_output_folder, f);
+    if (is_header_file(f)) {
+    } else if (is_source_file(f)) {
+      const char* obj_file_path = cc_printf("%s.obj", strip_extension(f));
+      const char* src_file_path = cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path);
+      fprintf(ninja_file, "\nbuild %s: compile_%s %s\n", obj_file_path, p->name, src_file_path);
+      deps = cc_printf("%s %s", deps, obj_file_path);
+    } else {
+    }
   }
-}
 
-fprintf(ninja_file, "\nbuild %s%s: link%s\n", p->name, project_type_suffix[p->type], deps);
+  // Add project dependencies
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+    const cc_project_impl_t* dp = p->dependantOn[i];
+    switch (dp->type) {
+      case CCProjectTypeStaticLibrary:
+      case CCProjectTypeDynamicLibrary:
+        deps = cc_printf("%s %s%s", deps, dp->name, ".lib");
+        break;
+      default:
+        deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
+        break;
+    }
+  }
+
+  if (p->type == CCProjectTypeDynamicLibrary) {
+    fprintf(ninja_file, "\nbuild %s%s %s%s: link_%s%s", p->name, project_type_suffix[p->type],
+            p->name, ".lib", p->name, deps);
+    fprintf(ninja_file, "\n  dyn_lib = %s%s", p->name, project_type_suffix[p->type]);
+    fprintf(ninja_file, "\n  imp_lib = %s%s", p->name, ".lib");
+  } else {
+    fprintf(ninja_file, "\nbuild %s%s: link_%s%s", p->name, project_type_suffix[p->type],
+            p->name, deps);
+  }
+  fprintf(ninja_file, "\n");
 }
 
 void ninja_generateInFolder(const char* in_workspace_path) {
@@ -833,9 +827,43 @@ void ninja_generateInFolder(const char* in_workspace_path) {
       }
     }
   }
+  {
+    const char* find_linker_command = cc_printf("%s >nul && where lib.exe", VsDevCmd_bat);
+    int exit_code                   = 0;
+    int result = system_np(find_linker_command, 100 * 1000, stdout_data, sizeof(stdout_data),
+                           stderr_data, sizeof(stderr_data), &exit_code);
+    if (result != 0) {
+      char* message;
+      DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+                                result, 0, (LPSTR)&message, 1024, NULL);
+      if (rfm != 0) {
+        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %s",
+                           find_linker_command, message);
+      } else {
+        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %i",
+                           find_linker_command, result);
+      }
+    } else {
+      if (exit_code == 0) {
+        lib_linker_path = str_trim(stdout_data);
+      } else {
+        // Succesfully ran the command, but there was an error, likely an issue compiling the
+        // config file
+        printf("stdout: %s\n", stdout_data);
+        printf("stderr: %s\n", stderr_data);
+
+        LOG_ERROR_AND_QUIT(
+            ERR_COMPILING,
+            "Error (%i) finding linker. You can add '--generate-projects' to "
+            "generate projects with the settings built into the existing CConstruct binary.\n",
+            exit_code);
+      }
+    }
+  }
 
   LOG_VERBOSE("Compiler: '%s'\n", compiler_path);
   LOG_VERBOSE("Linker: '%s'\n", linker_path);
+  LOG_VERBOSE("Lib-linker: '%s'\n", lib_linker_path);
 
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')

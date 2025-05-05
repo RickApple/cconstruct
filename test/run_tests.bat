@@ -67,8 +67,8 @@ pushd 03_library_dependency
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
-%BUILD_DEBUG_COMMAND% build\msvc\library_dependency.sln || exit /b
-build\msvc\x64\Debug\my_binary.exe || exit /b
+%BUILD_DEBUG_COMMAND% build\library_dependency.sln || exit /b
+build\x64\Debug\my_binary.exe || exit /b
 popd
 
 

@@ -33,3 +33,12 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
 build\include_folders.exe || exit /b
 popd
+
+
+pushd 03_library_dependency
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND% || exit /b
+build\my_binary.exe || exit /b
+popd

@@ -40,7 +40,7 @@ int main(int argc, const char** argv) {
   }
 
 #if defined(_MSC_VER)
-  cc_default_generator("build/msvc");
+  cc_default_generator("build");
 #else
   cc_default_generator("build/xcode");
 #endif
