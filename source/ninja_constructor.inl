@@ -457,8 +457,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
   }
 
-  // const char* additional_compiler_flags    = "%(AdditionalOptions)";
-  // const char* additional_link_flags        = "%(AdditionalOptions)";
+  const char* additional_compiler_flags   = "";
+  const char* additional_link_flags       = "";
   const char** additional_include_folders = NULL;
   const char* includes_command            = "";
   // const char** link_additional_directories = NULL;
@@ -482,37 +482,15 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
       preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, flags->defines[pdi]);
     }
-#if 0
-        for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
-          // Index in known flags
-          const char* current_flag = flags->compile_options[cfi];
-          bool found               = false;
-          for (unsigned kfi = 0; kfi < countof(ninja_known_compiler_flags); kfi++) {
-            if (strcmp(ninja_known_compiler_flags[kfi].flag, current_flag) == 0) {
-              found = true;
-              ninja_known_compiler_flags[kfi].action(&dt, compile_obj, NULL);
-            }
-          }
-          if (!found) {
-            additional_compiler_flags =
-                cc_printf("%s %s", flags->compile_options[cfi], additional_compiler_flags);
-          }
-        }
-        for (unsigned lfi = 0; lfi < array_count(flags->link_options); ++lfi) {
-          const char* current_flag = flags->link_options[lfi];
-          bool found               = false;
-          for (unsigned kfi = 0; kfi < countof(ninja_known_linker_flags); kfi++) {
-            if (strstr(current_flag, ninja_known_linker_flags[kfi].flag) == current_flag) {
-              found = true;
-              ninja_known_linker_flags[kfi].action(
-                  &dt, link_obj, current_flag + strlen(ninja_known_linker_flags[kfi].flag));
-            }
-          }
-          if (!found) {
-            additional_link_flags = cc_printf("%s %s", current_flag, additional_link_flags);
-          }
-        }
-#endif
+    for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
+      const char* current_flag  = flags->compile_options[cfi];
+      additional_compiler_flags = cc_printf("%s %s", additional_compiler_flags, current_flag);
+    }
+    for (unsigned lfi = 0; lfi < array_count(flags->link_options); ++lfi) {
+      const char* current_flag = flags->link_options[lfi];
+      additional_link_flags    = cc_printf("%s %s", additional_link_flags, current_flag);
+    }
+
     for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
       array_push(additional_include_folders, flags->include_folders[ifi]);
     }
@@ -709,19 +687,22 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 #endif
 
   fprintf(ninja_file, "\nrule compile_%s\n", p->name);
-  fprintf(ninja_file, "  command = %s%s%s /nologo -c $in /Fo$out\n", compiler_path, preprocessor_defines,
-          includes_command);
+  fprintf(ninja_file, "  command = %s%s%s%s /nologo -c $in /Fo$out\n", compiler_path,
+          preprocessor_defines, includes_command, additional_compiler_flags);
   fprintf(ninja_file, "  description = Compiling $in\n");
 
   fprintf(ninja_file, "\nrule link_%s\n", p->name);
   if (p->type == CCProjectTypeStaticLibrary) {
-    fprintf(ninja_file, "  command = %s $in /nologo /OUT:$out\n", lib_linker_path);
+    fprintf(ninja_file, "  command = %s%s $in /nologo /OUT:$out\n", lib_linker_path,
+            additional_link_flags);
     fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
-    fprintf(ninja_file, "  command = %s $in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib\n", linker_path);
+    fprintf(ninja_file, "  command = %s%s $in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib\n",
+            linker_path, additional_link_flags);
     fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
   } else {
-    fprintf(ninja_file, "  command = %s $in /nologo /OUT:$out\n", linker_path);
+    fprintf(ninja_file, "  command = %s%s $in /nologo /OUT:$out\n", linker_path,
+            additional_link_flags);
     fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
   }
 
@@ -787,8 +768,10 @@ void ninja_generateInFolder(const char* in_workspace_path) {
       }
     } else {
       if (exit_code == 0) {
-        compiler_path = str_trim(stdout_data);
-        ;
+        const char* bin_folder = folder_path_only(stdout_data);
+        compiler_path = cc_printf("%scl.exe", bin_folder);
+        lib_linker_path = cc_printf("%slib.exe", bin_folder);
+        linker_path = cc_printf("%slink.exe", bin_folder);
       } else {
         // Succesfully ran the command, but there was an error, likely an issue compiling the
         // config file
@@ -798,72 +781,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
         LOG_ERROR_AND_QUIT(
             ERR_COMPILING,
             "Error (%i) finding compiler. You can add '--generate-projects' to "
-            "generate projects with the settings built into the existing CConstruct binary.\n",
-            exit_code);
-      }
-    }
-  }
-  {
-    const char* find_linker_command = cc_printf("%s >nul && where link.exe", VsDevCmd_bat);
-    int exit_code                   = 0;
-    int result = system_np(find_linker_command, 100 * 1000, stdout_data, sizeof(stdout_data),
-                           stderr_data, sizeof(stderr_data), &exit_code);
-    if (result != 0) {
-      char* message;
-      DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-                                result, 0, (LPSTR)&message, 1024, NULL);
-      if (rfm != 0) {
-        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %s",
-                           find_linker_command, message);
-      } else {
-        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %i",
-                           find_linker_command, result);
-      }
-    } else {
-      if (exit_code == 0) {
-        linker_path = str_trim(stdout_data);
-      } else {
-        // Succesfully ran the command, but there was an error, likely an issue compiling the
-        // config file
-        printf("stdout: %s\n", stdout_data);
-        printf("stderr: %s\n", stderr_data);
-
-        LOG_ERROR_AND_QUIT(
-            ERR_COMPILING,
-            "Error (%i) finding linker. You can add '--generate-projects' to "
-            "generate projects with the settings built into the existing CConstruct binary.\n",
-            exit_code);
-      }
-    }
-  }
-  {
-    const char* find_linker_command = cc_printf("%s >nul && where lib.exe", VsDevCmd_bat);
-    int exit_code                   = 0;
-    int result = system_np(find_linker_command, 100 * 1000, stdout_data, sizeof(stdout_data),
-                           stderr_data, sizeof(stderr_data), &exit_code);
-    if (result != 0) {
-      char* message;
-      DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-                                result, 0, (LPSTR)&message, 1024, NULL);
-      if (rfm != 0) {
-        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %s",
-                           find_linker_command, message);
-      } else {
-        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error finding linker with command '%s'\nError: %i",
-                           find_linker_command, result);
-      }
-    } else {
-      if (exit_code == 0) {
-        lib_linker_path = str_trim(stdout_data);
-      } else {
-        // Succesfully ran the command, but there was an error, likely an issue compiling the
-        // config file
-        printf("stdout: %s\n", stdout_data);
-        printf("stderr: %s\n", stderr_data);
-
-        LOG_ERROR_AND_QUIT(
-            ERR_COMPILING,
-            "Error (%i) finding linker. You can add '--generate-projects' to "
             "generate projects with the settings built into the existing CConstruct binary.\n",
             exit_code);
       }

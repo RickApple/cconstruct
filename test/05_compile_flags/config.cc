@@ -22,6 +22,7 @@ int main(int argc, const char** argv) {
   // Beware, there are more general ways to set warning flags, see other test case.
 #ifdef WIN32
   cc.state.addCompilerFlag(flags, "/WX");
+  cc.state.addCompilerFlag(flags, "/Wall");
 #else
   cc.state.addCompilerFlag(flags, "-Werror");
   cc.state.addCompilerFlag(flags, "-Wunused-variable");

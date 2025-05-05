@@ -59,3 +59,12 @@ build\preprocessor.exe
 rem Release build is expected to return 1, since the define has a different value for that build
 if %errorlevel% neq 1 exit /b 1
 popd
+
+pushd 05_compile_flags
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND%
+if %errorlevel% neq 1 exit /b %errorlevel%
+REM building should cause an error because flag has been added to set warnings as errors
+popd
