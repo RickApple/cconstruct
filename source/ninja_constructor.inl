@@ -469,16 +469,20 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
     const cc_state_impl_t* flags = &(p->state[ipc]);
 
+    // TODO ordering and combination so that more specific flags can override general ones
+    if ((p->configs[ipc] != NULL) &&
+        (strcmp(p->configs[ipc]->label, _internal.active_config) != 0))
+      continue;
 #if 0
-        // TODO ordering and combination so that more specific flags can override general ones
-        if ((p->configs[ipc] != config) && (p->configs[ipc] != NULL)) continue;
         if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
 
         shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
         combined_warning_level       = flags->warningLevel;
-        for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
-          preprocessor_defines = cc_printf("%s;%s", flags->defines[pdi], preprocessor_defines);
-        }
+#endif
+    for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
+      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, flags->defines[pdi]);
+    }
+#if 0
         for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
           // Index in known flags
           const char* current_flag = flags->compile_options[cfi];
@@ -705,16 +709,21 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 #endif
 
   fprintf(ninja_file, "\nrule compile_%s\n", p->name);
-  fprintf(ninja_file, "  command = %s%s%s -c $in /Fo$out\n", compiler_path, preprocessor_defines,
+  fprintf(ninja_file, "  command = %s%s%s /nologo -c $in /Fo$out\n", compiler_path, preprocessor_defines,
           includes_command);
+  fprintf(ninja_file, "  description = Compiling $in\n");
 
   fprintf(ninja_file, "\nrule link_%s\n", p->name);
-  if (p->type == CCProjectTypeStaticLibrary)
-    fprintf(ninja_file, "  command = %s $in /OUT:$out\n", lib_linker_path);
-  else if (p->type == CCProjectTypeDynamicLibrary)
-    fprintf(ninja_file, "  command = %s $in /DLL /OUT:$dyn_lib /IMPLIB:$imp_lib\n", linker_path);
-  else
-    fprintf(ninja_file, "  command = %s $in /OUT:$out\n", linker_path);
+  if (p->type == CCProjectTypeStaticLibrary) {
+    fprintf(ninja_file, "  command = %s $in /nologo /OUT:$out\n", lib_linker_path);
+    fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
+  } else if (p->type == CCProjectTypeDynamicLibrary) {
+    fprintf(ninja_file, "  command = %s $in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib\n", linker_path);
+    fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
+  } else {
+    fprintf(ninja_file, "  command = %s $in /nologo /OUT:$out\n", linker_path);
+    fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
+  }
 
   const char* deps = "";
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
@@ -750,8 +759,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     fprintf(ninja_file, "\n  dyn_lib = %s%s", p->name, project_type_suffix[p->type]);
     fprintf(ninja_file, "\n  imp_lib = %s%s", p->name, ".lib");
   } else {
-    fprintf(ninja_file, "\nbuild %s%s: link_%s%s", p->name, project_type_suffix[p->type],
-            p->name, deps);
+    fprintf(ninja_file, "\nbuild %s%s: link_%s%s", p->name, project_type_suffix[p->type], p->name,
+            deps);
   }
   fprintf(ninja_file, "\n");
 }

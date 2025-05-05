@@ -31,6 +31,10 @@
 #include "types.inl"
 #include "data_tree.inl"
 
+struct {
+  const char* active_config;
+} _internal = {"Debug"};
+
 // Constructors
 #include "process.inl"
 #include "builder.inl"
@@ -227,6 +231,14 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #else
 #endif
 
+    {  // Check for explicit config
+      const char* test_arg = "--config=";
+      if (strncmp(argv[i], test_arg, strlen(test_arg)) == 0) {
+        _internal.active_config = argv[i] + strlen(test_arg);
+        LOG_VERBOSE("Config: %s\n", _internal.active_config);
+      }
+    }
+
     if (strcmp(argv[i], "--help") == 0) {
       printf("Options:\n");
       printf("  --verbose\n");
@@ -289,6 +301,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       },
       {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
+  
   if (cc_generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);
     exit(0);
