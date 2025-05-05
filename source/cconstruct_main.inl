@@ -32,9 +32,10 @@
 #include "data_tree.inl"
 
 struct {
+  const char* config_file_path;
   const char* active_config;
   bool show_includes;
-} _internal = {"Debug", false};
+} _internal = {NULL, "Debug", false};
 
 // Constructors
 #include "process.inl"
@@ -166,6 +167,8 @@ static void cc_print_statistics_(void) {
 }
 
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
+  _internal.config_file_path = in_absolute_config_file_path;
+  
 #if defined(_WIN32)
   (void)DeleteFile(cconstruct_old_binary_name);
   SetUnhandledExceptionFilter(ExceptionHandler);

@@ -117,3 +117,21 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 cconstruct.exe --generator=ninja --generate-projects --config=Release|| exit /b
 %BUILD_COMMAND% || exit /b
 popd
+
+
+pushd 10_mixing_c_and_cpp
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND%  || exit /b
+build\mixing_c_and_cpp.exe || exit /b
+popd
+
+
+pushd 11_nested_folders
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% src/config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND% || exit /b
+build\nested_folders.exe || exit /b
+popd

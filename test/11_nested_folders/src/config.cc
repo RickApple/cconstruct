@@ -26,7 +26,7 @@ int main(int argc, const char** argv) {
 
   add_function(cc, p);
 
-  // Note that the folder to generate the project is is relative to the main CConstruct config
+  // Note that the folder to generate the project is relative to the main CConstruct config
   // file.
   cc_default_generator("../build");
 

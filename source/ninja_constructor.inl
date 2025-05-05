@@ -875,16 +875,22 @@ void ninja_generateInFolder(const char* in_workspace_path) {
                             build_to_base_path);
   }
 
+  const char* workspace_abs =
+      make_uri(cc_printf("%s%s", folder_path_only(_internal.config_file_path), in_workspace_path));
+  const char* config_path_rel = make_path_relative(workspace_abs, _internal.config_file_path);
+  printf("Config path relative %s %s -> %s\n", workspace_abs, _internal.config_file_path,
+         config_path_rel);
+
   {  // Add dependency on config file
     fprintf(ninja_file, "\nrule build_cconstruct\n");
     fprintf(ninja_file,
             "  command = cl.exe /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe../cconstruct.exe "
-            "/showIncludes /nologo /TC ../config.cc\n");
+            "/showIncludes /nologo /TC $in\n");
     fprintf(ninja_file, "  description = Building CConstruct ...\n");
     fprintf(ninja_file, "  deps = msvc\n");
 
-    fprintf(ninja_file,
-            "\nbuild ../cconstruct.exe cconstruct.obj: build_cconstruct ../config.cc\n");
+    fprintf(ninja_file, "\nbuild ../cconstruct.exe cconstruct.obj: build_cconstruct %s\n",
+            config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
     fprintf(ninja_file, "  command = ../cconstruct.exe --generator=ninja --generate-projects\n");
