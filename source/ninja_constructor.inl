@@ -900,8 +900,14 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   #if defined(_WIN32)
     fprintf(ninja_file,
             "  command = %s /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe%s "
-            "/showIncludes /nologo /TC $in\n",
-            compiler_path, cconstruct_path_rel);
+            "/showIncludes /nologo %s $in\n",
+            compiler_path, cconstruct_path_rel,
+    #if __cplusplus
+            "/TP"
+    #else
+            "/TC"
+    #endif
+    );
   #elif defined(__APPLE__)
     //-g -Wall -Wextra -Wpedantic -Werror
     fprintf(ninja_file, "  command = %s -Wno-deprecated-declarations -o %s -c $in\n",

@@ -13,7 +13,8 @@ for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Stu
 SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
-call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
+call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
+rem call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 
 
 
@@ -150,5 +151,13 @@ popd
 REM also check if it works when calling it from a different folder
 del build\ninja.build
 build\cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+popd
+
+
+pushd 13_cpp_config
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_CPP_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
 popd
