@@ -497,3 +497,14 @@ const char* str_trim(const char* in) {
 
   return out;
 }
+
+#ifdef _WIN32
+const char* cc_path_executable() {
+  char existing_binary_path[MAX_PATH];
+  if (!GetModuleFileNameA(NULL, existing_binary_path, MAX_PATH)) {
+    exit(1);
+  }
+
+  return cc_printf("%s%s", folder_path_only(existing_binary_path), cconstruct_binary_name);
+}
+#endif

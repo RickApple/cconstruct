@@ -24,6 +24,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+const char* cconstruct_binary_name          = "cconstruct.exe";
+const char* cconstruct_internal_binary_name = "cconstruct_internal.exe";
+const char* cconstruct_old_binary_name      = "cconstruct.exe.old";
+#else
+const char* cconstruct_binary_name          = "cconstruct";
+const char* cconstruct_internal_binary_name = "cconstruct_internal";
+const char* cconstruct_old_binary_name      = "cconstruct.old";
+#endif
+
 // Tools
 // clang-format off
 #include "stack.inl"
@@ -168,7 +178,7 @@ static void cc_print_statistics_(void) {
 
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
   _internal.config_file_path = in_absolute_config_file_path;
-  
+
 #if defined(_WIN32)
   (void)DeleteFile(cconstruct_old_binary_name);
   SetUnhandledExceptionFilter(ExceptionHandler);
@@ -227,7 +237,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       cc_default_generator = vs2019_generateInFolder;
     }
     if (strcmp(argv[i], "--generator=ninja") == 0) {
-      cc_default_generator = ninja_generateInFolder;
+      cc_default_generator    = ninja_generateInFolder;
       _internal.show_includes = true;
     }
 #else
@@ -303,7 +313,6 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       },
       {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
 
-  
   if (cc_generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);
     exit(0);

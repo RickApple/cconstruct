@@ -135,3 +135,20 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
 build\nested_folders.exe || exit /b
 popd
+
+
+pushd 12_config_folders
+if exist build rd /S /Q build
+REM this test requires the build folder be there
+mkdir build 
+cl.exe /EHsc /Fo%TEMP% /FC /Febuild/cconstruct.exe /nologo /TC /ZI /DEBUG project/config.cc || exit /b
+pushd build
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+ninja || exit /b
+config_folders.exe || exit /b
+popd
+REM also check if it works when calling it from a different folder
+del build\ninja.build
+build\cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+popd

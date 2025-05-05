@@ -1,14 +1,4 @@
 #if defined(_WIN32)
-const char* cconstruct_binary_name          = "cconstruct.exe";
-const char* cconstruct_internal_binary_name = "cconstruct_internal.exe";
-const char* cconstruct_old_binary_name      = "cconstruct.exe.old";
-#else
-const char* cconstruct_binary_name          = "cconstruct";
-const char* cconstruct_internal_binary_name = "cconstruct_internal";
-const char* cconstruct_old_binary_name      = "cconstruct.old";
-#endif
-
-#if defined(_WIN32)
   #include <Windows.h>
 
 static char stdout_data[16 * 1024 * 1024] = {0};
@@ -61,6 +51,9 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   char temp_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_path, MAX_PATH);
 
+  const char* path_abs_cconstruct = folder_path_only(cc_path_executable());
+  const char* path_abs_internal_cconstruct =
+      cc_printf("%s%s", path_abs_cconstruct, cconstruct_internal_binary_name);
   const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
   const char* recompile_command = cc_printf(
       "\"%s\" > nul && pushd %s && cl.exe "
@@ -85,7 +78,8 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       "/TC "
   #endif
       "&& popd",
-      VsDevCmd_bat, temp_path, cconstruct_internal_binary_name, cconstruct_config_file_path, _internal.show_includes ? "/showIncludes " : "" );
+      VsDevCmd_bat, temp_path, path_abs_internal_cconstruct, cconstruct_config_file_path,
+      _internal.show_includes ? "/showIncludes " : "");
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
               recompile_command);
@@ -124,7 +118,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
     }
   }
 
-  const char* from_path = cc_printf("%s\\%s", temp_path, cconstruct_internal_binary_name);
+  const char* from_path = path_abs_internal_cconstruct;
   const char* to_path   = cc_printf("%s", cconstruct_internal_binary_name);
 
   if (!MoveFileEx(from_path, to_path, MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING)) {

@@ -1,11 +1,8 @@
 char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 
-char const* compiler_path =
-    "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\clang-cl.exe";
-char const* lib_linker_path =
-    "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe";
-char const* linker_path =
-    "C:\\PROGRA~1\\MICROS~3\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\lld-link.exe";
+char const* compiler_path   = "cl.exe";
+char const* lib_linker_path = "lib.exe";
+char const* linker_path     = "link.exe";
 
 const char* ninja_generateUUID() {
   static size_t count = 0;
@@ -493,7 +490,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     }
 
     for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
-      array_push(additional_include_folders, flags->include_folders[ifi]);
+      array_push(additional_include_folders, make_uri(flags->include_folders[ifi]));
     }
 #if 0
         for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
@@ -729,7 +726,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     if (is_header_file(f)) {
     } else if (is_source_file(f)) {
       const char* obj_file_path = cc_printf("%s.obj", strip_extension(f));
-      const char* src_file_path = cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path);
+      if( strncmp(obj_file_path, "../", 3)==0) {
+        obj_file_path += 3;
+      }
+      const char* src_file_path = make_uri(cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path));
       fprintf(ninja_file, "\nbuild %s: compile_%s %s\n", obj_file_path, p->name, src_file_path);
       deps = cc_printf("%s %s", deps, obj_file_path);
     } else {
@@ -768,9 +768,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 }
 
 void ninja_generateInFolder(const char* in_workspace_path) {
-  const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
-
+  
   // Find compiler location
+  #if 0
+  const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
   {
     const char* find_compiler_command = cc_printf("%s >nul && where cl.exe", VsDevCmd_bat);
     int exit_code                     = 0;
@@ -807,6 +808,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
       }
     }
   }
+#endif
 
   LOG_VERBOSE("Compiler: '%s'\n", compiler_path);
   LOG_VERBOSE("Linker: '%s'\n", linker_path);
@@ -878,26 +880,29 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* workspace_abs =
       make_uri(cc_printf("%s%s", folder_path_only(_internal.config_file_path), in_workspace_path));
   const char* config_path_rel = make_path_relative(workspace_abs, _internal.config_file_path);
-  printf("Config path relative %s %s -> %s\n", workspace_abs, _internal.config_file_path,
-         config_path_rel);
+
+  const char* path_cconstruct_abs = cc_path_executable();
+  const char* cconstruct_path_rel = make_path_relative(workspace_abs, path_cconstruct_abs);
 
   {  // Add dependency on config file
     fprintf(ninja_file, "\nrule build_cconstruct\n");
     fprintf(ninja_file,
-            "  command = cl.exe /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe../cconstruct.exe "
-            "/showIncludes /nologo /TC $in\n");
+            "  command = cl.exe /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe%s "
+            "/showIncludes /nologo /TC $in\n",
+            cconstruct_path_rel);
     fprintf(ninja_file, "  description = Building CConstruct ...\n");
     fprintf(ninja_file, "  deps = msvc\n");
 
-    fprintf(ninja_file, "\nbuild ../cconstruct.exe cconstruct.obj: build_cconstruct %s\n",
+    fprintf(ninja_file, "\nbuild %s cconstruct.obj: build_cconstruct %s\n", cconstruct_path_rel,
             config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
-    fprintf(ninja_file, "  command = ../cconstruct.exe --generator=ninja --generate-projects\n");
+    fprintf(ninja_file, "  command = %s --generator=ninja --generate-projects\n",
+            cconstruct_path_rel);
     fprintf(ninja_file, "  description = Re-running CConstruct ...\n");
     fprintf(ninja_file, "  generator = 1\n");
 
-    fprintf(ninja_file, "\nbuild build.ninja: RERUN_CCONSTRUCT ../cconstruct.exe\n");
+    fprintf(ninja_file, "\nbuild build.ninja: RERUN_CCONSTRUCT %s\n", cconstruct_path_rel);
     fprintf(ninja_file, "  pool = console\n");
   }
 
