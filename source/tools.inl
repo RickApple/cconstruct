@@ -460,7 +460,7 @@ char* make_path_relative(const char* in_base_folder, const char* in_change_path)
 }
 
 const char* str_strip_spaces(const char* in) {
-  static char project_name_nospaces[512];
+  static char project_name_nospaces[1024];
   char* po       = project_name_nospaces;
   const char* pi = in;
   while (*pi) {
@@ -471,4 +471,29 @@ const char* str_strip_spaces(const char* in) {
   }
   *po = 0;
   return project_name_nospaces;
+}
+
+int is_whitespace(const char c) { return (c == ' ') || (c == '\r') || (c == '\n') || (c == '\t'); }
+
+const char* str_trim(const char* in) {
+  // Trim beginning
+  while (is_whitespace(*in)) {
+    if (*in == 0) return "";
+
+    ++in;
+  }
+
+  const char* out = cc_printf("%s", in);
+  size_t len      = strlen(out);
+
+  const char* p = out + len - 1;
+  while (is_whitespace(*p)) {
+    if (p == out) return "";
+
+    --p;
+  }
+
+  ((char*)p)[1] = 0;
+
+  return out;
 }

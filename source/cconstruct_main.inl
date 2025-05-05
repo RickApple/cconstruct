@@ -36,6 +36,7 @@
 #include "builder.inl"
 #ifdef _WIN32
 #include "vs2019_constructor.inl"
+#include "ninja_constructor.inl"
 #else
 #include "xcode11_constructor.inl"
 #endif
@@ -220,6 +221,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     if (strcmp(argv[i], "--generator=msvc") == 0) {
       cc_default_generator = vs2019_generateInFolder;
     }
+    if (strcmp(argv[i], "--generator=ninja") == 0) {
+      cc_default_generator = ninja_generateInFolder;
+    }
 #else
 #endif
 
@@ -231,7 +235,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           "  --generate-cconstruct-project: Don't rebuild cconstruct binary. Generate projects "
           "and generate a project to debug cconstruct itself.\n");
 #if defined(_MSC_VER)
-      printf("  --generator=[msvc]: generate MSVC project.");
+      printf("  --generator=[msvc/ninja]: generate MSVC project.");
 #endif
       exit(0);
     }

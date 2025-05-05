@@ -61,7 +61,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   char temp_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_path, MAX_PATH);
 
-  const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
+  const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
   const char* recompile_command = cc_printf(
       "\"%s\" > nul && pushd %s && cl.exe "
       // Enable exception handling so can help users fix issues in their config files.
