@@ -17,6 +17,11 @@
   #include <unistd.h>
 #endif
 
+#if defined(__APPLE__)
+  #include <mach-o/dyld.h>
+  #include <limits.h>
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -52,10 +57,10 @@ struct {
 #include "builder.inl"
 #ifdef _WIN32
 #include "vs2019_constructor.inl"
-#include "ninja_constructor.inl"
 #else
 #include "xcode11_constructor.inl"
 #endif
+#include "ninja_constructor.inl"
 // clang-format on
 
 #if defined(_WIN32)
@@ -241,7 +246,13 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       _internal.show_includes = true;
     }
 #else
+    if (strcmp(argv[i], "--generator=xcode") == 0) {
+      cc_default_generator = xcode_generateInFolder;
+    }
 #endif
+    if (strcmp(argv[i], "--generator=ninja") == 0) {
+      cc_default_generator = ninja_generateInFolder;
+    }
 
     {  // Check for explicit config
       const char* test_arg = "--config=";
@@ -259,7 +270,9 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           "  --generate-cconstruct-project: Don't rebuild cconstruct binary. Generate projects "
           "and generate a project to debug cconstruct itself.\n");
 #if defined(_MSC_VER)
-      printf("  --generator=[msvc/ninja]: generate MSVC project.");
+      printf("  --generator=[msvc/ninja]: generate MSVC/Ninja project.");
+#else
+      printf("  --generator=[xcode/ninja]: generate XCode/Ninja project.");
 #endif
       exit(0);
     }

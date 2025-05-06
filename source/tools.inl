@@ -507,4 +507,23 @@ const char* cc_path_executable() {
 
   return cc_printf("%s%s", folder_path_only(existing_binary_path), cconstruct_binary_name);
 }
+#elif defined(__APPLE__)
+const char* cc_path_executable() {
+  char path[PATH_MAX];
+
+  uint32_t size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) != 0) {
+    fprintf(stderr, "Buffer too small; needed size: %u\n", size);
+    exit(1);
+  }
+
+  // Resolve symlinks to get the actual canonical path
+  char resolved_path[PATH_MAX];
+  if (realpath(path, resolved_path) == NULL) {
+    perror("realpath");
+    exit(1);
+  }
+
+  return cc_printf("%s%s", folder_path_only(resolved_path), cconstruct_binary_name);
+}
 #endif

@@ -1,8 +1,15 @@
-char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 
-char const* compiler_path   = "cl.exe";
-char const* lib_linker_path = "lib.exe";
-char const* linker_path     = "link.exe";
+#if defined(_WIN32)
+char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
+char const* compiler_path               = "cl.exe";
+char const* lib_linker_path             = "lib.exe";
+char const* linker_path                 = "link.exe";
+#else
+char const* const project_type_suffix[] = {"", "", ".lib", ".dylib"};
+char const* compiler_path               = "clang";
+char const* lib_linker_path             = "lib.exe";
+char const* linker_path                 = "link.exe";
+#endif
 
 const char* ninja_generateUUID() {
   static size_t count = 0;
@@ -180,50 +187,6 @@ const ninja_compiler_flag ninja_known_compiler_flags[] = {
     {"/Zi", &optionEmpty},  {"/ZI", &optionEmpty}, {"/MT", &optionEmpty},
     {"/MTd", &optionEmpty}, {"/MD", &optionEmpty}, {"/MDd", &optionEmpty}};
 const ninja_compiler_flag ninja_known_linker_flags[] = {{"/PDB:", &optionEmpty}};
-
-void ninja_search_platform_toolset_version(const char* directory, char* platform_toolset_version,
-                                           const size_t length) {
-  WIN32_FIND_DATA findFileData;
-  HANDLE hFind              = INVALID_HANDLE_VALUE;
-  char subdirPath[MAX_PATH] = {0};
-  char searchPath[MAX_PATH] = {0};
-
-  // Prepare the search pattern
-  snprintf(searchPath, sizeof(searchPath), "%s\\*", directory);
-
-  // Start search
-  hFind = FindFirstFile(searchPath, &findFileData);
-  if (hFind == INVALID_HANDLE_VALUE) {
-    printf("FindFirstFile failed (%lu)\n", GetLastError());
-    return;
-  }
-
-  do {
-    // Skip "." and ".." directories
-    if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0)
-      continue;
-
-    // Check if it is a directory
-    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-      // printf("Checking folder %s\\%s\n", directory, findFileData.cFileName);
-      //  Check if the directory name matches pattern "VC/v???"
-      if (strstr(directory, "PlatformToolsets") != NULL && strlen(findFileData.cFileName) == 4 &&
-          findFileData.cFileName[0] == 'v') {
-        int res = strcmp(platform_toolset_version, findFileData.cFileName);
-        if (res < 0) {
-          strncpy(platform_toolset_version, findFileData.cFileName, length - 1);
-        }
-      }
-
-      // Prepare the path for the next search
-      snprintf(subdirPath, sizeof(subdirPath), "%s\\%s", directory, findFileData.cFileName);
-      ninja_search_platform_toolset_version(subdirPath, platform_toolset_version,
-                                            length);  // Recursively search this directory
-    }
-  } while (FindNextFile(hFind, &findFileData) != 0);
-
-  FindClose(hFind);
-}
 
 void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const char* project_id,
                              const char** project_ids, const char* in_output_folder,
@@ -436,6 +399,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 #endif
 
   const char* preprocessor_defines = "";
+#if defined(_WIN32)
   switch (p->type) {
     case CCProjectTypeConsoleApplication:
       preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_CONSOLE");
@@ -453,6 +417,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     default:
       LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
   }
+#endif
 
   const char* additional_compiler_flags   = "";
   const char* additional_link_flags       = "";
@@ -524,18 +489,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       }
 #endif
 
-    {
-      const char* warning_strings[] = {"/W4", "/W3", "/W2", "/Wall", "/W0"};
-      assert(EStateWarningLevelHigh == 0);
-      assert(EStateWarningLevelAll == 3);
-      assert(EStateWarningLevelNone == 4);
-      additional_compiler_flags =
-          cc_printf("%s %s", additional_compiler_flags, warning_strings[combined_warning_level]);
-    }
-
-    if (!shouldDisableWarningsAsError) {
-      additional_compiler_flags = cc_printf("%s /WX", additional_compiler_flags);
-    }
+    
 #if 0
       // Disable unreferenced parameter warning
       data_tree_api.set_object_value(
@@ -569,9 +523,14 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       // RATODO: why put later ones before earlier ones?
       const char* combined_include_folders = "";
       for (size_t i = 0; i < array_count(additional_include_folders); i++) {
+#if defined(_WIN32)
         ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders[i]);
         combined_include_folders =
             cc_printf("%s /I\"%s\"", combined_include_folders, additional_include_folders[i]);
+#else
+        combined_include_folders =
+            cc_printf("%s -I\"%s\"", combined_include_folders, additional_include_folders[i]);
+#endif
       }
       includes_command = combined_include_folders;
     }
@@ -622,6 +581,29 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     }
   }
 #endif
+  }
+
+  {
+    #if defined(_WIN32)
+    const char* warning_strings[] = {"/W4", "/W3", "/W2", "/Wall", "/W0"};
+    #else
+    const char* warning_strings[] = {"-Wall -Wextra", "-Wall", "-Wall", "-Weverything", "-w"};
+    #endif
+    assert(EStateWarningLevelHigh == 0);
+    assert(EStateWarningLevelAll == 3);
+    assert(EStateWarningLevelNone == 4);
+    additional_compiler_flags =
+        cc_printf("%s %s", additional_compiler_flags, warning_strings[combined_warning_level]);
+
+      printf("set warning level %i: %s\n", combined_warning_level, warning_strings[combined_warning_level]);
+  }
+
+  if (!shouldDisableWarningsAsError) {
+    #if defined(_WIN32)
+    additional_compiler_flags = cc_printf("%s /WX", additional_compiler_flags);
+    #else
+    additional_compiler_flags = cc_printf("%s -Werror", additional_compiler_flags);
+    #endif
   }
 
   const bool have_post_build_action = (p->postBuildAction != 0);
@@ -699,6 +681,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   }
 #endif
 
+#if defined(_WIN32)
   fprintf(ninja_file, "\nrule compile_%s\n", p->name);
   fprintf(ninja_file, "  command = %s%s%s%s /nologo -c $in /Fo$out\n", compiler_path,
           preprocessor_defines, includes_command, additional_compiler_flags);
@@ -718,6 +701,25 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
             additional_link_flags);
     fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
   }
+#else
+  fprintf(ninja_file, "\nrule compile_%s\n", p->name);
+  fprintf(ninja_file, "  command = %s%s%s%s -c $in -o $out\n", compiler_path, preprocessor_defines,
+          includes_command, additional_compiler_flags);
+  fprintf(ninja_file, "  description = Compiling $in\n");
+
+  fprintf(ninja_file, "\nrule link_%s\n", p->name);
+  if (p->type == CCProjectTypeStaticLibrary) {
+    fprintf(ninja_file, "  command = %s%s $in -o $out\n", compiler_path, additional_link_flags);
+    fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
+  } else if (p->type == CCProjectTypeDynamicLibrary) {
+    fprintf(ninja_file, "  command = %s%s $in -o $dyn_lib\n", compiler_path,
+            additional_link_flags);
+    fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
+  } else {
+    fprintf(ninja_file, "  command = %s%s $in -o $out\n", compiler_path, additional_link_flags);
+    fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
+  }
+#endif
 
   const char* deps = "";
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
@@ -726,10 +728,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     if (is_header_file(f)) {
     } else if (is_source_file(f)) {
       const char* obj_file_path = cc_printf("%s.obj", strip_extension(f));
-      if( strncmp(obj_file_path, "../", 3)==0) {
+      if (strncmp(obj_file_path, "../", 3) == 0) {
         obj_file_path += 3;
       }
-      const char* src_file_path = make_uri(cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path));
+      const char* src_file_path =
+          make_uri(cc_printf("%s%s", build_to_base_path, p->file_data[fi]->path));
       fprintf(ninja_file, "\nbuild %s: compile_%s %s\n", obj_file_path, p->name, src_file_path);
       deps = cc_printf("%s %s", deps, obj_file_path);
     } else {
@@ -768,9 +771,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 }
 
 void ninja_generateInFolder(const char* in_workspace_path) {
-  
-  // Find compiler location
-  #if 0
+// Find compiler location
+#if 0
   const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
   {
     const char* find_compiler_command = cc_printf("%s >nul && where cl.exe", VsDevCmd_bat);
@@ -884,17 +886,23 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* path_cconstruct_abs = cc_path_executable();
   const char* cconstruct_path_rel = make_path_relative(workspace_abs, path_cconstruct_abs);
 
+#if !defined(__APPLE__)
   {  // Add dependency on config file
     fprintf(ninja_file, "\nrule build_cconstruct\n");
+  #if defined(_WIN32)
     fprintf(ninja_file,
-            "  command = cl.exe /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe%s "
+            "  command = %s /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe%s "
             "/showIncludes /nologo /TC $in\n",
-            cconstruct_path_rel);
+            compiler_path, cconstruct_path_rel);
+  #elif defined(__APPLE__)
+    //-g -Wall -Wextra -Wpedantic -Werror
+    fprintf(ninja_file, "  command = %s -Wno-deprecated-declarations -o %s -c $in\n",
+            compiler_path, cconstruct_path_rel);
+  #endif
     fprintf(ninja_file, "  description = Building CConstruct ...\n");
     fprintf(ninja_file, "  deps = msvc\n");
 
-    fprintf(ninja_file, "\nbuild %s cconstruct.obj: build_cconstruct %s\n", cconstruct_path_rel,
-            config_path_rel);
+    fprintf(ninja_file, "\nbuild %s: build_cconstruct %s\n", cconstruct_path_rel, config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
     fprintf(ninja_file, "  command = %s --generator=ninja --generate-projects\n",
@@ -905,6 +913,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     fprintf(ninja_file, "\nbuild build.ninja: RERUN_CCONSTRUCT %s\n", cconstruct_path_rel);
     fprintf(ninja_file, "  pool = console\n");
   }
-
+#endif
   fclose(ninja_file);
 }

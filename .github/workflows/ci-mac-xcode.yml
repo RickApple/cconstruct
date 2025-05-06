@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        compiler: [xcode, clang]
+        compiler: [xcode, ninja]
 
     steps:
       - name: Checkout code (shallow)
@@ -31,22 +31,19 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch  # Setup Xcode tools if not already configured
       
-      - name: Run Clang
-        if: matrix.compiler == 'clang'
-        run: |
-          clang --version
-
-      - name: Run Ninja
-        if: matrix.compiler == 'clang'
-        run: |
-          ninja --version
-
       - name: Run tests
         if: matrix.compiler == 'xcode'
         working-directory: test
         shell: bash
         run: |
           ./run_tests.sh  # Assuming you have a bash script for macOS
+
+      - name: Run tests
+        if: matrix.compiler == 'ninja'
+        working-directory: test
+        shell: bash
+        run: |
+          ./run_tests_ninja.sh  # Assuming you have a bash script for macOS
 
   build-construct-macos:
     runs-on: macos-latest
