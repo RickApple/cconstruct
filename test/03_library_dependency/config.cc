@@ -39,11 +39,7 @@ int main(int argc, const char** argv) {
     cc.project.addInputProject(b, ld);
   }
 
-#if defined(_MSC_VER)
   cc_default_generator("build");
-#else
-  cc_default_generator("build/xcode");
-#endif
 
   return 0;
 }

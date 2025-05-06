@@ -32,8 +32,8 @@ pushd 03_library_dependency
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/xcode/library_dependency.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-./build/xcode/x64/Debug/my_binary
+xcodebuild -quiet -workspace build/library_dependency.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+./build/x64/Debug/my_binary
 popd
 
 

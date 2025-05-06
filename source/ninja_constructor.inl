@@ -7,7 +7,7 @@ char const* linker_path                 = "link.exe";
 #else
 char const* const project_type_suffix[] = {"", "", ".lib", ".dylib"};
 char const* compiler_path               = "clang";
-char const* lib_linker_path             = "lib.exe";
+char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link.exe";
 #endif
 
@@ -489,7 +489,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       }
 #endif
 
-    
 #if 0
       // Disable unreferenced parameter warning
       data_tree_api.set_object_value(
@@ -584,26 +583,24 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   }
 
   {
-    #if defined(_WIN32)
+#if defined(_WIN32)
     const char* warning_strings[] = {"/W4", "/W3", "/W2", "/Wall", "/W0"};
-    #else
+#else
     const char* warning_strings[] = {"-Wall -Wextra", "-Wall", "-Wall", "-Weverything", "-w"};
-    #endif
+#endif
     assert(EStateWarningLevelHigh == 0);
     assert(EStateWarningLevelAll == 3);
     assert(EStateWarningLevelNone == 4);
     additional_compiler_flags =
         cc_printf("%s %s", additional_compiler_flags, warning_strings[combined_warning_level]);
-
-      printf("set warning level %i: %s\n", combined_warning_level, warning_strings[combined_warning_level]);
   }
 
   if (!shouldDisableWarningsAsError) {
-    #if defined(_WIN32)
+#if defined(_WIN32)
     additional_compiler_flags = cc_printf("%s /WX", additional_compiler_flags);
-    #else
+#else
     additional_compiler_flags = cc_printf("%s -Werror", additional_compiler_flags);
-    #endif
+#endif
   }
 
   const bool have_post_build_action = (p->postBuildAction != 0);
@@ -681,6 +678,31 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   }
 #endif
 
+  // Add project dependencies
+  const char* deps = "";
+#if defined(_WIN32)
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+    const cc_project_impl_t* dp = p->dependantOn[i];
+    switch (dp->type) {
+      case CCProjectTypeStaticLibrary:
+      case CCProjectTypeDynamicLibrary:
+        deps = cc_printf("%s %s%s", deps, dp->name, ".lib");
+        break;
+      default:
+        deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
+        break;
+    }
+  }
+#else
+  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
+    const cc_project_impl_t* dp = p->dependantOn[i];
+    deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
+    if (dp->type == CCProjectTypeDynamicLibrary) {
+      additional_link_flags = cc_printf("%s -Wl,-rpath,@executable_path", additional_link_flags);
+    }
+  }
+#endif
+
 #if defined(_WIN32)
   fprintf(ninja_file, "\nrule compile_%s\n", p->name);
   fprintf(ninja_file, "  command = %s%s%s%s /nologo -c $in /Fo$out\n", compiler_path,
@@ -709,11 +731,12 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 
   fprintf(ninja_file, "\nrule link_%s\n", p->name);
   if (p->type == CCProjectTypeStaticLibrary) {
-    fprintf(ninja_file, "  command = %s%s $in -o $out\n", compiler_path, additional_link_flags);
+    fprintf(ninja_file, "  command = %s%s rcs $out $in\n", lib_linker_path, additional_link_flags);
     fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
-    fprintf(ninja_file, "  command = %s%s $in -o $dyn_lib\n", compiler_path,
-            additional_link_flags);
+    fprintf(ninja_file,
+            "  command = %s%s -dynamiclib $in -install_name @rpath/$dyn_lib -o $dyn_lib\n",
+            compiler_path, additional_link_flags);
     fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
   } else {
     fprintf(ninja_file, "  command = %s%s $in -o $out\n", compiler_path, additional_link_flags);
@@ -721,7 +744,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   }
 #endif
 
-  const char* deps = "";
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f = p->file_data[fi]->path;
     // const char* relative_file_path = make_path_relative(in_output_folder, f);
@@ -736,20 +758,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       fprintf(ninja_file, "\nbuild %s: compile_%s %s\n", obj_file_path, p->name, src_file_path);
       deps = cc_printf("%s %s", deps, obj_file_path);
     } else {
-    }
-  }
-
-  // Add project dependencies
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const cc_project_impl_t* dp = p->dependantOn[i];
-    switch (dp->type) {
-      case CCProjectTypeStaticLibrary:
-      case CCProjectTypeDynamicLibrary:
-        deps = cc_printf("%s %s%s", deps, dp->name, ".lib");
-        break;
-      default:
-        deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
-        break;
     }
   }
 
