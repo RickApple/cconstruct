@@ -18,8 +18,8 @@
 #endif
 
 #if defined(__APPLE__)
-  #include <mach-o/dyld.h>
   #include <limits.h>
+  #include <mach-o/dyld.h>
 #endif
 
 #include <assert.h>
@@ -49,8 +49,16 @@ const char* cconstruct_old_binary_name      = "cconstruct.old";
 struct {
   const char* config_file_path;
   const char* active_config;
+  const char* active_arch_label;
+  EArchitecture active_arch;
   bool show_includes;
-} _internal = {NULL, "Debug", false};
+} _internal = {NULL, "Debug", 
+#ifdef _M_IX86
+  "x86", EArchitectureX86,
+#elif _M_X64
+  "x64", EArchitectureX64,
+#endif
+   false};
 
 // Constructors
 #include "process.inl"
@@ -259,6 +267,14 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       if (strncmp(argv[i], test_arg, strlen(test_arg)) == 0) {
         _internal.active_config = argv[i] + strlen(test_arg);
         LOG_VERBOSE("Config: %s\n", _internal.active_config);
+      }
+    }
+
+    {  // Check for explicit architecture
+      const char* test_arg = "--arch=";
+      if (strncmp(argv[i], test_arg, strlen(test_arg)) == 0) {
+        _internal.active_arch_label = argv[i] + strlen(test_arg);
+        LOG_VERBOSE("Architecture: %s\n", _internal.active_arch_label);
       }
     }
 

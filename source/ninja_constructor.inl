@@ -31,18 +31,6 @@ const char* ninja_findUUIDForProject(const char** uuids, const cc_project_impl_t
   return uuids[i];
 }
 
-const char* ninja_projectArch2String_(EArchitecture arch) {
-  switch (arch) {
-    case EArchitectureX86:
-      return "Win32";
-    case EArchitectureX64:
-      return "x64";
-    case EArchitectureARM:
-      return "ARM";
-  }
-  return "";
-}
-
 void ninja_replaceForwardSlashWithBackwardSlashInPlace(char* in_out) {
   if (in_out == 0) return;
 
@@ -63,10 +51,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
                              const char* in_output_folder, const char* build_to_base_path) {
   (void)in_output_folder;
 
-  const char* platform_label = "";
-  for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-    platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-  }
+  const char* platform_label = _internal.active_arch_label;
 
   const char* substitution_keys[] = {
       "configuration",
@@ -270,12 +255,12 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   }
 #endif
 
-  const char* additional_compiler_flags   = "";
-  const char* additional_link_flags       = "";
-  const char** additional_include_folders = NULL;
-  const char* includes_command            = "";
-  // const char** link_additional_directories = NULL;
-  // const char* link_additional_dependencies = "";
+  const char* additional_compiler_flags    = "";
+  const char* additional_link_flags        = "";
+  const char** additional_include_folders  = NULL;
+  const char* includes_command             = "";
+  const char** link_additional_directories = NULL;
+  const char* link_additional_dependencies = "";
 
   EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
   bool shouldDisableWarningsAsError         = false;
@@ -308,37 +293,34 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     for (unsigned ifi = 0; ifi < array_count(flags->include_folders); ++ifi) {
       array_push(additional_include_folders, make_uri(flags->include_folders[ifi]));
     }
-#if 0
-        for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
-          const char* lib_path_from_base = flags->external_libs[di];
-          const bool is_absolute_path =
-              (lib_path_from_base[0] == '/') || (lib_path_from_base[1] == ':');
-          const bool starts_with_env_variable = (lib_path_from_base[0] == '$');
-          if (!is_absolute_path && !starts_with_env_variable) {
-            lib_path_from_base = cc_printf("%s%s", build_to_base_path, lib_path_from_base);
-          }
 
-          const char* relative_lib_path = make_path_relative(in_output_folder, lib_path_from_base);
-          const char* lib_name          = strip_path(relative_lib_path);
-          const char* lib_folder        = make_uri(folder_path_only(relative_lib_path));
-          const char* resolved_lib_folder = cc_substitute(
-              lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
-
-          ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
-          link_additional_dependencies =
-              cc_printf("%s;%s", link_additional_dependencies, lib_name);
-          // Check if this path is already in there
-          bool did_find = false;
-          for (size_t ilf = 0; ilf < array_count(link_additional_directories); ilf++) {
-            if (strcmp(link_additional_directories[ilf], resolved_lib_folder) == 0)
-              did_find = true;
-          }
-          if (!did_find) {
-            array_push(link_additional_directories, resolved_lib_folder);
-          }
-        }
+    for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
+      const char* lib_path_from_base = flags->external_libs[di];
+      const bool is_absolute_path =
+          (lib_path_from_base[0] == '/') || (lib_path_from_base[1] == ':');
+      const bool starts_with_env_variable = (lib_path_from_base[0] == '$');
+      if (!is_absolute_path && !starts_with_env_variable) {
+        lib_path_from_base = cc_printf("%s%s", build_to_base_path, lib_path_from_base);
       }
-#endif
+
+      const char* relative_lib_path   = make_path_relative(in_output_folder, lib_path_from_base);
+      const char* lib_name            = strip_path(relative_lib_path);
+      const char* lib_folder          = make_uri(folder_path_only(relative_lib_path));
+      const char* resolved_lib_folder = cc_substitute(
+          lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
+
+      ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
+      link_additional_dependencies =
+          cc_printf("%s \"%s\"", link_additional_dependencies, lib_name);
+      // Check if this path is already in there
+      bool did_find = false;
+      for (size_t ilf = 0; ilf < array_count(link_additional_directories); ilf++) {
+        if (strcmp(link_additional_directories[ilf], resolved_lib_folder) == 0) did_find = true;
+      }
+      if (!did_find) {
+        array_push(link_additional_directories, resolved_lib_folder);
+      }
+    }
 
 #if 0
       // Disable unreferenced parameter warning
@@ -393,18 +375,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     link_additional_dependencies =
         cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
 
-    if (array_count(link_additional_directories) != 0) {
-      // Put later folders in front of earlier folders
-      const char* combined_link_folders = link_additional_directories[0];
-      for (size_t i = 1; i < array_count(link_additional_directories); i++) {
-        combined_link_folders =
-            cc_printf("%s;%s", link_additional_directories[i], combined_link_folders);
-      }
-      ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalLibraryDirectories"),
-          combined_link_folders);
-    }
+    
     data_tree_api.set_object_value(
         &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalDependencies"),
         link_additional_dependencies);
@@ -431,6 +402,20 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     }
   }
 #endif
+  }
+
+  const char* combined_link_folders = "";
+  if (array_count(link_additional_directories) != 0) {
+    // Put later folders in front of earlier folders
+    for (size_t i = 0; i < array_count(link_additional_directories); i++) {
+      int fl = (int)strlen(link_additional_directories[i]);
+      if (link_additional_directories[i][fl - 1] == '\\') {
+        fl -= 1;
+      }
+      combined_link_folders = cc_printf("%s /LIBPATH:\"%.*s\"", combined_link_folders, fl,
+                                        link_additional_directories[i]);
+    }
+    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
   }
 
   {
@@ -556,7 +541,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, includes_command);
     array_push(command_elements, additional_compiler_flags);
 #if defined(_WIN32)
-    array_push(command_elements, "/nologo -c $in /Fo:$out");
+    array_push(command_elements, "/nologo /c $in /Fo:$out");
 #else
     array_push(command_elements, "-c $in -o $out");
 #endif
@@ -570,20 +555,30 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #if defined(_WIN32)
   const char* desc = "";
   command_elements = NULL;
+
   fprintf(ninja_file, "\nrule link_%s", p->name);
   if (p->type == CCProjectTypeStaticLibrary) {
     array_push(command_elements, lib_linker_path);
     array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
     array_push(command_elements, "$in /nologo /OUT:$out");
     desc = cc_printf("Linking static library %s", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
     array_push(command_elements, linker_path);
     array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
     array_push(command_elements, "$in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib");
     desc = cc_printf("Linking dynamic library %s", p->name);
   } else {
     array_push(command_elements, linker_path);
     array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
+    if (_internal.active_arch == EArchitectureX64) {
+      array_push(command_elements, "/MACHINE:X64");
+    }
     array_push(command_elements, "$in /nologo /OUT:$out");
     desc = cc_printf("Linking binary %s", p->name);
   }
@@ -697,6 +692,20 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   LOG_VERBOSE("Linker: '%s'\n", linker_path);
   LOG_VERBOSE("Lib-linker: '%s'\n", lib_linker_path);
 
+  {  // Check for explicit arch
+    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+      const cc_architecture_impl_t* a = cc_data_.architectures[pi];
+      if (strcmp(_internal.active_arch_label, cc_projectArch2String_(a->type)) == 0) {
+        _internal.active_arch = a->type;
+        break;
+      }
+    }
+    if (_internal.active_arch == EArchitectureCount) {
+      fprintf(stderr, "Unknown architecture: %s\n", _internal.active_arch_label);
+      exit(1);
+    }
+  }
+
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
     in_workspace_path = cc_printf("%s/", in_workspace_path);
@@ -746,10 +755,11 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
   fprintf(ninja_file, "msvc_deps_prefix = Note: including file:\n\n");
 
-  const char* platform_label = "";
-  for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-    platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-  }
+  const char* platform_label = _internal.active_arch_label;
+
+  fprintf(ninja_file, "configuration = %s\n", _internal.active_config);
+  fprintf(ninja_file, "platform = %s\n", platform_label);
+  fprintf(ninja_file, "workspace_folder = %s\n", ".");
 
   fprintf(ninja_file, "configuration = %s\n", _internal.active_config);
   fprintf(ninja_file, "platform = %s\n", platform_label);
@@ -773,7 +783,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     fprintf(ninja_file, "\nrule build_cconstruct\n");
   #if defined(_WIN32)
     fprintf(ninja_file,
-            "  command = %s /ZI /W4 /WX /DEBUG /FC /Focconstruct" OBJ_EXT
+            "  command = %s /ZI /W4 /WX /DEBUG /FC /Fo:cconstruct" OBJ_EXT
             " /Fe%s "
             "/showIncludes /nologo %s $in\n",
             compiler_path, cconstruct_path_rel,

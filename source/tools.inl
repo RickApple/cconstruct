@@ -527,3 +527,18 @@ const char* cc_path_executable() {
   return cc_printf("%s%s", folder_path_only(resolved_path), cconstruct_binary_name);
 }
 #endif
+
+
+
+
+const char* cc_projectArch2String_(EArchitecture arch) {
+  switch (arch) {
+    case EArchitectureX86:
+      return "Win32";
+    case EArchitectureX64:
+      return "x64";
+    case EArchitectureARM:
+      return "ARM";
+  }
+  return "";
+}

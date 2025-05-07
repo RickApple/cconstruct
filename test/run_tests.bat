@@ -19,7 +19,7 @@ call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-build\amd64\cconstruct_architecture.exe
+build\x64\cconstruct_architecture.exe
 if %errorlevel% neq 64 exit /b %errorlevel%
 @popd
 @ENDLOCAL
@@ -76,23 +76,23 @@ pushd 03a_library_dependency_explicit
 rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_library /p:Configuration=Debug;Platform=x64 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_binary /p:Configuration=Debug;Platform=x64 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_library /p:Configuration=Debug;Platform=x86 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_binary /p:Configuration=Debug;Platform=x86 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_library /p:Configuration=Release;Platform=x64 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_binary /p:Configuration=Release;Platform=x64 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_library /p:Configuration=Release;Platform=x86 || exit /b
-msbuild build\msvc\library_dependency_explicit.sln /t:my_binary /p:Configuration=Release;Platform=x86 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_library /p:Configuration=Debug;Platform=x64 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_binary /p:Configuration=Debug;Platform=x64 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_library /p:Configuration=Debug;Platform=x86 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_binary /p:Configuration=Debug;Platform=x86 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_library /p:Configuration=Release;Platform=x64 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_binary /p:Configuration=Release;Platform=x64 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_library /p:Configuration=Release;Platform=x86 || exit /b
+msbuild build\library_dependency_explicit.sln /t:my_binary /p:Configuration=Release;Platform=x86 || exit /b
 rem Debug lib returns 1
-build\msvc\x64\Debug\bin\my_binary.exe
+build\x64\Debug\bin\my_binary.exe
 if %errorlevel% neq 1 exit /b %errorlevel%
-build\msvc\Win32\Debug\bin\my_binary.exe
+build\Win32\Debug\bin\my_binary.exe
 if %errorlevel% neq 1 exit /b %errorlevel%
 rem Release lib returns 2
-build\msvc\x64\Release\bin\my_binary.exe
+build\x64\Release\bin\my_binary.exe
 if %errorlevel% neq 2 exit /b %errorlevel%
-build\msvc\Win32\Release\bin\my_binary.exe
+build\Win32\Release\bin\my_binary.exe
 if %errorlevel% neq 2 exit /b %errorlevel%
 popd
 
@@ -293,18 +293,5 @@ cconstruct.exe || exit /b
 build\x64\Debug\errors.exe || exit /b
 popd
 
-
-
-
-
-pushd ..\tools
-rd /S /Q build
-%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
-%BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-rem Create output folder for combined file
-mkdir ..\build
-build\x64\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct.h || exit /b
-popd
 
 echo All Tests Finished

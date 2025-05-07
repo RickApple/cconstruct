@@ -50,6 +50,8 @@ typedef enum {
   EArchitectureX86 = 0,
   EArchitectureX64,
   EArchitectureARM,
+
+  EArchitectureCount
 } EArchitecture;
 typedef enum {
   EPlatformDesktop = 0, /* MacOS, Windows */

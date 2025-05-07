@@ -15,23 +15,7 @@
   #include <sys/stat.h>
 #endif
 
-#if defined(__APPLE__)
-  #include <mach-o/dyld.h>
-  #include <limits.h>
-#endif
-
-
-#if defined(_WIN32)
-const char* cconstruct_binary_name          = "cconstruct.exe";
-const char* cconstruct_internal_binary_name = "cconstruct_internal.exe";
-const char* cconstruct_old_binary_name      = "cconstruct.exe.old";
-#else
-const char* cconstruct_binary_name          = "cconstruct";
-const char* cconstruct_internal_binary_name = "cconstruct_internal";
-const char* cconstruct_old_binary_name      = "cconstruct.old";
-#endif
-
-#include "../source/tools.inl"
+#include "../source/cconstruct.h"
 
 const char* combinePaths(const char* folder1, const char* folder2) {
   unsigned combined_length = (unsigned)(strlen(folder1) + 1 + strlen(folder2) + 1);

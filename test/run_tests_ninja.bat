@@ -17,9 +17,9 @@ pushd 22_cconstruct_architecture
 @if exist build rd /S /Q build
 call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe --generator=ninja || exit /b
+%CMD_CONSTRUCT_WORKSPACE% || exit /b
 %BUILD_COMMAND% || exit /b
-build\amd64\cconstruct_architecture.exe
+build\x64\cconstruct_architecture.exe
 if %errorlevel% neq 64 exit /b %errorlevel%
 @popd
 @ENDLOCAL
@@ -28,7 +28,7 @@ if %errorlevel% neq 64 exit /b %errorlevel%
 @if exist build rd /S /Q build
 call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe --generator=ninja || exit /b
+%CMD_CONSTRUCT_WORKSPACE% || exit /b
 %BUILD_COMMAND% || exit /b
 build\x86\cconstruct_architecture.exe
 if %errorlevel% neq 86 exit /b %errorlevel%
@@ -40,8 +40,11 @@ popd
 SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
-call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
-rem call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
+rem call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
+call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
+
+
+
 
 pushd 01_hello_world
 if exist build rd /S /Q build
@@ -67,6 +70,22 @@ if exist build rd /S /Q build
 %CMD_CONSTRUCT_WORKSPACE% || exit /b
 %BUILD_COMMAND% || exit /b
 build\x64\Debug\my_binary.exe || exit /b
+popd
+
+
+pushd 03a_library_dependency_explicit
+@if exist build rd /S /Q build
+%COMPILE_DEBUG_CONSTRUCT_COMMAND% config.cc || exit /b
+%CMD_CONSTRUCT_WORKSPACE% --config=Debug || exit /b
+%BUILD_COMMAND% x64\Debug\lib\my_library.lib || exit /b
+%BUILD_COMMAND% || exit /b
+build\x64\Debug\bin\my_binary.exe
+if %errorlevel% neq 1 exit /b 1
+%CMD_CONSTRUCT_WORKSPACE% --config=Release || exit /b
+%BUILD_COMMAND% x64\Release\lib\my_library.lib || exit /b
+%BUILD_COMMAND% || exit /b
+build\x64\Release\bin\my_binary.exe
+if %errorlevel% neq 2 exit /b 2
 popd
 
 
@@ -232,8 +251,22 @@ if %errorlevel% neq 2 exit /b %errorlevel%
 rem No error at all, everything goes OK from here on out
 copy error_none.inl error.inl
 cconstruct.exe --generator=ninja || exit /b
-%BUILD_COMMAND% -v || exit /b
+%BUILD_COMMAND% || exit /b
 build\x64\Debug\errors.exe || exit /b
 popd
 
 echo All tests passed!
+
+
+pushd ..\tools
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+rem Create output folder for combined file
+mkdir ..\build
+build\x64\Debug\cconstruct_release.exe ../source/cconstruct.h ../build/cconstruct.h || exit /b
+popd
+
+
+echo Built release version

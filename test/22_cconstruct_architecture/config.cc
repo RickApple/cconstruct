@@ -3,9 +3,12 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
+  cc_architecture_t arch = cc.architecture.create(EArchitectureX86);
   cc.workspace.addArchitecture(arch);
+  arch = cc.architecture.create(EArchitectureX64);
+  cc.workspace.addArchitecture(arch);
+
+  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
   cc.workspace.addPlatform(platform);
 
   cc_configuration_t configuration_debug = cc.configuration.create("Debug");
@@ -22,7 +25,7 @@ int main(int argc, const char** argv) {
   cc.project.setOutputFolder(p, "x86");
 #elif _M_X64
   cc.state.addCompilerFlag(flags, "/DOUTPUT=64");
-  cc.project.setOutputFolder(p, "amd64");
+  cc.project.setOutputFolder(p, "x64");
 #elif _M_IA64
   cc.state.addCompilerFlag(flags, "/DOUTPUT=65");
   cc.project.setOutputFolder(p, "ia64");
