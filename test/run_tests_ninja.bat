@@ -161,3 +161,14 @@ if exist build rd /S /Q build
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
 popd
+
+
+pushd 17_link_flags
+if exist build rd /S /Q build
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+%BUILD_COMMAND%  || exit /b
+if not exist build\Debug\link_flags_named.pdb (
+  exit 1
+)
+popd

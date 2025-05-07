@@ -437,8 +437,16 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     }
   }
 
-  const char* substitution_keys[]   = {"configuration", "platform"};
-  const char* substitution_values[] = {"$(Configuration)", "$(Platform)"};
+  const char* substitution_keys[] = {
+      "configuration",
+      "platform",
+      "workspace_folder",
+  };
+  const char* substitution_values[] = {
+      "$(Configuration)",
+      "$(Platform)",
+      "$(SolutionDir)",
+  };
 
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
@@ -679,6 +687,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
             combined_include_folders);
       }
 
+      additional_link_flags = cc_substitute(additional_link_flags, substitution_keys,
+                                            substitution_values, countof(substitution_keys));
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalOptions"),
           additional_link_flags);

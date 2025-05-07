@@ -19,6 +19,12 @@
  *      'clang -x c your_config.cc -o cconstruct'
  * 3. Run the resulting cconstruct, which will regenerate itself from the config file
  *    and then construct the project files you specified in the config.
+ * 
+ * ==========================
+ * You can use the following variables in places:
+ *    ${configuration}
+ *    ${platform}
+ *    ${workspace_folder}
  */
 #ifndef CC_CONSTRUCT_H
 #define CC_CONSTRUCT_H

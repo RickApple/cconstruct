@@ -195,8 +195,16 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   (void)project_id;
   (void)in_output_folder;
 
-  const char* substitution_keys[]   = {"configuration", "platform"};
-  const char* substitution_values[] = {_internal.active_config, "$(Platform)"};
+  const char* substitution_keys[] = {
+      "configuration",
+      "platform",
+      "workspace_folder",
+  };
+  const char* substitution_values[] = {
+      _internal.active_config,
+      "$(Platform)",
+      in_output_folder,
+  };
 
 #if 0
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);

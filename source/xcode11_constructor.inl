@@ -218,7 +218,7 @@ const xcode_compiler_flag xcode_known_compiler_flags_[] = {
 
 void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
                             const xcode_uuid* projectFileReferenceUUIDs,
-                            const char* build_to_base_path) {
+                            const char* in_output_folder, const char* build_to_base_path) {
   const cc_project_impl_t* p         = (cc_project_impl_t*)in_project;
   const struct data_tree_api* dt_api = &data_tree_api;
   struct data_tree_t dt              = dt_api->create();
@@ -228,9 +228,17 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   dt_api->set_object_value(&dt, dt_api->create_object(&dt, 0, "objectVersion"), "50");
   unsigned int nodeObjects = dt_api->create_object(&dt, 0, "objects");
 
-  const char* substitution_keys[] = {"configuration", "platform"};
+  const char* substitution_keys[] = {
+      "configuration",
+      "platform",
+      "workspace_folder",
+  };
   // For MacOS currently the only allowed platform is  64-bit
-  const char* substitution_values[] = {"$CONFIGURATION", "x64"};
+  const char* substitution_values[] = {
+      "$CONFIGURATION",
+      "x64",
+      in_output_folder,
+  };
 
   const unsigned files_count  = array_count(p->file_data);
   const char** file_ref_paths = {0};
@@ -1401,7 +1409,8 @@ void xcode_generateInFolder(const char* in_project_output_path) {
     FILE* f = fopen(project_file_path, "wb");
 
     if (f) {
-      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, build_to_base_path);
+      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, in_project_output_path,
+                             build_to_base_path);
       fclose(f);
     }
 
