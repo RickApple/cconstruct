@@ -1,4 +1,4 @@
-name: Windows MSVC/Ninja CI
+name: CI Windows Ninja/cl.exe
 
 on:
   push:
@@ -25,6 +25,8 @@ jobs:
         if: matrix.compiler == 'msvc'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Run Ninja
+      - name: Run tests
+        working-directory: test
+        shell: cmd
         run: |
-          ninja --version
+          run_tests_ninja.bat
