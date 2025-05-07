@@ -21,11 +21,6 @@ jobs:
         with:
           version: 1.10.0
       
-      - name: Set up Clang for Windows
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: latest
-
       - name: Run Clang
         run: |
           clang --version
