@@ -22,7 +22,7 @@ int main(int argc, const char** argv) {
 #ifdef WIN32
   // Note that some linker flags are integrated into the IDE, and other are simply forwarded to the
   // Other Flags section.
-  cc.state.addLinkerFlag(flags, "/PDB:${workspace_folder}/link_flags_named.pdb");
+  cc.state.addLinkerFlag(flags, "/DEBUG /PDB:${workspace_folder}/${platform}/${configuration}/link_flags_named.pdb");
 #else
 #endif
   cc.project.setFlags(p, flags, NULL, NULL);

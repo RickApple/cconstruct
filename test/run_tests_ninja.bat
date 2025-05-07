@@ -23,7 +23,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe  --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
-build\hello_world.exe || exit /b
+build\x64\Debug\hello_world.exe || exit /b
 popd
 
 
@@ -32,7 +32,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
-build\include_folders.exe || exit /b
+build\x64\Debug\include_folders.exe || exit /b
 popd
 
 
@@ -41,7 +41,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
-build\my_binary.exe || exit /b
+build\x64\Debug\my_binary.exe || exit /b
 popd
 
 
@@ -50,12 +50,12 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
-build\preprocessor.exe
+build\x64\Debug\preprocessor.exe
 rem Debug build has the expected value for the define, so should return 0
 if %errorlevel% neq 0 exit /b 1
 cconstruct.exe --generator=ninja --generate-projects --config=Release || exit /b
 %BUILD_COMMAND% --verbose || exit /b
-build\preprocessor.exe
+build\x64\Release\preprocessor.exe
 rem Release build is expected to return 1, since the define has a different value for that build
 if %errorlevel% neq 1 exit /b 1
 popd
@@ -77,7 +77,7 @@ cconstruct.exe --generator=ninja --generate-projects || exit /b
 rem The build is expected to give an error, since the post build action doesn't succeed ...
 if %errorlevel% equ 0 exit /b %errorlevel%
 rem ... However, the executable has been built, so test it is there and works correctly
-build\post_build_action.exe || exit /b
+build\x64\Debug\post_build_action.exe || exit /b
 popd
 
 
@@ -90,20 +90,20 @@ echo. >> return_value.inl
 cconstruct.exe --generator=ninja --generate-projects
 pushd build
 ninja || exit /b
-changed_config.exe
+x64\Debug\changed_config.exe
 rem The first config builds the program so that it returns 1, so check for that specifically
 if %errorlevel% neq 1 exit /b %errorlevel%
 copy /Y ..\return_value2.inl ..\return_value.inl
 echo. >> ..\return_value.inl
 ninja || exit /b
-changed_config.exe
+x64\Debug\changed_config.exe
 rem The second config builds the program so that it returns 2, so check for that specifically
 if %errorlevel% neq 2 exit /b %errorlevel%
 rem Now set back the first config, Ninja should automatically rebuild cconstruct
 copy /Y ..\return_value1.inl ..\return_value.inl
 echo. >> ..\return_value.inl
 ninja || exit /b
-changed_config.exe
+x64\Debug\changed_config.exe
 if %errorlevel% neq 1 exit /b %errorlevel%
 popd
 popd
@@ -125,7 +125,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND%  || exit /b
-build\mixing_c_and_cpp.exe || exit /b
+build\x64\Debug\mixing_c_and_cpp.exe || exit /b
 popd
 
 
@@ -134,7 +134,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% src/config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND% || exit /b
-build\nested_folders.exe || exit /b
+build\x64\Debug\nested_folders.exe || exit /b
 popd
 
 
@@ -146,7 +146,7 @@ cl.exe /EHsc /Fo%TEMP% /FC /Febuild/cconstruct.exe /nologo /TC /ZI /DEBUG projec
 pushd build
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 ninja || exit /b
-config_folders.exe || exit /b
+x64\Debug\config_folders.exe || exit /b
 popd
 REM also check if it works when calling it from a different folder
 del build\ninja.build
@@ -168,7 +168,7 @@ if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generator=ninja --generate-projects || exit /b
 %BUILD_COMMAND%  || exit /b
-if not exist build\Debug\link_flags_named.pdb (
+if not exist build\x64\Debug\link_flags_named.pdb (
   exit 1
 )
 popd
@@ -184,7 +184,7 @@ echo %TEST_TIME%>src\test_source.txt
 %BUILD_COMMAND% || exit /b
 rem copy src\test_source.txt src\test.txt
 rem Get output into variable
-FOR /F "tokens=* USEBACKQ" %%F IN (`build\custom_commands.exe`) DO (
+FOR /F "tokens=* USEBACKQ" %%F IN (`build\x64\Debug\custom_commands.exe`) DO (
 SET CMD_OUTPUT=%%F
 )
 if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
@@ -207,6 +207,8 @@ if %errorlevel% neq 2 exit /b %errorlevel%
 rem No error at all, everything goes OK from here on out
 copy error_none.inl error.inl
 cconstruct.exe --generator=ninja || exit /b
-%BUILD_COMMAND% || exit /b
-build\errors.exe || exit /b
+%BUILD_COMMAND% -v || exit /b
+build\x64\Debug\errors.exe || exit /b
 popd
+
+echo All tests passed!

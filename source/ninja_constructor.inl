@@ -183,17 +183,17 @@ void optionEmpty(struct data_tree_t* dt, unsigned int compile_group,
   (void)remaining_flag_value;
 }
 
-const ninja_compiler_flag ninja_known_compiler_flags[] = {
-    {"/Zi", &optionEmpty},  {"/ZI", &optionEmpty}, {"/MT", &optionEmpty},
-    {"/MTd", &optionEmpty}, {"/MD", &optionEmpty}, {"/MDd", &optionEmpty}};
-const ninja_compiler_flag ninja_known_linker_flags[] = {{"/PDB:", &optionEmpty}};
-
 void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const char* project_id,
                              const char** project_ids, const char* in_output_folder,
                              const char* build_to_base_path) {
   (void)project_ids;
   (void)project_id;
   (void)in_output_folder;
+
+  const char* platform_label = "";
+  for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+    platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
+  }
 
   const char* substitution_keys[] = {
       "configuration",
@@ -202,7 +202,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   };
   const char* substitution_values[] = {
       _internal.active_config,
-      "$(Platform)",
+      platform_label,
       in_output_folder,
   };
 
@@ -318,42 +318,13 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
       data_tree_api.set_object_parameter(&dt, import_obj, "Label", "LocalAppDataPlatform");
     }
   }
+#endif
 
-  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-    const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-      const char* resolved_output_folder = cc_substitute(
-          p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
-      ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
+  const char* resolved_output_folder = cc_substitute(
+      p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
+  ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
 
-      unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
-      data_tree_api.set_object_parameter(&dt, pg, "Label", "UserMacros");
-      pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
-      data_tree_api.set_object_parameter(
-          &dt, pg, "Condition",
-          cc_printf("'$(Configuration)|$(Platform)'=='%s|%s'", c, platform_label));
-
-      // TODO: fix detection of type of config
-      bool is_debug_build = (strcmp(c, "Debug") == 0);
-      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "LinkIncremental"),
-                                     is_debug_build ? "true" : "false");
-
-      // Because users can add post-build commands, make sure these custom build commands have
-      // executed before then by doing it after BuildCompile instead of after Build.
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.create_object(&dt, pg, "CustomBuildAfterTargets"), "BuildCompile");
-      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "OutDir"),
-                                     cc_printf("$(SolutionDir)\\%s\\", resolved_output_folder));
-
-      // VS2019 warns if multiple projects have the same intermediate directory, so avoid that
-      // here
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.create_object(&dt, pg, "IntDir"),
-          cc_printf("$(SolutionDir)\\%s\\Intermediate\\$(ProjectName)\\", resolved_output_folder));
-    }
-  }
-
+#if 0
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const cc_configuration_impl_t* config = cc_data_.configurations[ci];
     const char* configuration_label       = config->label;
@@ -667,8 +638,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 
     fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
     fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
-    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s%s %s\n", out_file_path, p->name, fi,
-            p->name, project_type_suffix[p->type], in_file_path);
+    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s %s\n", out_file_path, p->name, fi,
+            resolved_output_folder, p->name, project_type_suffix[p->type], in_file_path);
   }
 
   // Add project dependencies
@@ -679,10 +650,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     switch (dp->type) {
       case CCProjectTypeStaticLibrary:
       case CCProjectTypeDynamicLibrary:
-        deps = cc_printf("%s %s%s", deps, dp->name, ".lib");
+        deps = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name, ".lib");
         break;
       default:
-        deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
+        deps = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name,
+                         project_type_suffix[dp->type]);
         break;
     }
   }
@@ -755,19 +727,20 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
   }
 
   if (p->type == CCProjectTypeDynamicLibrary) {
-    fprintf(ninja_file, "\nbuild %s%s %s%s: link_%s%s", p->name, project_type_suffix[p->type],
-            p->name, ".lib", p->name, deps);
-    fprintf(ninja_file, "\n  dyn_lib = %s%s", p->name, project_type_suffix[p->type]);
-    fprintf(ninja_file, "\n  imp_lib = %s%s", p->name, ".lib");
+    fprintf(ninja_file, "\nbuild %s/%s%s %s/%s%s: link_%s%s", resolved_output_folder, p->name,
+            project_type_suffix[p->type], resolved_output_folder, p->name, ".lib", p->name, deps);
+    fprintf(ninja_file, "\n  dyn_lib = %s/%s%s", resolved_output_folder, p->name,
+            project_type_suffix[p->type]);
+    fprintf(ninja_file, "\n  imp_lib = %s/%s%s", resolved_output_folder, p->name, ".lib");
   } else {
-    fprintf(ninja_file, "\nbuild %s%s: link_%s%s", p->name, project_type_suffix[p->type], p->name,
-            deps);
+    fprintf(ninja_file, "\nbuild %s/%s%s: link_%s%s", resolved_output_folder, p->name,
+            project_type_suffix[p->type], p->name, deps);
   }
   fprintf(ninja_file, "\n");
 
   if (have_post_build_action) {
-    fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s%s\n", p->name, p->name, p->name,
-            project_type_suffix[p->type]);
+    fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s/%s%s\n", p->name, p->name,
+            resolved_output_folder, p->name, project_type_suffix[p->type]);
   }
 }
 
@@ -869,6 +842,15 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
   fprintf(ninja_file, "msvc_deps_prefix = Note: including file:\n\n");
 
+  const char* platform_label = "";
+  for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
+    platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
+  }
+
+  fprintf(ninja_file, "configuration = %s\n",_internal.active_config);
+  fprintf(ninja_file, "platform = %s\n",platform_label);
+  fprintf(ninja_file, "workspace_folder = %s\n",".");
+  
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     project_ids[i] = ninja_generateUUID();
   }

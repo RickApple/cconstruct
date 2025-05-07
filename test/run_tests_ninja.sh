@@ -15,7 +15,7 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
 $CCONSTRUCT_COMMAND
 $BUILD_COMMAND
-./build/hello_world
+./build/x64/Debug/hello_world
 popd
 
 
@@ -24,7 +24,7 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
 $CCONSTRUCT_COMMAND
 $BUILD_COMMAND
-./build/include_folders
+./build/x64/Debug/include_folders
 popd
 
 
@@ -33,7 +33,7 @@ rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
 $CCONSTRUCT_COMMAND
 $BUILD_COMMAND
-./build/my_binary
+./build/x64/Debug/my_binary
 popd
 
 exit 0
