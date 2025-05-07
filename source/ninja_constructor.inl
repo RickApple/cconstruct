@@ -1,10 +1,12 @@
 
 #if defined(_WIN32)
+  #define OBJ_EXT ".obj"
 char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 char const* compiler_path               = "cl.exe";
 char const* lib_linker_path             = "lib.exe";
 char const* linker_path                 = "link.exe";
 #else
+  #define OBJ_EXT ".o"
 char const* const project_type_suffix[] = {"", "", ".lib", ".dylib"};
 char const* compiler_path               = "clang";
 char const* lib_linker_path             = "ar";
@@ -57,137 +59,8 @@ void ninja_replaceForwardSlashWithBackwardSlashInPlace(char* in_out) {
   }
 }
 
-typedef struct ninja_compiler_setting {
-  const char* key;
-  const char* value;
-} ninja_compiler_setting;
-
-void ninja_createFilters(const cc_project_impl_t* in_project, const char* in_output_folder) {
-  const char* projectfilters_file_path = cc_printf("%s.vcxproj.filters", in_project->name);
-
-  struct data_tree_t dt = data_tree_api.create();
-
-  unsigned int project = data_tree_api.create_object(&dt, 0, "Project");
-  data_tree_api.set_object_parameter(&dt, project, "ToolsVersion", "4.0");
-  data_tree_api.set_object_parameter(&dt, project, "xmlns",
-                                     "http://schemas.microsoft.com/developer/msbuild/2003");
-
-  // Create list of groups needed.
-  const cc_project_impl_t* p = (cc_project_impl_t*)in_project;
-  bool* groups_needed        = (bool*)cc_alloc_(array_count(cc_data_.groups) * sizeof(bool));
-  memset(groups_needed, 0, array_count(cc_data_.groups) * sizeof(bool));
-  for (size_t fi = 0; fi < array_count(p->file_data); fi++) {
-    size_t gi = p->file_data[fi]->parent_group_idx;
-    while (gi) {
-      groups_needed[gi] = true;
-      gi                = cc_data_.groups[gi].parent_group_idx;
-    }
-  }
-  for (size_t fi = 0; fi < array_count(p->file_data_custom_command); fi++) {
-    size_t gi = p->file_data_custom_command[fi]->parent_group_idx;
-    while (gi) {
-      groups_needed[gi] = true;
-      gi                = cc_data_.groups[gi].parent_group_idx;
-    }
-  }
-
-  // Create names for the needed groups. Nested groups append their name in the filter file
-  //    Group A
-  //    Group A\Nested Group
-  //    Group B
-  const char** unique_group_names = {0};
-  for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
-    const char* name = "";
-    if (groups_needed[gi]) {
-      const cc_group_impl_t* g = &cc_data_.groups[gi];
-      name                     = g->name[0] ? g->name : "<group>";
-      while (g->parent_group_idx) {
-        g    = &cc_data_.groups[g->parent_group_idx];
-        name = cc_printf("%s\\%s", g->name[0] ? g->name : "<group>", name);
-      }
-    }
-    array_push(unique_group_names, name);
-  }
-
-  unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
-  for (unsigned gi = 0; gi < array_count(cc_data_.groups); gi++) {
-    if (groups_needed[gi]) {
-      const char* group_name = unique_group_names[gi];
-      unsigned int filter    = data_tree_api.create_object(&dt, itemgroup, "Filter");
-      data_tree_api.set_object_parameter(&dt, filter, "Include", group_name);
-      unsigned int uid = data_tree_api.create_object(&dt, filter, "UniqueIdentifier");
-      data_tree_api.set_object_value(&dt, uid, ninja_generateUUID());
-    }
-  }
-
-  for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
-    const struct cc_file_t_* file = p->file_data[fi];
-
-    itemgroup                      = data_tree_api.create_object(&dt, project, "ItemGroup");
-    const char* f                  = file->path;
-    const size_t gi                = file->parent_group_idx;
-    const char* group_name         = NULL;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
-    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
-    group_name = unique_group_names[gi];
-
-    unsigned int g = 0;
-
-    if (is_header_file(f)) {
-      g = data_tree_api.create_object(&dt, itemgroup, "ClInclude");
-    } else if (is_source_file(f)) {
-      g = data_tree_api.create_object(&dt, itemgroup, "ClCompile");
-    } else {
-      g = data_tree_api.create_object(&dt, itemgroup, "None");
-    }
-    data_tree_api.set_object_parameter(&dt, g, "Include", relative_file_path);
-    unsigned int fil = data_tree_api.create_object(&dt, g, "Filter");
-    data_tree_api.set_object_value(&dt, fil, group_name);
-  }
-
-  for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
-    const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
-
-    const char* f                  = file->path;
-    const size_t gi                = file->parent_group_idx;
-    const char* group_name         = NULL;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
-    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
-    group_name = unique_group_names[gi];
-
-    itemgroup       = data_tree_api.create_object(&dt, project, "ItemGroup");
-    unsigned int cb = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
-    data_tree_api.set_object_parameter(&dt, cb, "Include", relative_file_path);
-    unsigned int fil = data_tree_api.create_object(&dt, cb, "Filter");
-    data_tree_api.set_object_value(&dt, fil, group_name);
-  }
-
-  FILE* filter_file = fopen(projectfilters_file_path, "wb");
-  fprintf(filter_file, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
-  // ninja export_tree_as_xml(filter_file, &dt, 0, 0);
-  fclose(filter_file);
-}
-
-typedef void (*func)(struct data_tree_t* dt, unsigned int compile_group,
-                     const char* remaining_flag_value);
-
-typedef struct ninja_compiler_flag {
-  const char* flag;
-  const func action;
-} ninja_compiler_flag;
-
-void optionEmpty(struct data_tree_t* dt, unsigned int compile_group,
-                 const char* remaining_flag_value) {
-  (void)dt;
-  (void)compile_group;
-  (void)remaining_flag_value;
-}
-
-void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const char* project_id,
-                             const char** project_ids, const char* in_output_folder,
-                             const char* build_to_base_path) {
-  (void)project_ids;
-  (void)project_id;
+void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
+                             const char* in_output_folder, const char* build_to_base_path) {
   (void)in_output_folder;
 
   const char* platform_label = "";
@@ -638,8 +511,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
 
     fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
     fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
-    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s %s\n", out_file_path, p->name, fi,
-            resolved_output_folder, p->name, project_type_suffix[p->type], in_file_path);
+    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s %s\n", out_file_path, p->name,
+            fi, resolved_output_folder, p->name, project_type_suffix[p->type], in_file_path);
   }
 
   // Add project dependencies
@@ -714,7 +587,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     // const char* relative_file_path = make_path_relative(in_output_folder, f);
     if (is_header_file(f)) {
     } else if (is_source_file(f)) {
-      const char* obj_file_path = cc_printf("%s.obj", strip_extension(f));
+      const char* obj_file_path = cc_printf("%s" OBJ_EXT, strip_extension(f));
       if (strncmp(obj_file_path, "../", 3) == 0) {
         obj_file_path += 3;
       }
@@ -834,9 +707,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   }
   (void)chdir(output_folder);
 
-  const char** project_ids =
-      (const char**)cc_alloc_(sizeof(const char*) * array_count(cc_data_.projects));
-
   const char* ninja_file_path = cc_printf("%s/build.ninja", output_folder);
   FILE* ninja_file            = fopen(ninja_file_path, "wt");
   fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
@@ -847,19 +717,13 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
   }
 
-  fprintf(ninja_file, "configuration = %s\n",_internal.active_config);
-  fprintf(ninja_file, "platform = %s\n",platform_label);
-  fprintf(ninja_file, "workspace_folder = %s\n",".");
-  
-  for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
-    project_ids[i] = ninja_generateUUID();
-  }
+  fprintf(ninja_file, "configuration = %s\n", _internal.active_config);
+  fprintf(ninja_file, "platform = %s\n", platform_label);
+  fprintf(ninja_file, "workspace_folder = %s\n", ".");
 
   for (unsigned i = 0; i < array_count(cc_data_.projects); ++i) {
     const cc_project_impl_t* p = cc_data_.projects[i];
-    const char* project_id     = project_ids[i];
-    ninja_createProjectFile(ninja_file, p, project_id, project_ids, output_folder,
-                            build_to_base_path);
+    ninja_createProjectFile(ninja_file, p, output_folder, build_to_base_path);
   }
 
   const char* workspace_abs =
@@ -874,7 +738,8 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     fprintf(ninja_file, "\nrule build_cconstruct\n");
   #if defined(_WIN32)
     fprintf(ninja_file,
-            "  command = %s /ZI /W4 /WX /DEBUG /FC /Focconstruct.obj /Fe%s "
+            "  command = %s /ZI /W4 /WX /DEBUG /FC /Focconstruct" OBJ_EXT
+            " /Fe%s "
             "/showIncludes /nologo %s $in\n",
             compiler_path, cconstruct_path_rel,
     #if __cplusplus
