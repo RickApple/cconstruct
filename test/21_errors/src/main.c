@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main(int argc, const char* argv[]) {
+int main() {
   printf("hello there\n");
   return 0;
 }

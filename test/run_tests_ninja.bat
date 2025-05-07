@@ -189,3 +189,24 @@ SET CMD_OUTPUT=%%F
 )
 if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
 popd
+
+
+pushd 21_errors
+if exist build rd /S /Q build
+rem Create CConstruct binary which works fine
+copy error_none.inl error.inl
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+rem Cause the recreation of CConstruct binary to fail
+copy error_compile.inl error.inl
+cconstruct.exe --generator=ninja
+if %errorlevel% neq 1 exit /b %errorlevel%
+rem Cause the recreation of CConstruct binary to succeed, but then crash during construction
+copy error_construction.inl error.inl
+cconstruct.exe --generator=ninja
+if %errorlevel% neq 2 exit /b %errorlevel%
+rem No error at all, everything goes OK from here on out
+copy error_none.inl error.inl
+cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+build\errors.exe || exit /b
+popd
