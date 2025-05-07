@@ -250,21 +250,20 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       }
 #endif
 
-  const char* preprocessor_defines = "";
+  const char** preprocessor_defines = NULL;
 #if defined(_WIN32)
   switch (p->type) {
     case CCProjectTypeConsoleApplication:
-      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_CONSOLE");
+      array_push(preprocessor_defines, "_CONSOLE");
       break;
     case CCProjectTypeWindowedApplication:
-      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_WINDOWS");
+      array_push(preprocessor_defines, "_WINDOWS");
       break;
     case CCProjectTypeStaticLibrary:
-      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, "_LIB");
+      array_push(preprocessor_defines, "_LIB");
       break;
     case CCProjectTypeDynamicLibrary: {
-      preprocessor_defines =
-          cc_printf("%s /D \"%s%s\"", preprocessor_defines, str_strip_spaces(p->name), "_EXPORTS");
+      array_push(preprocessor_defines, cc_printf("%s%s", str_strip_spaces(p->name), "_EXPORTS"));
     } break;
     default:
       LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
@@ -295,7 +294,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     combined_warning_level       = flags->warningLevel;
 
     for (unsigned pdi = 0; pdi < array_count(flags->defines); ++pdi) {
-      preprocessor_defines = cc_printf("%s /D \"%s\"", preprocessor_defines, flags->defines[pdi]);
+      array_push(preprocessor_defines, flags->defines[pdi]);
     }
     for (unsigned cfi = 0; cfi < array_count(flags->compile_options); ++cfi) {
       const char* current_flag  = flags->compile_options[cfi];
@@ -547,7 +546,13 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   {  // General rule to compile source files to object files
     fprintf(ninja_file, "\nrule compile_%s", p->name);
     array_push(command_elements, compiler_path);
-    array_push(command_elements, preprocessor_defines);
+    for (unsigned int di = 0; di < array_count(preprocessor_defines); ++di) {
+#if defined(_WIN32)
+      array_push(command_elements, cc_printf("/D \"%s\"", preprocessor_defines[di]));
+#else
+      array_push(command_elements, cc_printf("-D%s", preprocessor_defines[di]));
+#endif
+    }
     array_push(command_elements, includes_command);
     array_push(command_elements, additional_compiler_flags);
 #if defined(_WIN32)
