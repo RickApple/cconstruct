@@ -642,6 +642,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     }
     data_tree_api.set_object_parameter(&dt, obj, "Include", relative_file_path);
   }
+#endif
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
@@ -650,20 +651,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
     const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
 
-    /*
-    Apparently VS2019 Custom Build Tool does not reset paths between multiple invocations of Custom
-    Build Tool. That's why there needs to be an absolute path here, instead of only the simpler
-    relative build_to_base_path.
-    */
-    const char* in_file_path_from_base = make_path_relative(
-        cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->path)));
-    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)in_file_path_from_base);
-    const char* out_file_path_from_base = make_path_relative(
-        cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->output_file)));
-    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)out_file_path_from_base);
     const char* input_output_substitution_keys[]   = {"input", "output"};
-    const char* input_output_substitution_values[] = {in_file_path_from_base,
-                                                      out_file_path_from_base};
+    const char* input_output_substitution_values[] = {relative_in_file_path,
+                                                      relative_out_file_path};
 
     const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
                                                substitution_values, countof(substitution_keys));
@@ -674,17 +664,12 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p, const
                       input_output_substitution_values, countof(input_output_substitution_keys));
     const char* out_file_path = cc_substitute(relative_out_file_path, substitution_keys,
                                               substitution_values, countof(substitution_keys));
-    unsigned int itemgroup    = data_tree_api.create_object(&dt, project, "ItemGroup");
-    unsigned int cb           = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
-    data_tree_api.set_object_parameter(&dt, cb, "Include", in_file_path);
-    unsigned int command_obj = data_tree_api.create_object(&dt, cb, "Command");
-    data_tree_api.set_object_value(
-        &dt, command_obj,
-        cc_printf("cd $(ProjectDir)%s &amp;&amp; %s", build_to_base_path, custom_command));
-    unsigned int outputs_obj = data_tree_api.create_object(&dt, cb, "Outputs");
-    data_tree_api.set_object_value(&dt, outputs_obj, out_file_path);
+
+    fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
+    fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
+    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s%s %s\n", out_file_path, p->name, fi,
+            p->name, project_type_suffix[p->type], in_file_path);
   }
-#endif
 
   // Add project dependencies
   const char* deps = "";

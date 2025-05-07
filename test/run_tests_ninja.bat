@@ -172,3 +172,20 @@ if not exist build\Debug\link_flags_named.pdb (
   exit 1
 )
 popd
+
+
+pushd 18_custom_commands
+if exist build rd /S /Q build
+del src\test.txt
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja --generate-projects || exit /b
+set TEST_TIME=%time%
+echo %TEST_TIME%>src\test_source.txt
+%BUILD_COMMAND% || exit /b
+rem copy src\test_source.txt src\test.txt
+rem Get output into variable
+FOR /F "tokens=* USEBACKQ" %%F IN (`build\custom_commands.exe`) DO (
+SET CMD_OUTPUT=%%F
+)
+if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
+popd

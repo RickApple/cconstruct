@@ -16,7 +16,7 @@ const char* read_file(const char* file_path) {
   return out;
 }
 
-int main(int argc, const char* argv[]) {
+int main() {
   const char* contents = read_file("src/test.txt");
   printf("test %s\n", contents);
   free((void*)contents);

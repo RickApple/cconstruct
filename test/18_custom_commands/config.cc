@@ -23,6 +23,8 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, g);
 
   // Want to add a custom copy command for src/test.txt
+  // TODO: something that uses more than a single input file
+  // TODO: pre/post actions
   const char* input_file_path  = "src/test_source.txt";
   const char* output_file_path = "src/test.txt";
 #if defined(_WIN32)
