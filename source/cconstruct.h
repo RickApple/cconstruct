@@ -19,7 +19,7 @@
  *      'clang -x c your_config.cc -o cconstruct'
  * 3. Run the resulting cconstruct, which will regenerate itself from the config file
  *    and then construct the project files you specified in the config.
- * 
+ *
  * ==========================
  * You can use the following variables in places:
  *    ${configuration}
@@ -174,9 +174,19 @@ typedef struct cconstruct_t {
 
   } workspace;
 
-} cconstruct_t;
+  const struct {
+    //! Default generator on this platform. Can use `--generator=<arg>` to pick a different one.
+    void (*standard)(const char* workspace_folder);
 
-extern void (*cc_default_generator)(const char* workspace_folder);
+    //! Explicit generators.
+    void (*ninja)(const char* workspace_folder);
+#if defined(_WIN32)
+    void (*visual_studio)(const char* workspace_folder);
+#elif defined(__APPLE__)
+    void (*xcode)(const char* workspace_folder);
+#endif
+  } generator;
+} cconstruct_t;
 
 /* Call this once at the start of your main config file. You can usually call it with __FILE__, and
  * simply forward argc and argv from the main function.
@@ -186,9 +196,6 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 /***********************************************************************************************************************
  *                                             Implementation starts here
  ***********************************************************************************************************************/
-
-// For ease of use set a default CConstruct generator for each OS
-void (*cc_default_generator)(const char* workspace_folder) = (void (*)(const char*))0;
 
 #include "cconstruct_main.inl"
 

@@ -74,7 +74,7 @@ int main(int argc, const char** argv) {
   // Adding an explicit build order between the two projects solves this.
   cc.project.setBuildOrder(l, b);
 
-  cc_default_generator(OUTPUT_FOLDER);
+  cc.generator.standard(OUTPUT_FOLDER);
 
   return 0;
 }

@@ -179,7 +179,7 @@ void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
 
   cc.workspace.setLabel("cconstruct");
 
-  cc_default_generator("build");
+  cc.generator.standard("build");
 }
 
 static void cc_print_statistics_(void) {
@@ -225,7 +225,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   }
   cc_data_.is_inited = true;
 
-  cc_default_generator =
+  void (*cc_default_generator)(const char* workspace_folder) =
 #if defined(_MSC_VER)
       vs2019_generateInFolder;
 #else
@@ -340,7 +340,16 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           &cc_project_addPostBuildAction,
           &cc_project_setOutputFolder,
       },
-      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform}};
+      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform},
+      {
+          cc_default_generator,
+          ninja_generateInFolder,
+#if defined(_WIN32)
+          vs2019_generateInFolder,
+#elif defined(__APPLE__)
+          xcode_generateInFolder
+#endif
+      }};
 
   if (cc_generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);

@@ -2,8 +2,8 @@ tools/build/
 **/cconstruct
 return_value.inl
 test/**/build
-test/**/*.pdb
-test/**/*.ilk
+*.pdb
+*.ilk
 test/**/*.exe
 .vs
 build

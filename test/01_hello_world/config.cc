@@ -19,7 +19,7 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   // Folder to generate projects in is also relative to main CConstruct config file.
-  cc_default_generator("build");
+  cc.generator.standard("build");
 
   return 0;
 }

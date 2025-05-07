@@ -42,7 +42,7 @@ int main(int argc, const char** argv) {
   cc.project.setFlags(p, flags, NULL, NULL);
 #endif
 
-  cc_default_generator("build");
+  cc.generator.standard("build");
 
   return 0;
 }

@@ -28,7 +28,7 @@ int main(int argc, const char** argv) {
 
   // Note that the folder to generate the project is relative to the main CConstruct config
   // file.
-  cc_default_generator("../build");
+  cc.generator.standard("../build");
 
   return 0;
 }

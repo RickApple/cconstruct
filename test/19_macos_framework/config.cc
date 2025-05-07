@@ -24,7 +24,7 @@ int main(int argc, const char** argv) {
   }
 
 #if defined(__APPLE__)
-  cc_default_generator("build/xcode");
+  cc.generator.standard("build/xcode");
 #endif
 
   return 0;

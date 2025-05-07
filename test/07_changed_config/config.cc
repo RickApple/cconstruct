@@ -19,7 +19,7 @@ int main(int argc, const char** argv) {
 #include "return_value.inl"
   cc.project.setFlags(p, flags, arch, configuration);
 
-  cc_default_generator("build");
+  cc.generator.standard("build");
 
   return 0;
 }
