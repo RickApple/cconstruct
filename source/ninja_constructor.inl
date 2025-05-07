@@ -541,32 +541,61 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   }
 #endif
 
+  fprintf(ninja_file, "\n##################\n# Project %s\n", p->name);
+
+  const char** command_elements = NULL;
+  {  // General rule to compile source files to object files
+    fprintf(ninja_file, "\nrule compile_%s", p->name);
+    array_push(command_elements, compiler_path);
+    array_push(command_elements, preprocessor_defines);
+    array_push(command_elements, includes_command);
+    array_push(command_elements, additional_compiler_flags);
 #if defined(_WIN32)
-  fprintf(ninja_file, "\nrule compile_%s\n", p->name);
-  fprintf(ninja_file, "  command = %s%s%s%s /nologo -c $in /Fo$out\n", compiler_path,
-          preprocessor_defines, includes_command, additional_compiler_flags);
-  fprintf(ninja_file, "  description = Compiling $in\n");
-
-  fprintf(ninja_file, "\nrule link_%s\n", p->name);
-  if (p->type == CCProjectTypeStaticLibrary) {
-    fprintf(ninja_file, "  command = %s%s $in /nologo /OUT:$out\n", lib_linker_path,
-            additional_link_flags);
-    fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
-  } else if (p->type == CCProjectTypeDynamicLibrary) {
-    fprintf(ninja_file, "  command = %s%s $in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib\n",
-            linker_path, additional_link_flags);
-    fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
-  } else {
-    fprintf(ninja_file, "  command = %s%s $in /nologo /OUT:$out\n", linker_path,
-            additional_link_flags);
-    fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
-  }
+    array_push(command_elements, "/nologo -c $in /Fo:$out");
 #else
-  fprintf(ninja_file, "\nrule compile_%s\n", p->name);
-  fprintf(ninja_file, "  command = %s%s%s%s -c $in -o $out\n", compiler_path, preprocessor_defines,
-          includes_command, additional_compiler_flags);
-  fprintf(ninja_file, "  description = Compiling $in\n");
+    array_push(command_elements, "-c $in -o $out");
+#endif
+    fprintf(ninja_file, "\n  command = %s", command_elements[0]);
+    for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
+      fprintf(ninja_file, " %s", command_elements[ci]);
+    }
+    fprintf(ninja_file, "\n  description = Compiling $in\n");
+  }
 
+#if defined(_WIN32)
+  const char* desc = "";
+  command_elements = NULL;
+  fprintf(ninja_file, "\nrule link_%s", p->name);
+  if (p->type == CCProjectTypeStaticLibrary) {
+    array_push(command_elements, lib_linker_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, "$in /nologo /OUT:$out");
+    desc = cc_printf("Linking static library %s", p->name);
+  } else if (p->type == CCProjectTypeDynamicLibrary) {
+    array_push(command_elements, linker_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, "$in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib");
+    desc = cc_printf("Linking dynamic library %s", p->name);
+  } else {
+    array_push(command_elements, linker_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, "$in /nologo /OUT:$out");
+    desc = cc_printf("Linking binary %s", p->name);
+  }
+
+  {
+    fprintf(ninja_file, "\n  command = %s", command_elements[0]);
+    for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
+      fprintf(ninja_file, " %s", command_elements[ci]);
+    }
+  }
+  if (desc != NULL) {
+    fprintf(ninja_file, "\n  description = %s", desc);
+  }
+
+  fprintf(ninja_file, "\n");
+
+#else
   fprintf(ninja_file, "\nrule link_%s\n", p->name);
   if (p->type == CCProjectTypeStaticLibrary) {
     fprintf(ninja_file, "  command = %s%s rcs $out $in\n", lib_linker_path, additional_link_flags);
@@ -733,6 +762,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* path_cconstruct_abs = cc_path_executable();
   const char* cconstruct_path_rel = make_path_relative(workspace_abs, path_cconstruct_abs);
 
+  fprintf(ninja_file, "\n##################\n# CConstruct rebuild\n");
 #if !defined(__APPLE__)
   {  // Add dependency on config file
     fprintf(ninja_file, "\nrule build_cconstruct\n");
