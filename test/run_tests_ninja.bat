@@ -10,14 +10,38 @@ for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Stu
     set VSPATH=%%i
 )
 
+
+@rem Do this test case first, as it needs to change the build environment around. Doing that with SETLOCAL/ENDLOCAL.
+@SETLOCAL
+pushd 22_cconstruct_architecture
+@if exist build rd /S /Q build
+call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+build\amd64\cconstruct_architecture.exe
+if %errorlevel% neq 64 exit /b %errorlevel%
+@popd
+@ENDLOCAL
+@SETLOCAL
+@pushd 22_cconstruct_architecture
+@if exist build rd /S /Q build
+call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --generator=ninja || exit /b
+%BUILD_COMMAND% || exit /b
+build\x86\cconstruct_architecture.exe
+if %errorlevel% neq 86 exit /b %errorlevel%
+popd
+@ENDLOCAL
+
+
 @rem Now set a single environment for the rest of the tests
 SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
 call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
 rem call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
-
-
 
 pushd 01_hello_world
 if exist build rd /S /Q build
