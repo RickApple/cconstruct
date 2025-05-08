@@ -20,7 +20,7 @@ const char* ninja_generateUUID() {
   char* buffer = (char*)cc_alloc_(37);
   sprintf(buffer, "00000000-0000-0000-0000-%012zi", count);
   return buffer;
-};
+}
 
 const char* ninja_findUUIDForProject(const char** uuids, const cc_project_impl_t* project) {
   unsigned i = 0;
@@ -180,7 +180,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   const char* resolved_output_folder = cc_substitute(
       p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
+#if defined(_WIN32)
   ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
+#endif
 
 #if 0
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
@@ -518,7 +520,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #else
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const cc_project_impl_t* dp = p->dependantOn[i];
-    deps = cc_printf("%s %s%s", deps, dp->name, project_type_suffix[dp->type]);
+    deps                        = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name,
+                                            project_type_suffix[dp->type]);
     if (dp->type == CCProjectTypeDynamicLibrary) {
       additional_link_flags = cc_printf("%s -Wl,-rpath,@executable_path", additional_link_flags);
     }
@@ -602,7 +605,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
     fprintf(ninja_file,
-            "  command = %s%s -dynamiclib $in -install_name @rpath/$dyn_lib -o $dyn_lib\n",
+            "  command = %s%s -dynamiclib $in -install_name @rpath/$rpath -o $dyn_lib\n",
             compiler_path, additional_link_flags);
     fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
   } else {
@@ -629,11 +632,17 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   }
 
   if (p->type == CCProjectTypeDynamicLibrary) {
+#if defined(_WIN32)
     fprintf(ninja_file, "\nbuild %s/%s%s %s/%s%s: link_%s%s", resolved_output_folder, p->name,
             project_type_suffix[p->type], resolved_output_folder, p->name, ".lib", p->name, deps);
+    fprintf(ninja_file, "\n  imp_lib = %s/%s%s", resolved_output_folder, p->name, ".lib");
+#else
+    fprintf(ninja_file, "\nbuild %s/%s%s: link_%s%s", resolved_output_folder, p->name,
+            project_type_suffix[p->type], p->name, deps);
+    fprintf(ninja_file, "\n  rpath = %s%s", p->name, ".dylib");
+#endif
     fprintf(ninja_file, "\n  dyn_lib = %s/%s%s", resolved_output_folder, p->name,
             project_type_suffix[p->type]);
-    fprintf(ninja_file, "\n  imp_lib = %s/%s%s", resolved_output_folder, p->name, ".lib");
   } else {
     fprintf(ninja_file, "\nbuild %s/%s%s: link_%s%s", resolved_output_folder, p->name,
             project_type_suffix[p->type], p->name, deps);
@@ -695,7 +704,8 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   {  // Check for explicit arch
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const cc_architecture_impl_t* a = cc_data_.architectures[pi];
-      if (strcmp(_internal.active_arch_label, cc_projectArch2String_(a->type)) == 0) {
+      if ((_internal.active_arch_label != NULL) &&
+          strcmp(_internal.active_arch_label, cc_projectArch2String_(a->type)) == 0) {
         _internal.active_arch = a->type;
         break;
       }
@@ -770,6 +780,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     ninja_createProjectFile(ninja_file, p, output_folder, build_to_base_path);
   }
 
+#if !defined(__APPLE__)
   const char* workspace_abs =
       make_uri(cc_printf("%s%s", folder_path_only(_internal.config_file_path), in_workspace_path));
   const char* config_path_rel = make_path_relative(workspace_abs, _internal.config_file_path);
@@ -778,7 +789,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* cconstruct_path_rel = make_path_relative(workspace_abs, path_cconstruct_abs);
 
   fprintf(ninja_file, "\n##################\n# CConstruct rebuild\n");
-#if !defined(__APPLE__)
   {  // Add dependency on config file
     fprintf(ninja_file, "\nrule build_cconstruct\n");
   #if defined(_WIN32)

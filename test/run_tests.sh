@@ -41,16 +41,16 @@ pushd 03a_library_dependency_explicit
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct  --generate-projects
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library -configuration Release -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary -configuration Release -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_library -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_library -configuration Release -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_binary -configuration Release -destination 'platform=macOS,arch=x86_64'
 set +e
 # Debug lib returns 1
-build/xcode/x64/Debug/bin/my_binary
+build/x64/Debug/bin/my_binary
 [ $? -ne 1 ] && exit 1
 # Release lib returns 2
-build/xcode/x64/Release/bin/my_binary
+build/x64/Release/bin/my_binary
 [ $? -ne 2 ] && exit 2
 set -e
 popd

@@ -528,9 +528,6 @@ const char* cc_path_executable() {
 }
 #endif
 
-
-
-
 const char* cc_projectArch2String_(EArchitecture arch) {
   switch (arch) {
     case EArchitectureX86:
@@ -539,6 +536,7 @@ const char* cc_projectArch2String_(EArchitecture arch) {
       return "x64";
     case EArchitectureARM:
       return "ARM";
+    default:
+      return "";
   }
-  return "";
 }

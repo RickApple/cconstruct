@@ -19,6 +19,7 @@ int main(int argc, const char** argv) {
 #if defined(_WIN32)
   cc.state.addPreprocessorDefine(flags, "_CRT_SECURE_NO_WARNINGS");
 #endif
+  cc.state.disableWarningsAsErrors(flags);
   cc.project.setFlags(p, flags, NULL, NULL);
 
   cc.generator.standard("build");

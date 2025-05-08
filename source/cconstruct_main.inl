@@ -57,6 +57,8 @@ struct {
   "x86", EArchitectureX86,
 #elif _M_X64
   "x64", EArchitectureX64,
+#else
+  "x64", EArchitectureX64,
 #endif
    false};
 
@@ -91,7 +93,7 @@ static uint8_t alternate_stack[SIGSTKSZ];
 void set_signal_handler() {
   /* setup alternate stack */
   {
-    stack_t ss = {};
+    stack_t ss = {0};
     /* malloc is usually used here, I'm not 100% sure my static allocation
        is valid but it seems to work just fine. */
     ss.ss_sp    = (void*)alternate_stack;
@@ -105,7 +107,7 @@ void set_signal_handler() {
 
   /* register our signal handlers */
   {
-    struct sigaction sig_action = {};
+    struct sigaction sig_action = {0};
     sig_action.sa_sigaction     = posix_signal_handler;
     sigemptyset(&sig_action.sa_mask);
 

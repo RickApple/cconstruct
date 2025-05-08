@@ -29,7 +29,9 @@
 #ifndef CC_CONSTRUCT_H
 #define CC_CONSTRUCT_H
 
-#pragma warning(disable : 4996)
+#if defined(_WIN32)
+  #pragma warning(disable : 4996)
+#endif
 
 #include <stdbool.h>
 
