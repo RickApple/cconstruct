@@ -54,21 +54,21 @@ build/x64/Release/bin/my_binary
 set -e
 popd
 
-exit 0
 
 
 set +e
 pushd 04_preprocessor
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Debug -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc 
+$CMD_CONSTRUCT_WORKSPACE --config=Debug
+$CMD_BUILD
 ./build/x64/Debug/preprocessor
 if [ $? -ne 0 ]
 then
   exit 1
 fi
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme preprocessor -configuration Release -destination 'platform=macOS,arch=x86_64'
+$CMD_CONSTRUCT_WORKSPACE --config=Release
+$CMD_BUILD
 ./build/x64/Release/preprocessor   
 if [ $? -eq 0 ]
 then
@@ -77,6 +77,7 @@ fi
 popd
 set -e
 
+exit 0
 
 set +e
 pushd 05_compile_flags
