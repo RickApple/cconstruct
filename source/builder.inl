@@ -184,12 +184,13 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       "98";
     #endif
   const char* recompile_command =
-      cc_printf("clang++ %s -x c++ -std=c++%s -o %s", cconstruct_config_file_path,
-                language_revision, cconstruct_internal_binary_name);
+      cc_printf("clang++ -x c++ -Wno-deprecated-declarations %s -std=c++%s -o %s",
+                cconstruct_config_file_path, language_revision, cconstruct_internal_binary_name);
 
   #else
-  const char* recompile_command = cc_printf("clang %s -x c -o %s", cconstruct_config_file_path,
-                                            cconstruct_internal_binary_name);
+  const char* recompile_command =
+      cc_printf("clang -x c -Wno-deprecated-declarations %s -o %s", cconstruct_config_file_path,
+                cconstruct_internal_binary_name);
   #endif
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command: '%s'\n",
               recompile_command);

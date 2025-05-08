@@ -586,7 +586,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, "$in /nologo /OUT:$out");
     desc = cc_printf("Linking binary %s", p->name);
   }
-
 #else
   if (p->type == CCProjectTypeStaticLibrary) {
     array_push(command_elements, lib_linker_path);
@@ -817,17 +816,17 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 #elif defined(__APPLE__)
     //-g -Wall -Wextra -Wpedantic -Werror
     fprintf(ninja_file,
-            "\n  command = %s -MD -MF $out.d -x c -Wno-deprecated-declarations -o %s $$PWD/$in",
+            "\n  command = %s -MD -MF $out.d -x c -Wno-deprecated-declarations -o ./%s $$PWD/$in",
             compiler_path, cconstruct_path_rel);
     fprintf(ninja_file, "\n  depfile = $out.d");
     fprintf(ninja_file, "\n  deps = gcc");
 #endif
     fprintf(ninja_file, "\n  description = Building CConstruct ...\n");
 
-    fprintf(ninja_file, "\nbuild %s: build_cconstruct %s\n", cconstruct_path_rel, config_path_rel);
+    fprintf(ninja_file, "\nbuild ./%s: build_cconstruct %s\n", cconstruct_path_rel, config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
-    fprintf(ninja_file, "  command = %s --generator=ninja --generate-projects\n",
+    fprintf(ninja_file, "  command = ./%s --generator=ninja --generate-projects\n",
             cconstruct_path_rel);
     fprintf(ninja_file, "  description = Re-running CConstruct ...\n");
     fprintf(ninja_file, "  generator = 1\n");

@@ -2,7 +2,7 @@
 
 #include "library/function.h"
 
-int main(int argc, const char* argv[]) {
+int main() {
   const char* lib_string = getLibraryString();
   return strcmp(lib_string, "Hello from library");
 }

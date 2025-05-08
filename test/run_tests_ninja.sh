@@ -2,8 +2,8 @@
 set -e
 set -x
 
-COMPILE_CCONSTRUCT_COMMAND='clang -x c -o cconstruct'
-COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g -o cconstruct'
+COMPILE_CCONSTRUCT_COMMAND='clang -x c -Wno-deprecated-declarations -o cconstruct'
+COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g -Wno-deprecated-declarations -o cconstruct'
 COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
 CMD_CONSTRUCT_WORKSPACE='./cconstruct --generator=ninja --generate-projects'
 CMD_BUILD='ninja -C build'
@@ -108,15 +108,14 @@ set -e
 ./build/x64/Debug/post_build_action
 popd
 
-exit 0
 
 set +e
 pushd 07_changed_config
 rm -rf build
 cp return_value1.inl return_value.inl
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme changed_config -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc 
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/changed_config
 # The first config builds the program so that it returns 1, so check for that specifically
 if [ $? -ne 1 ]
@@ -124,8 +123,7 @@ then
   exit 1
 fi
 cp return_value2.inl return_value.inl
-./cconstruct
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme changed_config -destination 'platform=macOS,arch=x86_64'
+$CMD_BUILD
 ./build/x64/Debug/changed_config
 # The second config builds the program so that it returns 2, so check for that specifically
 if [ $? -ne 2 ]
@@ -138,37 +136,38 @@ set -e
 
 pushd 08_project_structure
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/project_structure.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/my_binary
 popd
 
 
 pushd 09_warning_level
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-# Without doing something about warnings, the following builds would fail.
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -configuration Debug -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme warning_level -configuration Release -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+# Without doing something about warnings in the config file, the following builds would fail.
+$CMD_CONSTRUCT_WORKSPACE --config=Debug
+$CMD_BUILD
+$CMD_CONSTRUCT_WORKSPACE --config=Release
+$CMD_BUILD
 popd
 
 
 pushd 10_mixing_c_and_cpp
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme mixing_c_and_cpp -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/mixing_c_and_cpp
 popd
 
 
 pushd 11_nested_folders
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/src/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme nested_folders -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/src/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/nested_folders
 popd
 
@@ -177,18 +176,19 @@ pushd 12_config_folders
 rm -rf build
 # This test requires the build folder to exist
 mkdir build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/project/config.cc -o build/cconstruct
+clang -x c -g -Wno-deprecated-declarations $PWD/project/config.cc -o build/cconstruct
 pushd build
-./cconstruct
-xcodebuild -quiet -workspace workspace.xcworkspace -scheme config_folders -destination 'platform=macOS,arch=x86_64'
+./cconstruct --generator=ninja --verbose --generate-projects
+ninja
 ./x64/Debug/config_folders
 popd
 # Also check if it works when calling it from the parent folder
 rm -rf build/*.xc*
-./build/cconstruct
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme config_folders -destination 'platform=macOS,arch=x86_64'
+./build/cconstruct --generator=ninja
+$CMD_BUILD
 popd
 
+exit 0
 
 pushd 13_cpp_config
 rm -rf build
