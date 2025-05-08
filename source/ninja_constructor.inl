@@ -791,7 +791,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     ninja_createProjectFile(ninja_file, p, output_folder, build_to_base_path);
   }
 
-#if !defined(__APPLE__)
   const char* workspace_abs =
       make_uri(cc_printf("%s%s", folder_path_only(_internal.config_file_path), in_workspace_path));
   const char* config_path_rel = make_path_relative(workspace_abs, _internal.config_file_path);
@@ -801,26 +800,29 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 
   fprintf(ninja_file, "\n##################\n# CConstruct rebuild\n");
   {  // Add dependency on config file
-    fprintf(ninja_file, "\nrule build_cconstruct\n");
-  #if defined(_WIN32)
+    fprintf(ninja_file, "\nrule build_cconstruct");
+#if defined(_WIN32)
     fprintf(ninja_file,
-            "  command = %s /ZI /W4 /WX /DEBUG /FC /Fo:cconstruct" OBJ_EXT
+            "\n  command = %s /ZI /W4 /WX /DEBUG /FC /Fo:cconstruct" OBJ_EXT
             " /Fe%s "
-            "/showIncludes /nologo %s $in\n",
+            "/showIncludes /nologo %s $in",
             compiler_path, cconstruct_path_rel,
-    #if __cplusplus
+  #if __cplusplus
             "/TP"
-    #else
+  #else
             "/TC"
-    #endif
-    );
-  #elif defined(__APPLE__)
-    //-g -Wall -Wextra -Wpedantic -Werror
-    fprintf(ninja_file, "  command = %s -Wno-deprecated-declarations -o %s -c $in\n",
-            compiler_path, cconstruct_path_rel);
   #endif
-    fprintf(ninja_file, "  description = Building CConstruct ...\n");
-    fprintf(ninja_file, "  deps = msvc\n");
+    );
+    fprintf(ninja_file, "\n  deps = msvc\n");
+#elif defined(__APPLE__)
+    //-g -Wall -Wextra -Wpedantic -Werror
+    fprintf(ninja_file,
+            "\n  command = %s -MD -MF $out.d -x c -Wno-deprecated-declarations -o %s $$PWD/$in",
+            compiler_path, cconstruct_path_rel);
+    fprintf(ninja_file, "\n  depfile = $out.d");
+    fprintf(ninja_file, "\n  deps = gcc");
+#endif
+    fprintf(ninja_file, "\n  description = Building CConstruct ...\n");
 
     fprintf(ninja_file, "\nbuild %s: build_cconstruct %s\n", cconstruct_path_rel, config_path_rel);
 
@@ -833,6 +835,6 @@ void ninja_generateInFolder(const char* in_workspace_path) {
     fprintf(ninja_file, "\nbuild build.ninja: RERUN_CCONSTRUCT %s\n", cconstruct_path_rel);
     fprintf(ninja_file, "  pool = console\n");
   }
-#endif
+
   fclose(ninja_file);
 }
