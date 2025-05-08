@@ -91,14 +91,13 @@ fi
 popd
 set -e
 
-exit 0
 
 pushd 06_post_build_action
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
 set +e
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme post_build_action -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc 
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 # building should fail due to the unknown post build command
 if [ $? -eq 0 ]
 then
@@ -109,6 +108,7 @@ set -e
 ./build/x64/Debug/post_build_action
 popd
 
+exit 0
 
 set +e
 pushd 07_changed_config
