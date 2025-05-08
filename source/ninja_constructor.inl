@@ -812,7 +812,7 @@ void ninja_generateInFolder(const char* in_workspace_path) {
             "/TC"
   #endif
     );
-    fprintf(ninja_file, "\n  deps = msvc\n");
+    fprintf(ninja_file, "\n  deps = msvc");
 #elif defined(__APPLE__)
     //-g -Wall -Wextra -Wpedantic -Werror
     fprintf(ninja_file,
