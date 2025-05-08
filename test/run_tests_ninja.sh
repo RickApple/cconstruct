@@ -55,7 +55,6 @@ set -e
 popd
 
 
-
 set +e
 pushd 04_preprocessor
 rm -rf build
@@ -77,14 +76,13 @@ fi
 popd
 set -e
 
-exit 0
 
 set +e
 pushd 05_compile_flags
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme compile_flags -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc 
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 # building should cause an error because flag has been added to set warnings as errors
 if [ $? -eq 0 ]
 then
@@ -93,6 +91,7 @@ fi
 popd
 set -e
 
+exit 0
 
 pushd 06_post_build_action
 rm -rf build

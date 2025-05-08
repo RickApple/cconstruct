@@ -26,7 +26,9 @@ int main(int argc, const char** argv) {
 #else
   cc.state.addCompilerFlag(flags, "-Werror");
   cc.state.addCompilerFlag(flags, "-Wunused-variable");
-  cc.state.addCompilerFlag(flags, "MACOSX_DEPLOYMENT_TARGET=10.15");
+  if (cc.generator.standard == cc.generator.xcode) {
+    cc.state.addCompilerFlag(flags, "MACOSX_DEPLOYMENT_TARGET=10.15");
+  }
 #endif
   cc.project.setFlags(p, flags, NULL, NULL);
 
