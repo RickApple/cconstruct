@@ -9,7 +9,7 @@
 #include "function.h"
 #include "function.inl"
 
-int main(int argc, const char* argv[]) {
+int main() {
   outputSomething();
   return 0;
 }

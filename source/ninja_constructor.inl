@@ -476,11 +476,12 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
-    const char* relative_in_file_path = make_path_relative(in_output_folder, file->path);
-    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_in_file_path);
+    const char* relative_in_file_path  = make_path_relative(in_output_folder, file->path);
     const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
+#if defined(_WIN32)
+    ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_in_file_path);
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
-
+#endif
     const char* input_output_substitution_keys[]   = {"input", "output"};
     const char* input_output_substitution_values[] = {relative_in_file_path,
                                                       relative_out_file_path};
@@ -496,7 +497,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
                                               substitution_values, countof(substitution_keys));
 
     fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
+#if defined(_WIN32)
     fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
+#else
+    fprintf(ninja_file, "  command = %s\n", custom_command);
+#endif
     fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s%s %s\n", out_file_path, p->name,
             fi, resolved_output_folder, project_type_prefix[p->type], p->name,
             project_type_suffix[p->type], in_file_path);
@@ -823,7 +828,8 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 #endif
     fprintf(ninja_file, "\n  description = Building CConstruct ...\n");
 
-    fprintf(ninja_file, "\nbuild ./%s: build_cconstruct %s\n", cconstruct_path_rel, config_path_rel);
+    fprintf(ninja_file, "\nbuild ./%s: build_cconstruct %s\n", cconstruct_path_rel,
+            config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
     fprintf(ninja_file, "  command = ./%s --generator=ninja --generate-projects\n",

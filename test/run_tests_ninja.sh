@@ -188,43 +188,43 @@ rm -rf build/*.xc*
 $CMD_BUILD
 popd
 
-exit 0
 
 pushd 13_cpp_config
 rm -rf build
-$COMPILE_CCONSTRUCT_CPP_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cpp_config -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_CPP_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 popd
 
 
 pushd 14_c_config
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme c_config -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 popd
 
 
 pushd 15_other_file_types
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme other_file_types -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 popd
 
 
 pushd 18_custom_commands
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
 TEST_TIME=$(date "+%Y-%m-%d %H:%M:%S")
 echo $TEST_TIME > src/test_source.txt
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme custom_commands -destination 'platform=macOS,arch=x86_64'
+$CMD_BUILD -v
 CMD_OUTPUT=$(./build/x64/Debug/custom_commands)
 [ "$CMD_OUTPUT" != "test $TEST_TIME" ] && exit 1
 popd
 
+exit 0
 
 pushd 19_macos_framework
 rm -rf build
