@@ -67,6 +67,31 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       in_output_folder,
   };
 
+#if defined(__APPLE__)
+  const char** external_frameworks = {0};
+  for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
+    const bool is_global_state = ((p->configs[ipc] == NULL) && (p->architectures[ipc] == NULL));
+
+    const cc_state_impl_t* s = &(p->state[ipc]);
+    for (unsigned fi = 0; fi < array_count(s->external_libs);) {
+      const char* lib_path = s->external_libs[fi];
+      if (strstr(lib_path, ".framework") == NULL) {
+        fi++;
+      } else {
+        if (!is_global_state) {
+          LOG_ERROR_AND_QUIT(
+              ERR_CONFIGURATION,
+              "Apple framework added to state with configuration or architecture. This is not yet "
+              "supported");
+        }
+        array_push(external_frameworks, lib_path);
+        array_remove_at_index(s->external_libs, fi);
+      }
+    }
+  }
+// No frameworks left in the state now.
+#endif
+
 #if 0
   const char* project_file_path = cc_printf("%s.vcxproj", p->name);
 
@@ -554,6 +579,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #else
     array_push(command_elements, "-c $in -o $out");
 #endif
+
     fprintf(ninja_file, "\n  command = %s", command_elements[0]);
     for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
       fprintf(ninja_file, " %s", command_elements[ci]);
@@ -613,6 +639,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, link_additional_dependencies);
     array_push(command_elements, "$in -o $out");
     desc = cc_printf("Linking binary %s", p->name);
+  }
+
+  for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
+    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+    array_push(command_elements, cc_printf("-framework %s", strip_extension(dependantName)));
   }
 #endif
 
@@ -778,7 +809,10 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   const char* ninja_file_path = cc_printf("%s/build.ninja", output_folder);
   FILE* ninja_file            = fopen(ninja_file_path, "wt");
   fprintf(ninja_file, "ninja_required_version = 1.5\n\n");
+
+#if defined(_WIN32)
   fprintf(ninja_file, "msvc_deps_prefix = Note: including file:\n\n");
+#endif
 
   const char* platform_label = _internal.active_arch_label;
 

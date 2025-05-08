@@ -1,7 +1,9 @@
 #import <Metal/Metal.h>
+#include <stdio.h>
 
-int main(int argc, const char* argv[]) {
+int main() {
   id device = MTLCreateSystemDefaultDevice();
   (void)device;
+  printf("Created Metal device\n");
   return 0;
 }

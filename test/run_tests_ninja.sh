@@ -224,16 +224,16 @@ CMD_OUTPUT=$(./build/x64/Debug/custom_commands)
 [ "$CMD_OUTPUT" != "test $TEST_TIME" ] && exit 1
 popd
 
-exit 0
 
 pushd 19_macos_framework
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/xcode/macos_framework.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-./build/xcode/x64/Debug/my_binary
+$COMPILE_DEBUG_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
+./build/x64/Debug/my_binary
 popd
 
+exit 0
 
 pushd 21_errors
 rm -rf build

@@ -229,8 +229,8 @@ pushd 19_macos_framework
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/xcode/macos_framework.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-./build/xcode/x64/Debug/my_binary
+xcodebuild -quiet -workspace build/macos_framework.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+./build/x64/Debug/my_binary
 popd
 
 
