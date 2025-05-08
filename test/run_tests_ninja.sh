@@ -3,18 +3,18 @@ set -e
 set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c -o cconstruct'
-COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g'
+COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g -o cconstruct'
 COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
-CCONSTRUCT_COMMAND='./cconstruct --generator=ninja --generate-projects'
-BUILD_COMMAND='ninja -C build -v'
+CMD_CONSTRUCT_WORKSPACE='./cconstruct --generator=ninja --generate-projects'
+CMD_BUILD='ninja -C build'
 
 
 
 pushd 01_hello_world
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
-$CCONSTRUCT_COMMAND
-$BUILD_COMMAND
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/hello_world
 popd
 
@@ -22,8 +22,8 @@ popd
 pushd 02_include_folders
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
-$CCONSTRUCT_COMMAND
-$BUILD_COMMAND
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/include_folders
 popd
 
@@ -31,30 +31,30 @@ popd
 pushd 03_library_dependency
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
-$CCONSTRUCT_COMMAND
-$BUILD_COMMAND
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 ./build/x64/Debug/my_binary
 popd
 
-exit 0
 
 pushd 03a_library_dependency_explicit
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct  --generate-projects
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_library -configuration Release -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/xcode/library_dependency_explicit.xcworkspace -scheme my_binary -configuration Release -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE --config=Debug
+$CMD_BUILD x64/Debug/lib/libmy_library.a
+$CMD_BUILD
 set +e
-# Debug lib returns 1
-build/xcode/x64/Debug/bin/my_binary
+build/x64/Debug/bin/my_binary
 [ $? -ne 1 ] && exit 1
-# Release lib returns 2
-build/xcode/x64/Release/bin/my_binary
+$CMD_CONSTRUCT_WORKSPACE --config=Release
+$CMD_BUILD x64/Release/lib/libmy_library.a
+$CMD_BUILD
+build/x64/Release/bin/my_binary
 [ $? -ne 2 ] && exit 2
 set -e
 popd
+
+exit 0
 
 
 set +e

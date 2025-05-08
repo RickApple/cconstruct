@@ -1,13 +1,16 @@
 
 #if defined(_WIN32)
   #define OBJ_EXT ".obj"
+  #define LIB_PREFIX ""
+char const* const project_type_prefix[] = {"", "", "", ""};
 char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 char const* compiler_path               = "cl.exe";
 char const* lib_linker_path             = "lib.exe";
 char const* linker_path                 = "link.exe";
 #else
   #define OBJ_EXT ".o"
-char const* const project_type_suffix[] = {"", "", ".lib", ".dylib"};
+char const* const project_type_prefix[] = {"", "", "lib", ""};
+char const* const project_type_suffix[] = {"", "", ".a", ".dylib"};
 char const* compiler_path               = "clang";
 char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link.exe";
@@ -311,9 +314,13 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       const char* resolved_lib_folder = cc_substitute(
           lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
+#if defined(_WIN32)
       ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
       link_additional_dependencies =
           cc_printf("%s \"%s\"", link_additional_dependencies, lib_name);
+#else
+      link_additional_dependencies = cc_printf("%s -l%s", link_additional_dependencies, lib_name);
+#endif
       // Check if this path is already in there
       bool did_find = false;
       for (size_t ilf = 0; ilf < array_count(link_additional_directories); ilf++) {
@@ -370,18 +377,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     }
 
 #if 0
-    data_tree_api.set_object_value(
-        &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalOptions"),
-        additional_link_flags);
-
-    link_additional_dependencies =
-        cc_printf("%s;%%(AdditionalDependencies)", link_additional_dependencies);
-
-    
-    data_tree_api.set_object_value(
-        &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalDependencies"),
-        link_additional_dependencies);
-
     const bool have_pre_build_action = (p->preBuildAction != 0);
     if (have_pre_build_action) {
       const char* windowsPreBuildAction = cc_printf("%s", p->preBuildAction);
@@ -414,8 +409,13 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       if (link_additional_directories[i][fl - 1] == '\\') {
         fl -= 1;
       }
+#if defined(_WIN32)
       combined_link_folders = cc_printf("%s /LIBPATH:\"%.*s\"", combined_link_folders, fl,
                                         link_additional_directories[i]);
+#else
+      combined_link_folders =
+          cc_printf("%s -L%.*s", combined_link_folders, fl, link_additional_directories[i]);
+#endif
     }
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
   }
@@ -497,8 +497,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
     fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
     fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
-    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s %s\n", out_file_path, p->name,
-            fi, resolved_output_folder, p->name, project_type_suffix[p->type], in_file_path);
+    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s/%s%s%s %s\n", out_file_path, p->name,
+            fi, resolved_output_folder, project_type_prefix[p->type], p->name,
+            project_type_suffix[p->type], in_file_path);
   }
 
   // Add project dependencies
@@ -512,16 +513,16 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
         deps = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name, ".lib");
         break;
       default:
-        deps = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name,
-                         project_type_suffix[dp->type]);
+        deps = cc_printf("%s %s/%s%s%s", deps, resolved_output_folder,
+                         project_type_prefix[dp->type], dp->name, project_type_suffix[dp->type]);
         break;
     }
   }
 #else
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const cc_project_impl_t* dp = p->dependantOn[i];
-    deps                        = cc_printf("%s %s/%s%s", deps, resolved_output_folder, dp->name,
-                                            project_type_suffix[dp->type]);
+    deps = cc_printf("%s %s/%s%s%s", deps, resolved_output_folder, project_type_prefix[dp->type],
+                     dp->name, project_type_suffix[dp->type]);
     if (dp->type == CCProjectTypeDynamicLibrary) {
       additional_link_flags = cc_printf("%s -Wl,-rpath,@executable_path", additional_link_flags);
     }
@@ -555,11 +556,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     fprintf(ninja_file, "\n  description = Compiling $in\n");
   }
 
-#if defined(_WIN32)
   const char* desc = "";
   command_elements = NULL;
 
   fprintf(ninja_file, "\nrule link_%s", p->name);
+#if defined(_WIN32)
   if (p->type == CCProjectTypeStaticLibrary) {
     array_push(command_elements, lib_linker_path);
     array_push(command_elements, additional_link_flags);
@@ -586,6 +587,31 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     desc = cc_printf("Linking binary %s", p->name);
   }
 
+#else
+  if (p->type == CCProjectTypeStaticLibrary) {
+    array_push(command_elements, lib_linker_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
+    array_push(command_elements, "rcs $out $in");
+    desc = cc_printf("Linking static library %s", p->name);
+  } else if (p->type == CCProjectTypeDynamicLibrary) {
+    array_push(command_elements, compiler_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
+    array_push(command_elements, "-dynamiclib $in -install_name @rpath/$rpath -o $dyn_lib");
+    desc = cc_printf("Linking dynamic library %s", p->name);
+  } else {
+    array_push(command_elements, compiler_path);
+    array_push(command_elements, additional_link_flags);
+    array_push(command_elements, combined_link_folders);
+    array_push(command_elements, link_additional_dependencies);
+    array_push(command_elements, "$in -o $out");
+    desc = cc_printf("Linking binary %s", p->name);
+  }
+#endif
+
   {
     fprintf(ninja_file, "\n  command = %s", command_elements[0]);
     for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
@@ -595,24 +621,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   if (desc != NULL) {
     fprintf(ninja_file, "\n  description = %s", desc);
   }
-
   fprintf(ninja_file, "\n");
-
-#else
-  fprintf(ninja_file, "\nrule link_%s\n", p->name);
-  if (p->type == CCProjectTypeStaticLibrary) {
-    fprintf(ninja_file, "  command = %s%s rcs $out $in\n", lib_linker_path, additional_link_flags);
-    fprintf(ninja_file, "  description = Linking static library %s\n", p->name);
-  } else if (p->type == CCProjectTypeDynamicLibrary) {
-    fprintf(ninja_file,
-            "  command = %s%s -dynamiclib $in -install_name @rpath/$rpath -o $dyn_lib\n",
-            compiler_path, additional_link_flags);
-    fprintf(ninja_file, "  description = Linking dynamic library %s\n", p->name);
-  } else {
-    fprintf(ninja_file, "  command = %s%s $in -o $out\n", compiler_path, additional_link_flags);
-    fprintf(ninja_file, "  description = Linking binary %s\n", p->name);
-  }
-#endif
 
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f = p->file_data[fi]->path;
@@ -633,19 +642,21 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   if (p->type == CCProjectTypeDynamicLibrary) {
 #if defined(_WIN32)
-    fprintf(ninja_file, "\nbuild %s/%s%s %s/%s%s: link_%s%s", resolved_output_folder, p->name,
-            project_type_suffix[p->type], resolved_output_folder, p->name, ".lib", p->name, deps);
-    fprintf(ninja_file, "\n  imp_lib = %s/%s%s", resolved_output_folder, p->name, ".lib");
+    fprintf(ninja_file, "\nbuild %s/%s%s%s %s/%s%s%s: link_%s%s", resolved_output_folder,
+            project_type_prefix[p->type], p->name, project_type_suffix[p->type],
+            resolved_output_folder, project_type_prefix[p->type], p->name, ".lib", p->name, deps);
+    fprintf(ninja_file, "\n  imp_lib = %s/%s%s%s", resolved_output_folder,
+            project_type_prefix[p->type], p->name, ".lib");
 #else
-    fprintf(ninja_file, "\nbuild %s/%s%s: link_%s%s", resolved_output_folder, p->name,
-            project_type_suffix[p->type], p->name, deps);
-    fprintf(ninja_file, "\n  rpath = %s%s", p->name, ".dylib");
+    fprintf(ninja_file, "\nbuild %s/%s%s%s: link_%s%s", resolved_output_folder,
+            project_type_prefix[p->type], p->name, project_type_suffix[p->type], p->name, deps);
+    fprintf(ninja_file, "\n  rpath = %s%s%s", project_type_prefix[p->type], p->name, ".dylib");
 #endif
-    fprintf(ninja_file, "\n  dyn_lib = %s/%s%s", resolved_output_folder, p->name,
-            project_type_suffix[p->type]);
+    fprintf(ninja_file, "\n  dyn_lib = %s/%s%s%s", resolved_output_folder,
+            project_type_prefix[p->type], p->name, project_type_suffix[p->type]);
   } else {
-    fprintf(ninja_file, "\nbuild %s/%s%s: link_%s%s", resolved_output_folder, p->name,
-            project_type_suffix[p->type], p->name, deps);
+    fprintf(ninja_file, "\nbuild %s/%s%s%s: link_%s%s", resolved_output_folder,
+            project_type_prefix[p->type], p->name, project_type_suffix[p->type], p->name, deps);
   }
   fprintf(ninja_file, "\n");
 
