@@ -225,46 +225,45 @@ CMD_OUTPUT=$(./build/x64/Debug/custom_commands)
 popd
 
 
-pushd 19_macos_framework
-rm -rf build
-$COMPILE_DEBUG_CCONSTRUCT_COMMAND $PWD/config.cc
-$CMD_CONSTRUCT_WORKSPACE
-$CMD_BUILD
-./build/x64/Debug/my_binary
-popd
+if [[ "$(uname)" == "Darwin" ]]; then
+  pushd 19_macos_framework
+  rm -rf build
+  $COMPILE_DEBUG_CCONSTRUCT_COMMAND $PWD/config.cc
+  $CMD_CONSTRUCT_WORKSPACE
+  $CMD_BUILD
+  ./build/x64/Debug/my_binary
+  popd
 
-exit 0
+  pushd 21_errors
+  rm -rf build
+  set +e
+  # Create CConstruct binary which works fine
+  cp error_none.inl error.inl
+  $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+  # Cause the recreation of CConstruct binary to fail
+  cp error_compile.inl error.inl
+  ./cconstruct
+  [ $? -ne 1 ] && exit 1
+  # Cause the recreation of CConstruct binary to succeed, but then crash during construction
+  cp error_construction.inl error.inl
+  ./cconstruct
+  [ $? -ne 2 ] && exit 1
+  # No error at all, everything goes OK from here on out
+  cp error_none.inl error.inl
+  ./cconstruct
+  set -e
+  popd
 
-pushd 21_errors
-rm -rf build
-set +e
-# Create CConstruct binary which works fine
-cp error_none.inl error.inl
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-# Cause the recreation of CConstruct binary to fail
-cp error_compile.inl error.inl
-./cconstruct
-[ $? -ne 1 ] && exit 1
-# Cause the recreation of CConstruct binary to succeed, but then crash during construction
-cp error_construction.inl error.inl
-./cconstruct
-[ $? -ne 2 ] && exit 1
-# No error at all, everything goes OK from here on out
-cp error_none.inl error.inl
-./cconstruct
-set -e
-popd
-
-
+fi
 
 
 
 
 pushd ../tools
 rm -rf build
-$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
-./cconstruct
-xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme cconstruct_release -destination 'platform=macOS,arch=x86_64'
+$COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
+$CMD_CONSTRUCT_WORKSPACE
+$CMD_BUILD
 mkdir -p ../build
 ./build/x64/Debug/cconstruct_release ../source/cconstruct.h ../build/cconstruct.h
 popd

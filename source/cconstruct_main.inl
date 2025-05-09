@@ -80,7 +80,7 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 
   exit(ERR_CONSTRUCTION);
 }
-#else
+#elif defined(__APPLE__)
 void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
   (void)sig;
   (void)siginfo;
@@ -89,6 +89,7 @@ void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
   exit(ERR_CONSTRUCTION);
 }
 
+#define SIG_STACK_SIZE 16*1024
 static unsigned char alternate_stack[SIGSTKSZ];
 void set_signal_handler() {
   /* setup alternate stack */
@@ -197,7 +198,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #if defined(_WIN32)
   (void)DeleteFile(cconstruct_old_binary_name);
   SetUnhandledExceptionFilter(ExceptionHandler);
-#else
+#elif defined(__APPLE__)
   set_signal_handler();
 #endif
 
