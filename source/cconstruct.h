@@ -101,8 +101,9 @@ typedef struct cconstruct_t {
 
   const struct {
     cc_state_t (*create)();
-
     void (*reset)(cc_state_t in_out_state);
+
+    void (*setCppVersion)(cc_state_t in_out_state,int version);
     void (*addIncludeFolder)(cc_state_t in_out_state, const char* in_include_folder);
     void (*addPreprocessorDefine)(cc_state_t in_out_state, const char* in_define);
     void (*addCompilerFlag)(cc_state_t in_out_state, const char* in_compiler_flag);
@@ -182,11 +183,8 @@ typedef struct cconstruct_t {
 
     //! Explicit generators.
     void (*ninja)(const char* workspace_folder);
-#if defined(_WIN32)
     void (*visual_studio)(const char* workspace_folder);
-#elif defined(__APPLE__)
     void (*xcode)(const char* workspace_folder);
-#endif
   } generator;
 } cconstruct_t;
 

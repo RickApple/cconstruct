@@ -12,6 +12,7 @@ char const* linker_path                 = "link.exe";
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
 char const* const project_type_suffix[] = {"", "", ".a", ".dylib"};
 char const* compiler_path               = "clang";
+char const* cpp_compiler_path           = "clang++";
 char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link.exe";
 #else
@@ -19,6 +20,7 @@ char const* linker_path                 = "link.exe";
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
 char const* const project_type_suffix[] = {"", "", ".a", ".so"};
 char const* compiler_path               = "clang";
+char const* cpp_compiler_path           = "clang++";
 char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link";
 #endif
@@ -301,6 +303,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   const char** link_additional_directories = NULL;
   const char* link_additional_dependencies = "";
 
+  int cpp_version = 0;
+
   EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
   bool shouldDisableWarningsAsError         = false;
   for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
@@ -313,6 +317,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #if 0
         if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
 #endif
+
+    // Choose the highest specific C++ version.
+    cpp_version = (flags->cpp_version > cpp_version) ? flags->cpp_version : cpp_version;
 
     shouldDisableWarningsAsError = flags->disableWarningsAsErrors;
     combined_warning_level       = flags->warningLevel;
@@ -576,7 +583,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   #else
       additional_link_flags = cc_printf("%s -Wl,-rpath,'$$ORIGIN'", additional_link_flags);
   #endif
-      additional_link_flags = cc_printf("%s -L%s -l%s", additional_link_flags, resolved_output_folder, dp->name);
+      additional_link_flags =
+          cc_printf("%s -L%s -l%s", additional_link_flags, resolved_output_folder, dp->name);
     } else {
       additional_link_flags =
           cc_printf("%s %s/%s%s%s", additional_link_flags, resolved_output_folder,
@@ -652,7 +660,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, link_additional_dependencies);
     desc = cc_printf("Linking static library %s", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
-    array_push(command_elements, compiler_path);
+    array_push(command_elements, cpp_version > 0 ? cpp_compiler_path : compiler_path);
     array_push(command_elements, "$in -o $dyn_lib");
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
@@ -664,7 +672,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   #endif
     desc = cc_printf("Linking dynamic library %s", p->name);
   } else {
-    array_push(command_elements, compiler_path);
+    array_push(command_elements, cpp_version > 0 ? cpp_compiler_path : compiler_path);
     array_push(command_elements, "$in -o $out");
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);

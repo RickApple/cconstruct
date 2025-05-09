@@ -326,10 +326,18 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       {&cc_architecture_create},
       {&cc_platform_create},
       {&cc_group_create},
-      {&cc_state_create, &cc_state_reset, &cc_state_addIncludeFolder,
-       &cc_state_addPreprocessorDefine, &cc_state_addCompilerFlag, &cc_state_addLinkerFlag,
-       &cc_state_linkExternalLibrary, &cc_state_setWarningLevel,
-       &cc_state_disableWarningsAsErrors},
+      {
+          &cc_state_create,
+          &cc_state_reset,
+          &cc_state_setCppVersion,
+          &cc_state_addIncludeFolder,
+          &cc_state_addPreprocessorDefine,
+          &cc_state_addCompilerFlag,
+          &cc_state_addLinkerFlag,
+          &cc_state_linkExternalLibrary,
+          &cc_state_setWarningLevel,
+          &cc_state_disableWarningsAsErrors,
+      },
       {
           &cc_project_create_,
           &addFilesToProject,
@@ -348,8 +356,13 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           ninja_generateInFolder,
 #if defined(_WIN32)
           vs2019_generateInFolder,
-#elif defined(__APPLE__)
-          xcode_generateInFolder
+#else
+          NULL,
+#endif
+#if defined(__APPLE__)
+          xcode_generateInFolder,
+#else
+          NULL,
 #endif
       }};
 

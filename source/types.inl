@@ -46,6 +46,7 @@ typedef struct cc_state_impl_t {
   EStateWarningLevel warningLevel;
   /* By default warnings are treated as errors */
   bool disableWarningsAsErrors;
+  int cpp_version;
 } cc_state_impl_t;
 
 typedef struct cc_project_impl_t {
@@ -208,6 +209,11 @@ void setWorkspaceLabel(const char* label) { cc_data_.workspaceLabel = label; }
 void cc_state_reset(cc_state_t out_flags) {
   // TODO: free memory where needed
   memset((cc_project_impl_t*)out_flags, 0, sizeof(cc_state_impl_t));
+}
+
+void cc_state_setCppVersion(cc_state_t in_state, int version) {
+  cc_state_impl_t* flags = ((cc_state_impl_t*)in_state);
+  flags->cpp_version = version;
 }
 
 void cc_state_addIncludeFolder(cc_state_t in_state, const char* in_include_folder) {

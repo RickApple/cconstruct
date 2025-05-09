@@ -18,6 +18,15 @@ int main(int argc, const char** argv) {
 
   cc.project.addFiles(p, countof(files), files, NULL);
 
+  cc_state_t f = cc.state.create();
+  cc.state.setCppVersion(f, 11);
+  
+  #if defined(_WIN32)
+  cc.state.addCompilerFlag(f, "/EHsc");
+  #endif
+  
+  cc.project.setFlags(p, f, NULL, NULL);
+
   cc.generator.standard("build");
 
   return 0;

@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 
 class C {
  public:
@@ -12,6 +12,6 @@ int main() {
   C c;
   c.i = cFunction();
   // TODO change output to use C++ std::cout
-  printf("C file output\n");
+  std::cout << "C++ file output" << std::endl;
   return c.i;
 }
