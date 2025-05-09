@@ -41,13 +41,13 @@ pushd 03a_library_dependency_explicit
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc
 $CMD_CONSTRUCT_WORKSPACE --config=Debug
-$CMD_BUILD x64/Debug/lib/libmy_library.a
+$CMD_BUILD my_library
 $CMD_BUILD
 set +e
 build/x64/Debug/bin/my_binary
 [ $? -ne 1 ] && exit 1
 $CMD_CONSTRUCT_WORKSPACE --config=Release
-$CMD_BUILD x64/Release/lib/libmy_library.a
+$CMD_BUILD my_library
 $CMD_BUILD
 build/x64/Release/bin/my_binary
 [ $? -ne 2 ] && exit 2

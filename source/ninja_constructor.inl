@@ -704,6 +704,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     fprintf(ninja_file, "\nbuild post_build_%s: postbuild_0_%s %s/%s%s\n", p->name, p->name,
             resolved_output_folder, p->name, project_type_suffix[p->type]);
   }
+
+  fprintf(ninja_file, "\nbuild %s : phony || %s/%s%s%s \n", p->name, resolved_output_folder, project_type_prefix[p->type], p->name, project_type_suffix[p->type]);
 }
 
 void ninja_generateInFolder(const char* in_workspace_path) {
