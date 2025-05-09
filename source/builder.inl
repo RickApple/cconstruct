@@ -169,7 +169,7 @@ void cc_activateNewBuild_() {
   (void)MoveFileEx(cconstruct_old_binary_name, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 }
 
-#elif defined(__APPLE__)
+#else
   #include <stdio.h>
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   #if __cplusplus
@@ -227,7 +227,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 }
 
 void cc_activateNewBuild_() {
-  const char* path = getprogname();
+  const char* path = cc_path_executable();
 
   if (rename(cconstruct_internal_binary_name, path) != 0) {
     LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move binary from '%s' to '%s'\n",

@@ -67,8 +67,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       in_output_folder,
   };
 
-#if defined(__APPLE__)
   const char** external_frameworks = {0};
+#if defined(__APPLE__)
   for (unsigned ipc = 0; ipc < array_count(p->state); ++ipc) {
     const bool is_global_state = ((p->configs[ipc] == NULL) && (p->architectures[ipc] == NULL));
 
@@ -90,6 +90,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     }
   }
 // No frameworks left in the state now.
+#else
+  (void)external_frameworks;
 #endif
 
 #if 0
@@ -630,7 +632,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
     array_push(command_elements, link_additional_dependencies);
-    array_push(command_elements, "-dynamiclib $in -install_name @rpath/$rpath -o $dyn_lib");
+    #if defined(__APPLE__)
+    array_push(command_elements, "-dynamiclib -install_name @rpath/$rpath");
+    #endif
+    array_push(command_elements, "$in -o $dyn_lib");
     desc = cc_printf("Linking dynamic library %s", p->name);
   } else {
     array_push(command_elements, compiler_path);
@@ -852,11 +857,16 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   #endif
     );
     fprintf(ninja_file, "\n  deps = msvc");
-#elif defined(__APPLE__)
+#else
     //-g -Wall -Wextra -Wpedantic -Werror
     fprintf(ninja_file,
-            "\n  command = %s -MD -MF $out.d -x c -Wno-deprecated-declarations -o ./%s $$PWD/$in",
-            compiler_path, cconstruct_path_rel);
+            "\n  command = %s -MD -MF $out.d %s -Wno-deprecated-declarations -o ./%s $$PWD/$in",
+  #if __cplusplus
+            "clang++", "-std=c++11",
+  #else
+            "clang", "-x c",
+  #endif
+            cconstruct_path_rel);
     fprintf(ninja_file, "\n  depfile = $out.d");
     fprintf(ninja_file, "\n  deps = gcc");
 #endif

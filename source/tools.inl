@@ -158,22 +158,22 @@ int make_folder(const char* folder_path) {
 }
 #endif
 
-static uintptr_t cc_next_free           = (uintptr_t)NULL;
-static uintptr_t cc_end_next_free       = (uintptr_t)NULL;
+static void* cc_next_free               = (void*)NULL;
+static void* cc_end_next_free           = (void*)NULL;
 static size_t cc_total_bytes_allocated_ = 0;
 
 void* cc_alloc_(size_t size) {
   cc_total_bytes_allocated_ += size;
-  if ((cc_end_next_free - cc_next_free) < size) {
+  if (((char*)cc_end_next_free - (char*)cc_next_free) < (int)size) {
     // Doesn't fit, allocate a new block
     size_t byte_count = 1024 * 1024;
     if (size > byte_count) byte_count = size;
-    cc_next_free     = (uintptr_t)malloc(byte_count);
-    cc_end_next_free = cc_next_free + byte_count;
+    cc_next_free     = (void*)malloc(byte_count);
+    cc_end_next_free = ((char*)cc_next_free) + byte_count;
   }
 
-  void* out = (void*)cc_next_free;
-  cc_next_free += size;
+  void* out    = cc_next_free;
+  cc_next_free = ((char*)cc_next_free) + size;
   return out;
 }
 
@@ -499,7 +499,7 @@ const char* str_trim(const char* in) {
 }
 
 #ifdef _WIN32
-const char* cc_path_executable() {
+const char* cc_path_executable(void) {
   char existing_binary_path[MAX_PATH];
   if (!GetModuleFileNameA(NULL, existing_binary_path, MAX_PATH)) {
     exit(1);
@@ -508,7 +508,7 @@ const char* cc_path_executable() {
   return cc_printf("%s%s", folder_path_only(existing_binary_path), cconstruct_binary_name);
 }
 #elif defined(__APPLE__)
-const char* cc_path_executable() {
+const char* cc_path_executable(void) {
   char path[PATH_MAX];
 
   uint32_t size = sizeof(path);
@@ -525,6 +525,20 @@ const char* cc_path_executable() {
   }
 
   return cc_printf("%s%s", folder_path_only(resolved_path), cconstruct_binary_name);
+}
+#else
+const char* cc_path_executable(void) {
+  char path[PATH_MAX];
+
+  ssize_t count = readlink("/proc/self/exe", path, PATH_MAX - 1);
+  if (count == -1) {
+    perror("readlink");
+    exit(1);
+  }
+
+  path[count] = '\0';  // Null-terminate the path
+
+  return cc_printf("%s%s", folder_path_only(path), cconstruct_binary_name);
 }
 #endif
 

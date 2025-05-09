@@ -11,6 +11,7 @@
 #else
   #include <err.h>
   #include <errno.h>
+  #include <limits.h>
   #include <signal.h>
   #include <sys/stat.h>
   #include <sys/types.h>
@@ -18,7 +19,6 @@
 #endif
 
 #if defined(__APPLE__)
-  #include <limits.h>
   #include <mach-o/dyld.h>
 #endif
 
@@ -89,7 +89,7 @@ void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
   exit(ERR_CONSTRUCTION);
 }
 
-static uint8_t alternate_stack[SIGSTKSZ];
+static unsigned char alternate_stack[SIGSTKSZ];
 void set_signal_handler() {
   /* setup alternate stack */
   {
