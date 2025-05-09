@@ -4,7 +4,7 @@ set -x
 
 COMPILE_CCONSTRUCT_COMMAND='clang -x c -Wno-deprecated-declarations -o cconstruct'
 COMPILE_DEBUG_CCONSTRUCT_COMMAND='clang -x c -g -Wno-deprecated-declarations -o cconstruct'
-COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11'
+COMPILE_CCONSTRUCT_CPP_COMMAND='clang++ -x c++ -std=c++11 -o cconstruct'
 CMD_CONSTRUCT_WORKSPACE='./cconstruct --generator=ninja --generate-projects'
 CMD_BUILD='ninja -C build'
 
