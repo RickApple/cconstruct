@@ -730,8 +730,8 @@ void ninja_generateInFolder(const char* in_workspace_path) {
             config_path_rel);
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
-    fprintf(ninja_file, "  command = ./%s --generator=ninja --generate-projects\n",
-            cconstruct_path_rel);
+    fprintf(ninja_file, "  command = ./%s --generator=ninja --generate-projects --config=%s\n",
+            cconstruct_path_rel, _internal.active_config);
     fprintf(ninja_file, "  description = Re-running CConstruct ...\n");
     fprintf(ninja_file, "  generator = 1\n");
 
