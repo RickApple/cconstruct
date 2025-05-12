@@ -103,177 +103,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   (void)external_frameworks;
 #endif
 
-#if 0
-  const char* project_file_path = cc_printf("%s.vcxproj", p->name);
-
-  struct data_tree_t dt = data_tree_api.create();
-  unsigned int project  = data_tree_api.create_object(&dt, 0, "Project");
-  data_tree_api.set_object_parameter(&dt, project, "DefaultTargets", "Build");
-  data_tree_api.set_object_parameter(&dt, project, "ToolsVersion", "15.0");
-  data_tree_api.set_object_parameter(&dt, project, "xmlns",
-                                     "http://schemas.microsoft.com/developer/msbuild/2003");
-
-  {
-    unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
-    data_tree_api.set_object_parameter(&dt, itemgroup, "Label", "ProjectConfigurations");
-    for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-      const char* c = cc_data_.configurations[ci]->label;
-      for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-        const char* platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-
-        unsigned int pc = data_tree_api.create_object(&dt, itemgroup, "ProjectConfiguration");
-        data_tree_api.set_object_parameter(&dt, pc, "Include",
-                                           cc_printf("%s|%s", c, platform_label));
-        unsigned int cobj = data_tree_api.create_object(&dt, pc, "Configuration");
-        data_tree_api.set_object_value(&dt, cobj, c);
-        unsigned int platformobj = data_tree_api.create_object(&dt, pc, "Platform");
-        data_tree_api.set_object_value(&dt, platformobj, platform_label);
-      }
-    }
-  }
-
-  {
-    unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
-    data_tree_api.set_object_parameter(&dt, pg, "Label", "Globals");
-    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "VCProjectVersion"),
-                                   "15.0");
-    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "ProjectGuid"),
-                                   cc_printf("{%s}", project_id));
-    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "Keyword"),
-                                   "Win32Proj");
-    data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "RootNamespace"),
-                                   "builder");
-    data_tree_api.set_object_value(
-        &dt, data_tree_api.create_object(&dt, pg, "WindowsTargetPlatformVersion"), "10.0");
-
-    data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
-                                       "Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
-  }
-
-  char platform_toolset_version[5] = {0};
-  ninja_search_platform_toolset_version(cc_find_VcDev_install_folder_(), platform_toolset_version,
-                                        countof(platform_toolset_version));
-
-  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-    const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-      unsigned int pg            = data_tree_api.create_object(&dt, project, "PropertyGroup");
-      data_tree_api.set_object_parameter(
-          &dt, pg, "Condition",
-          cc_printf("'$(Configuration)|$(Platform)' == '%s|%s'", c, platform_label));
-      data_tree_api.set_object_parameter(&dt, pg, "Label", "Configuration");
-
-      unsigned int ct      = data_tree_api.create_object(&dt, pg, "ConfigurationType");
-      const char* ct_value = NULL;
-      switch (p->type) {
-        case CCProjectTypeConsoleApplication:  // Intentional fallthrough
-        case CCProjectTypeWindowedApplication:
-          ct_value = "Application";
-          break;
-        case CCProjectTypeStaticLibrary:
-          ct_value = "StaticLibrary";
-          break;
-        case CCProjectTypeDynamicLibrary:
-          ct_value = "DynamicLibrary";
-          break;
-      }
-      data_tree_api.set_object_value(&dt, ct, ct_value);
-
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.create_object(&dt, pg, "UseDebugLibraries"), "true");
-
-      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "PlatformToolset"),
-                                     platform_toolset_version);
-      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pg, "CharacterSet"),
-                                     "MultiByte");
-    }
-  }
-
-  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "Import"),
-                                     "Project", "$(VCTargetsPath)\\Microsoft.Cpp.props");
-  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "ImportGroup"),
-                                     "Label", "ExtensionSettings");
-  data_tree_api.set_object_parameter(&dt, data_tree_api.create_object(&dt, project, "ImportGroup"),
-                                     "Label", "Shared");
-
-  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-    const char* c = cc_data_.configurations[ci]->label;
-    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label = ninja_projectArch2String_(cc_data_.architectures[pi]->type);
-      unsigned int importgroup   = data_tree_api.create_object(&dt, project, "ImportGroup");
-      data_tree_api.set_object_parameter(&dt, importgroup, "Label", "PropertySheets");
-      data_tree_api.set_object_parameter(
-          &dt, importgroup, "Condition",
-          cc_printf("'$(Configuration)|$(Platform)' == '%s|%s'", c, platform_label));
-      unsigned int import_obj = data_tree_api.create_object(&dt, importgroup, "Import");
-      data_tree_api.set_object_parameter(&dt, import_obj, "Project",
-                                         "$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props");
-      data_tree_api.set_object_parameter(
-          &dt, import_obj, "Condition",
-          "exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')");
-      data_tree_api.set_object_parameter(&dt, import_obj, "Label", "LocalAppDataPlatform");
-    }
-  }
-#endif
-
   const char* resolved_output_folder = cc_substitute(
       p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 #if defined(_WIN32)
   ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
-#endif
-
-#if 0
-  for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
-    const cc_configuration_impl_t* config = cc_data_.configurations[ci];
-    const char* configuration_label       = config->label;
-    const bool is_debug_build             = (strcmp(configuration_label, "Debug") == 0);
-    for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const cc_architecture_impl_t* arch = cc_data_.architectures[pi];
-
-      unsigned int idg = data_tree_api.create_object(&dt, project, "ItemDefinitionGroup");
-      const char* platform_label = ninja_projectArch2String_(arch->type);
-      data_tree_api.set_object_parameter(&dt, idg, "Condition",
-                                         cc_printf("'$(Configuration)|$(Platform)'=='%s|%s'",
-                                                   configuration_label, platform_label));
-      unsigned int compile_obj = data_tree_api.create_object(&dt, idg, "ClCompile");
-      unsigned int link_obj    = data_tree_api.create_object(&dt, idg, "Link");
-
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "PrecompiledHeader"),
-          "NotUsing");
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "SDLCheck"), "true");
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "ConformanceMode"), "true");
-
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "SubSystem"),
-          ((p->type == CCProjectTypeWindowedApplication) ? "Windows" : "Console"));
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, link_obj, "GenerateDebugInformation"),
-          "true");
-
-      if (is_debug_build) {
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "RuntimeLibrary"),
-            "MultiThreadedDebugDLL");
-      } else {
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "RuntimeLibrary"),
-            "MultiThreadedDLL");
-      }
-
-      if (is_debug_build) {
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "Optimization"), "Disabled");
-      } else {
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "Optimization"), "MaxSpeed");
-        data_tree_api.set_object_value(
-            &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "BasicRuntimeChecks"),
-            "Default");
-      }
 #endif
 
   const char** preprocessor_defines = NULL;
@@ -378,10 +211,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
           &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "DisableSpecificWarnings"),
           "4100");
 
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "TreatWarningAsError"),
-          shouldDisableWarningsAsError ? "false" : "true");
-
       if (is_debug_build) {
         preprocessor_defines = cc_printf("_DEBUG;%s", preprocessor_defines);
       } else {
@@ -391,13 +220,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       if (is_win32) {
         preprocessor_defines = cc_printf("WIN32;%s", preprocessor_defines);
       }
-
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "PreprocessorDefinitions"),
-          preprocessor_defines);
-      data_tree_api.set_object_value(
-          &dt, data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalOptions"),
-          additional_compiler_flags);
 #endif
 
     if (array_count(additional_include_folders) != 0) {
@@ -427,16 +249,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       unsigned int pbe = data_tree_api.create_object(&dt, idg, "PreBuildEvent");
       data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
                                      windowsPreBuildAction);
-    }
-    const bool have_post_build_action = (p->postBuildAction != 0);
-    if (have_post_build_action) {
-      const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
-      windowsPostBuildAction             = cc_substitute(windowsPostBuildAction, substitution_keys,
-                                                         substitution_values, countof(substitution_keys));
-      ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
-      unsigned int pbe = data_tree_api.create_object(&dt, idg, "PostBuildEvent");
-      data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
-                                     windowsPostBuildAction);
     }
   }
 #endif
