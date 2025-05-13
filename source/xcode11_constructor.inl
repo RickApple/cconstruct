@@ -464,7 +464,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
                                "SOURCE_ROOT");
 
-      if (cc_is_verbose) {
+      if (_internal.is_verbose) {
         // printf("Adding file '%s' as '%s'\n", filename, file_ref_paths[fi]);
       }
     }
@@ -1387,6 +1387,20 @@ void xcode_generateInFolder(const char* in_project_output_path) {
   if (result != 0) {
     fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
   }
+
+  // If not only generating, then a new binary is built, that is run, and only then do we attempt
+  // to clean up this existing version. This binary doesn't do any construction of projects.
+  if (!_internal.only_generate) {
+    printf("Rebuilding CConstruct ...");
+    cc_recompile_binary_(_internal.config_file_path);
+    printf(" done\n");
+    int bresult = cc_runNewBuild_(_internal.argv, _internal.argc);
+    if (bresult == 0) {
+      cc_activateNewBuild_();
+    }
+    exit(bresult);
+  }
+  
   (void)chdir(output_folder);
 
   // Before doing anything, generate a UUID for each projects output file

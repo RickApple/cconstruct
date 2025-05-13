@@ -11,69 +11,44 @@ for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Stu
     set VSPATH=%%i
 )
 
-@rem Do this test case first, as it needs to change the build environment around. Doing that with SETLOCAL/ENDLOCAL.
+
+
+@rem Set a single environment for the rest of the tests
 @SETLOCAL
-pushd 22_cconstruct_architecture
-@rd /S /Q build
-call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
-%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
-%BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-build\x64\cconstruct_architecture.exe
-if %errorlevel% neq 64 exit /b %errorlevel%
-@popd
-@ENDLOCAL
-@SETLOCAL
-@pushd 22_cconstruct_architecture
-@rd /S /Q build
-call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
-%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
-cconstruct.exe || exit /b
-%BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-build\x86\cconstruct_architecture.exe
-if %errorlevel% neq 86 exit /b %errorlevel%
-popd
-@ENDLOCAL
-
-
-
-
-@rem Now set a single environment for the rest of the tests
-SETLOCAL
 @rem -arch=x86 for 32-bit
 @rem -arch=amd64 for 64-bit
 call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
-
+@echo on
 
 pushd 01_hello_world
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\hello_world.exe || exit /b
-popd
+@popd
 
 
 pushd 02_include_folders
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\include_folders.exe || exit /b
-popd
+@popd
 
 
 pushd 03_library_dependency
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\library_dependency.sln || exit /b
 build\x64\Debug\my_binary.exe || exit /b
-popd
+@popd
 
 
 pushd 03a_library_dependency_explicit
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 msbuild build\library_dependency_explicit.sln /t:my_library /p:Configuration=Debug;Platform=x64 || exit /b
@@ -94,11 +69,11 @@ build\x64\Release\bin\my_binary.exe
 if %errorlevel% neq 2 exit /b %errorlevel%
 build\Win32\Release\bin\my_binary.exe
 if %errorlevel% neq 2 exit /b %errorlevel%
-popd
+@popd
 
 
 pushd 04_preprocessor
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
@@ -109,21 +84,21 @@ if %errorlevel% neq 0 exit /b 1
 build\x64\Release\preprocessor.exe
 rem Release build is expected to return 1, since the define has a different value for that build
 if %errorlevel% neq 1 exit /b 1
-popd
+@popd
 
 
 pushd 05_compile_flags
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_RELEASE_COMMAND% build\workspace.sln
 if %errorlevel% neq 1 exit /b %errorlevel%
 REM building should cause an error because flag has been added to set warnings as errors
-popd
+@popd
 
 
 pushd 06_post_build_action
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln
@@ -131,72 +106,74 @@ rem The build is expected to give an error, since the post build action doesn't 
 if %errorlevel% equ 0 exit /b %errorlevel%
 rem ... However, the executable has been built, so test it is there and works correctly
 build\x64\Debug\post_build_action.exe || exit /b
-popd
+@popd
 
 
 pushd 07_changed_config
-rd /S /Q build
-copy return_value1.inl return_value.inl
+@if exist build rd /S /Q build
+copy /Y return_value1.inl return_value.inl
+echo. >> return_value.inl
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\changed_config.exe
-rem The first config builds the program so that it returns 1, so check for that specifically
+@rem The first config builds the program so that it returns 1, so check for that specifically
 if %errorlevel% neq 1 exit /b %errorlevel%
-copy return_value2.inl return_value.inl
+copy /Y return_value2.inl return_value.inl
+echo. >> return_value.inl
 cconstruct.exe
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\changed_config.exe
-rem The second config builds the program so that it returns 2, so check for that specifically
+@rem The second config builds the program so that it returns 2, so check for that specifically
 if %errorlevel% neq 2 exit /b %errorlevel%
-rem Now set back the first config, but don't rebuild
-copy return_value1.inl return_value.inl
-cconstruct.exe --generate-projects
+@rem Now set back the first config, but don't rebuild
+copy /Y return_value1.inl return_value.inl
+echo. >> return_value.inl
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\changed_config.exe
 if %errorlevel% neq 2 exit /b %errorlevel%
-popd
+@popd
 
 
 pushd 08_project_structure
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\project_structure.sln || exit /b
 build\x64\Debug\my_binary.exe || exit /b
-popd
+@popd
 
 
 pushd 09_warning_level
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 rem Without doing something about warnings, the following builds would fail.
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 %BUILD_RELEASE_COMMAND% build\workspace.sln || exit /b
-popd
+@popd
 
 
 pushd 10_mixing_c_and_cpp
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\mixing_c_and_cpp.exe || exit /b
-popd
+@popd
 
 
 pushd 11_nested_folders
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% src/config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\nested_folders.exe || exit /b
-popd
+@popd
 
 
 pushd 12_config_folders
-rd /S /Q build
+@if exist build rd /S /Q build
 REM this test requires the build folder be there
 mkdir build 
 cl.exe /EHsc /Fo%TEMP% /FC /Febuild/cconstruct.exe /nologo /TC project/config.cc || exit /b
@@ -204,60 +181,60 @@ pushd build
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% workspace.sln || exit /b
 x64\Debug\config_folders.exe || exit /b
-popd
+@popd
 REM also check if it works when calling it from a different folder
 del build\config_folder.vcxproj.*
 build\cconstruct.exe || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-popd
+@popd
 
 
 pushd 13_cpp_config
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_CPP_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-popd
+@popd
 
 
 pushd 14_c_config
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-popd
+@popd
 
 
 pushd 15_other_file_types
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
-popd
+@popd
 
 
 pushd 16_windowed_application
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\windowed_application.exe || exit /b
-popd
+@popd
 
 
 pushd 17_link_flags
-rd /S /Q build
+@if exist build rd /S /Q build
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 if not exist build\x64\Debug\link_flags_named.pdb (
   exit 1
 )
-popd
+@popd
 
 
 pushd 18_custom_commands
-rd /S /Q build
+@if exist build rd /S /Q build
 del src\test.txt
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
 cconstruct.exe --generate-projects || exit /b
@@ -270,11 +247,11 @@ FOR /F "tokens=* USEBACKQ" %%F IN (`build\x64\Debug\custom_commands.exe`) DO (
 SET CMD_OUTPUT=%%F
 )
 if NOT "%CMD_OUTPUT%" == "test %TEST_TIME%" exit 1
-popd
+@popd
 
 
 pushd 21_errors
-rd /S /Q build
+@if exist build rd /S /Q build
 rem Create CConstruct binary which works fine
 copy error_none.inl error.inl
 %COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
@@ -291,7 +268,37 @@ copy error_none.inl error.inl
 cconstruct.exe || exit /b
 %BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
 build\x64\Debug\errors.exe || exit /b
-popd
+@popd
+
+ENDLOCAL
 
 
-echo All Tests Finished
+@rem Do this test case first, as it needs to change the build environment around. Doing that with SETLOCAL/ENDLOCAL.
+@SETLOCAL
+pushd 22_cconstruct_architecture
+@if exist build rd /S /Q build
+call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
+@echo on
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --verbose || exit /b
+%BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
+build\x64\cconstruct_architecture.exe
+if %errorlevel% neq 64 exit /b %errorlevel%
+@@popd
+@ENDLOCAL
+@SETLOCAL
+@pushd 22_cconstruct_architecture
+@if exist build rd /S /Q build
+call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
+@echo on
+%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+cconstruct.exe --verbose || exit /b
+%BUILD_DEBUG_COMMAND% build\workspace.sln || exit /b
+build\x86\cconstruct_architecture.exe
+if %errorlevel% neq 86 exit /b %errorlevel%
+@popd
+@ENDLOCAL
+
+
+@echo All tests completed.
+exit /b 0

@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #if defined(_WIN32)
 const char* cconstruct_binary_name          = "cconstruct.exe";
@@ -39,6 +40,8 @@ const char* cconstruct_internal_binary_name = "cconstruct_internal";
 const char* cconstruct_old_binary_name      = "cconstruct.old";
 #endif
 
+int cc_runNewBuild_(char const* const argv[], const int argc);
+
 // Tools
 // clang-format off
 #include "stack.inl"
@@ -47,12 +50,20 @@ const char* cconstruct_old_binary_name      = "cconstruct.old";
 #include "data_tree.inl"
 
 struct {
+  bool is_verbose;
+  bool only_generate;
+  bool generate_cc_project;
+
+  int argc;
+   const char* const* argv;
+
   const char* config_file_path;
   const char* active_config;
   const char* active_arch_label;
   EArchitecture active_arch;
   bool show_includes;
-} _internal = {NULL, "Debug", 
+  const char* workspace_path;
+} _internal = {false, false, false, 0, NULL, NULL, "Debug", 
 #ifdef _M_IX86
   "x86", EArchitectureX86,
 #elif _M_X64
@@ -60,14 +71,14 @@ struct {
 #else
   "x64", EArchitectureX64,
 #endif
-   false};
+   false, NULL};
 
 // Constructors
 #include "process.inl"
 #include "builder.inl"
-#ifdef _WIN32
+#if defined(_WIN32)
 #include "vs2019_constructor.inl"
-#else
+#elif defined(__APPLE__)
 #include "xcode11_constructor.inl"
 #endif
 #include "ninja_constructor.inl"
@@ -89,7 +100,7 @@ void posix_signal_handler(int sig, siginfo_t* siginfo, void* context) {
   exit(ERR_CONSTRUCTION);
 }
 
-#define SIG_STACK_SIZE 16*1024
+  #define SIG_STACK_SIZE 16 * 1024
 static unsigned char alternate_stack[SIGSTKSZ];
 void set_signal_handler() {
   /* setup alternate stack */
@@ -192,59 +203,28 @@ static void cc_print_statistics_(void) {
   }
 }
 
-cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
-  _internal.config_file_path = in_absolute_config_file_path;
+typedef void (*generator_func_t)(const char* workspace_folder);
 
-#if defined(_WIN32)
-  (void)DeleteFile(cconstruct_old_binary_name);
-  SetUnhandledExceptionFilter(ExceptionHandler);
-#elif defined(__APPLE__)
-  set_signal_handler();
-#endif
-
-  bool is_path_absolute =
-      (in_absolute_config_file_path[0] == '/') || (in_absolute_config_file_path[1] == ':');
-  if (!is_path_absolute) {
-    fprintf(stderr,
-            "Error: config path passed to cc_init('%s', ...) is not an absolute path. If you are "
-            "using "
-            "__FILE__ check your compiler settings.\n",
-            in_absolute_config_file_path);
-#if defined(_MSC_VER)
-    LOG_ERROR_AND_QUIT(
-        ERR_CONFIGURATION,
-        "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
-        "an absolute path.\n");
-#elif defined(__APPLE__)
-    LOG_ERROR_AND_QUIT(
-        ERR_CONFIGURATION,
-        "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
-#endif
-  }
-
-  if (cc_data_.is_inited) {
-    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
-                       "Error: calling cc_init() multiple times. Don't do this.\n");
-  }
-  cc_data_.is_inited = true;
-
-  void (*cc_default_generator)(const char* workspace_folder) =
+generator_func_t parse_args(int argc, const char* const* argv) {
+  generator_func_t cc_default_generator =
 #if defined(_MSC_VER)
       vs2019_generateInFolder;
-#else
+#elif defined(__APPLE__)
       xcode_generateInFolder;
+#else
+      ninja_generateInFolder;
 #endif
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--verbose") == 0) {
-      cc_is_verbose = true;
+      _internal.is_verbose = true;
     }
     if (strcmp(argv[i], "--generate-projects") == 0) {
-      cc_only_generate = true;
+      _internal.only_generate = true;
     }
     if (strcmp(argv[i], "--generate-cconstruct-project") == 0) {
-      cc_only_generate       = true;
-      cc_generate_cc_project = true;
+      _internal.only_generate       = true;
+      _internal.generate_cc_project = true;
     }
 
     // Choose generator
@@ -256,7 +236,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
       cc_default_generator    = ninja_generateInFolder;
       _internal.show_includes = true;
     }
-#else
+#elif defined(__APPLE__)
     if (strcmp(argv[i], "--generator=xcode") == 0) {
       cc_default_generator = xcode_generateInFolder;
     }
@@ -297,9 +277,60 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     }
   }
 
+  return cc_default_generator;
+}
+
+cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
+  _internal.config_file_path = in_absolute_config_file_path;
+  _internal.argc             = argc;
+  _internal.argv             = argv;
+
+#if defined(_WIN32)
+  (void)DeleteFile(cconstruct_old_binary_name);
+  SetUnhandledExceptionFilter(ExceptionHandler);
+#elif defined(__APPLE__)
+  set_signal_handler();
+#endif
+
+  bool is_path_absolute =
+      (in_absolute_config_file_path[0] == '/') || (in_absolute_config_file_path[1] == ':');
+  if (!is_path_absolute) {
+    fprintf(stderr,
+            "Error: config path passed to cc_init('%s', ...) is not an absolute path. If you are "
+            "using "
+            "__FILE__ check your compiler settings.\n",
+            in_absolute_config_file_path);
+#if defined(_MSC_VER)
+    LOG_ERROR_AND_QUIT(
+        ERR_CONFIGURATION,
+        "When using the Microsoft compiler cl.exe add the /FC flag to ensure __FILE__ emits "
+        "an absolute path.\n");
+#elif defined(__APPLE__)
+    LOG_ERROR_AND_QUIT(
+        ERR_CONFIGURATION,
+        "You can make the file you are compiling absolute by adding $PWD/ in front of it.\n");
+#endif
+  }
+
+  if (cc_data_.is_inited) {
+    LOG_ERROR_AND_QUIT(ERR_CONFIGURATION,
+                       "Error: calling cc_init() multiple times. Don't do this.\n");
+  }
+  cc_data_.is_inited = true;
+
+  void (*cc_default_generator)(const char* workspace_folder) = parse_args(argc, argv);
+
+  /*#if defined(_WIN32)
+    int result = make_folder(output_folder);
+    if (result != 0) {
+      fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
+    }
+  #endif*/
+
+  /*
   // If not only generating, then a new binary is built, that is run, and only then do we attempt
   // to clean up this existing version. This binary doesn't do any construction of projects.
-  if (!cc_only_generate) {
+  if (!_internal.only_generate) {
     printf("Rebuilding CConstruct ...");
     cc_recompile_binary_(in_absolute_config_file_path);
     printf(" done\n");
@@ -309,6 +340,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
     }
     exit(result);
   }
+  */
 
   if (atexit(cc_print_statistics_) != 0) {
     // Oh well, failed to install that, but don't care much as it doesn't affect operation of
@@ -321,7 +353,8 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 
   cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
 
-  // Keep this as a local, so that users are forced to call cc_init to get an instance the struct.
+  // Keep this as a local, so that users are forced to call cc_init to get an instance of the
+  // struct.
   cconstruct_t out = {
       {&cc_configuration_create},
       {&cc_architecture_create},
@@ -367,7 +400,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #endif
       }};
 
-  if (cc_generate_cc_project) {
+  if (_internal.generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);
     exit(0);
   }

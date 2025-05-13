@@ -47,6 +47,12 @@ const char* cc_find_VcDevCmd_bat_() {
   #endif
 }
 
+  #if defined(_WIN32) && defined(USE_EMBEDDED_ENVIRONMENT)
+    #define REGEN "/D USE_EMBEDDED_ENVIRONMENT=1 "
+  #else
+    #define REGEN
+  #endif
+
 void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   char temp_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_path, MAX_PATH);
@@ -54,18 +60,52 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   const char* path_abs_cconstruct = folder_path_only(cc_path_executable());
   const char* path_abs_internal_cconstruct =
       cc_printf("%s%s", path_abs_cconstruct, cconstruct_internal_binary_name);
-  const char* VsDevCmd_bat      = cc_find_VcDevCmd_bat_();
+  const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
+
+  const char* embedded_config_path =
+      cc_printf("%s\\%s\\embedded_config.obj", folder_path_only(_internal.config_file_path),
+                _internal.workspace_path);
+  const char* embedded_config_c_path = cc_printf("%s.c", strip_extension(embedded_config_path));
+  if (cc_path_exists(embedded_config_c_path) && !cc_path_exists(embedded_config_path)) {
+    const char* recompile_command = cc_printf(
+        "\"%s\" > nul && pushd %s && cl.exe /c "
+        "/Fo%s "
+        "/nologo "
+        "/TC "
+        "%s.c && popd",
+        VsDevCmd_bat, temp_path, embedded_config_path, strip_extension(embedded_config_path));
+
+    LOG_VERBOSE("Compiling new embedded_config.c with the following command:\n'%s'\n\n",
+                recompile_command);
+    int exit_code = 0;
+    int result    = system_np(recompile_command, 100 * 1000, stdout_data, sizeof(stdout_data),
+                              stderr_data, sizeof(stderr_data), &exit_code);
+    if (result != 0) {
+      char* message;
+      DWORD rfm = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+                                result, 0, (LPSTR)&message, 1024, NULL);
+      if (rfm != 0) {
+        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error recompiling with command '%s'\nError: %s",
+                           recompile_command, message);
+      } else {
+        LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error recompiling with command '%s'\nError: %i",
+                           recompile_command, result);
+      }
+    }
+  }
+
   const char* recompile_command = cc_printf(
       "\"%s\" > nul && pushd %s && cl.exe "
       // Enable exception handling so can help users fix issues in their config files.
       "-EHsc "
       // Always add debug symbols so can give stack trace on exceptions.
-      // Would prefer to embed them into binary, but that isn't possible. The binary will reference
-      // the PDB file in the %TEMP% folder where it was built.
+      // Would prefer to embed them into binary, but that isn't possible. The binary will
+      // reference the PDB file in the %TEMP% folder where it was built.
       "/ZI "
   #ifndef NDEBUG
       "/DEBUG "
   #endif
+      REGEN
       "/Fe%s %s "
       "/nologo "
       "%s"  // space for /showIncludes or not
@@ -77,9 +117,10 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   #else
       "/TC "
   #endif
+      "%s"
       "&& popd",
       VsDevCmd_bat, temp_path, path_abs_internal_cconstruct, cconstruct_config_file_path,
-      _internal.show_includes ? "/showIncludes " : "");
+      _internal.show_includes ? "/showIncludes " : "", cc_path_exists(embedded_config_path) ? cc_printf("/D USE_EMBEDDED_ENVIRONMENT=1 /link %s ", embedded_config_path):"");
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
               recompile_command);
@@ -105,8 +146,8 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
         printf(stdout_data);
       }
     } else {
-      // Succesfully ran the command, but there was an error, likely an issue compiling the config
-      // file
+      // Succesfully ran the command, but there was an error, likely an issue compiling the
+      // config file
       printf("stdout: %s\n", stdout_data);
       printf("stderr: %s\n", stderr_data);
 
@@ -134,8 +175,8 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 }
 
 // On Windows cannot delete a binary while it is being run. It is possible to move the binary
-// though (as long as it's on the same drive), so move the existing binary to a different name and
-// then rename the new one to the original name.
+// though (as long as it's on the same drive), so move the existing binary to a different name
+// and then rename the new one to the original name.
 void cc_activateNewBuild_() {
   char temp_folder_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_folder_path, MAX_PATH);

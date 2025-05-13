@@ -1017,6 +1017,20 @@ void vs2019_generateInFolder(const char* in_workspace_path) {
   if (result != 0) {
     fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
   }
+
+  // If not only generating, then a new binary is built, that is run, and only then do we attempt
+  // to clean up this existing version. This binary doesn't do any construction of projects.
+  if (!_internal.only_generate) {
+    printf("Rebuilding CConstruct ...");
+    cc_recompile_binary_(_internal.config_file_path);
+    printf(" done\n");
+    int bresult = cc_runNewBuild_(_internal.argv, _internal.argc);
+    if (bresult == 0) {
+      cc_activateNewBuild_();
+    }
+    exit(bresult);
+  }
+  
   (void)chdir(output_folder);
 
   const char** project_ids =

@@ -7,6 +7,7 @@ char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
 char const* compiler_path               = "cl.exe";
 char const* lib_linker_path             = "lib.exe";
 char const* linker_path                 = "link.exe";
+  #define WRAPPER "cmd /c wrapper.bat "
 #elif defined(__APPLE__)
   #define OBJ_EXT ".o"
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
@@ -15,6 +16,7 @@ char const* compiler_path               = "clang";
 char const* cpp_compiler_path           = "clang++";
 char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link.exe";
+  #define WRAPPER ""
 #else
   #define OBJ_EXT ".o"
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
@@ -23,6 +25,7 @@ char const* compiler_path               = "clang";
 char const* cpp_compiler_path           = "clang++";
 char const* lib_linker_path             = "ar";
 char const* linker_path                 = "link";
+  #define WRAPPER ""
 #endif
 
 const char* ninja_generateUUID() {
@@ -426,7 +429,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     array_push(command_elements, "-c $in -o $out");
 #endif
 
-    fprintf(ninja_file, "\n  command = %s", command_elements[0]);
+    fprintf(ninja_file, "\n  command = " WRAPPER "%s", command_elements[0]);
     for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
       fprintf(ninja_file, " %s", command_elements[ci]);
     }
@@ -499,7 +502,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #endif
 
   {
-    fprintf(ninja_file, "\n  command = %s", command_elements[0]);
+    fprintf(ninja_file, "\n  command = " WRAPPER "%s", command_elements[0]);
     for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
       fprintf(ninja_file, " %s", command_elements[ci]);
     }
@@ -526,7 +529,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     } else {
     }
   }
-
 
   if (p->type == CCProjectTypeDynamicLibrary) {
 #if defined(_WIN32)
@@ -560,7 +562,105 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
           project_type_prefix[p->type], p->name, project_type_suffix[p->type]);
 }
 
+char* escape_backslashes(const char* input) {
+  if (!input) return NULL;
+
+  size_t len     = strlen(input);
+  size_t new_len = 0;
+
+  // First pass: count how much space is needed
+  for (size_t i = 0; i < len; ++i) {
+    if (input[i] == '\\') {
+      ++new_len;
+    }
+  }
+
+  char* output = (char*)cc_printf("%.*i", new_len + 1, 0);
+  if (!output) return NULL;
+
+  size_t j = 0;
+  for (size_t i = 0; i < len; ++i) {
+    if (input[i] == '\\') {
+      output[j++] = '\\';
+      output[j++] = '\\';
+    } else {
+      output[j++] = input[i];
+    }
+  }
+  output[j] = '\0';
+
+  return output;
+}
+
+#ifdef __cplusplus
+extern "C"
+#endif
+    const char**
+    get_env();
+
+#if defined(_WIN32)
+  #if !defined(USE_EMBEDDED_ENVIRONMENT)
+const char** get_env() {
+  const char* required_env_vars[] = {"INCLUDE", "LIB", "LIBPATH", "PATH"};
+  const char** env_vars           = NULL; /* array */
+  for (int i = 0; i < countof(required_env_vars); ++i) {
+    const char* env_var = required_env_vars[i];
+    int c               = GetEnvironmentVariable(env_var, NULL, 0);
+    if (c == 0) {
+      LOG_VERBOSE("Couldn't find value for '%s'\n", env_var);
+    } else {
+      char* buf = (char*)cc_printf("%.*i", c, 0);
+      c         = GetEnvironmentVariable(env_var, buf, c);
+      array_push(env_vars, env_var);
+      array_push(env_vars, buf);
+    }
+  }
+  array_push(env_vars, NULL);
+  return env_vars;
+}
+
+void ninja_createEmbedded(const char* workspace_folder, const char** env_vars) {
+  FILE* c_environment = fopen(cc_printf("%s\\embedded_config.c", workspace_folder), "w");
+
+  fprintf(c_environment, "\nconst char* * get_env() {\n");
+  fprintf(c_environment, "  static const char* env[] = {\n");
+
+  while (*env_vars != NULL) {
+    const char* env_var = env_vars[0];
+    const char* env_val = env_vars[1];
+    fprintf(c_environment, "    \"%s\", \"%s\",\n", env_var, escape_backslashes(env_val));
+    env_vars += 2;
+  }
+
+  fprintf(c_environment, "    (void*)0\n  };\n  return env;\n}\n");
+
+  fclose(c_environment);
+  LOG_VERBOSE("Generated embedded_config.c\n");
+}
+  #endif
+
+void ninja_createWrapper(const char* workspace_folder, const char** env_vars) {
+  FILE* wrapper = fopen(cc_printf("%s\\wrapper.bat", workspace_folder), "w");
+
+  fprintf(wrapper, "@echo off\n");
+  fprintf(wrapper, "\n");
+  while (*env_vars != NULL) {
+    const char* env_var = env_vars[0];
+    const char* env_val = env_vars[1];
+    fprintf(wrapper, "set %s=%s\n", env_var, env_val);
+    env_vars += 2;
+  }
+
+  fprintf(wrapper, "  \n");
+  fprintf(wrapper, "%%*\n");
+
+  fclose(wrapper);
+  LOG_VERBOSE("Generated wrapper.bat\n");
+}
+#endif
+
 void ninja_generateInFolder(const char* in_workspace_path) {
+  _internal.workspace_path = in_workspace_path;
 // Find compiler location
 #if 0
   const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
@@ -602,9 +702,9 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   }
 #endif
 
-  LOG_VERBOSE("Compiler: '%s'\n", compiler_path);
+  /*LOG_VERBOSE("Compiler: '%s'\n", compiler_path);
   LOG_VERBOSE("Linker: '%s'\n", linker_path);
-  LOG_VERBOSE("Lib-linker: '%s'\n", lib_linker_path);
+  LOG_VERBOSE("Lib-linker: '%s'\n", lib_linker_path);*/
 
   {  // Check for explicit arch
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
@@ -663,6 +763,32 @@ void ninja_generateInFolder(const char* in_workspace_path) {
   if (result != 0) {
     fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
   }
+
+#if defined(_WIN32)
+  #if !defined(USE_EMBEDDED_ENVIRONMENT)
+  if (!cc_path_exists(cc_printf("%s\\embedded_config.c", output_folder))) {
+    ninja_createEmbedded(output_folder, get_env());
+  } else {
+    LOG_VERBOSE("Not creating '%s\\embedded_config.c' because it already exists\n", output_folder);
+  }
+  #endif
+
+  ninja_createWrapper(output_folder, get_env());
+#endif
+
+  // If not only generating, then a new binary is built, that is run, and only then do we attempt
+  // to clean up this existing version. This binary doesn't do any construction of projects.
+  if (!_internal.only_generate) {
+    printf("Rebuilding CConstruct ...");
+    cc_recompile_binary_(_internal.config_file_path);
+    printf(" done\n");
+    int bresult = cc_runNewBuild_(_internal.argv, _internal.argc);
+    if (bresult == 0) {
+      cc_activateNewBuild_();
+    }
+    exit(bresult);
+  }
+
   (void)chdir(output_folder);
 
   const char* ninja_file_path = cc_printf("%s/build.ninja", output_folder);
@@ -697,12 +823,25 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 
   fprintf(ninja_file, "\n##################\n# CConstruct rebuild\n");
   {  // Add dependency on config file
+#if defined(_WIN32)
+    fprintf(ninja_file,
+            "\nrule build_cconstruct_embedded_config"
+            "\n  command = " WRAPPER
+            "%s /FC /c "
+            "/Fo:$out /nologo $in\n",
+            compiler_path);
+    fprintf(ninja_file, "\nbuild embedded_config" OBJ_EXT
+                        ": build_cconstruct_embedded_config embedded_config.c\n");
+#endif
     fprintf(ninja_file, "\nrule build_cconstruct");
 #if defined(_WIN32)
     fprintf(ninja_file,
-            "\n  command = %s /ZI /W4 /WX /DEBUG /FC /Fo:cconstruct" OBJ_EXT
+            "\n  command = " WRAPPER
+            "%s /ZI /W4 /WX /D USE_EMBEDDED_ENVIRONMENT=1 /DEBUG /FC"
+            " /Fo:cconstruct" OBJ_EXT
             " /Fe%s "
-            "/showIncludes /nologo %s $in",
+            " /showIncludes /nologo %s $in"
+            " /link embedded_config" OBJ_EXT,
             compiler_path, cconstruct_path_rel,
   #if __cplusplus
             "/TP"
@@ -726,8 +865,13 @@ void ninja_generateInFolder(const char* in_workspace_path) {
 #endif
     fprintf(ninja_file, "\n  description = Building CConstruct ...\n");
 
+#if defined(_WIN32)
+    fprintf(ninja_file, "\nbuild ./%s: build_cconstruct %s | embedded_config.obj\n",
+            cconstruct_path_rel, config_path_rel);
+#else
     fprintf(ninja_file, "\nbuild ./%s: build_cconstruct %s\n", cconstruct_path_rel,
             config_path_rel);
+#endif
 
     fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
     fprintf(ninja_file, "  command = ./%s --generator=ninja --generate-projects --config=%s\n",

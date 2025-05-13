@@ -1,9 +1,5 @@
 #define countof(a) sizeof(a) / sizeof(a[0])
 
-bool cc_is_verbose          = false;
-bool cc_only_generate       = false;
-bool cc_generate_cc_project = false;  // Generate a project for the CConstruct config itself
-
 #if defined(_MSC_VER)
 void printStack(void);
 void printStack(void) {
@@ -58,7 +54,7 @@ void printStack() {
     error_quit(error);                 \
   }
 #define LOG_VERBOSE(...) \
-  if (cc_is_verbose) fprintf(stdout, __VA_ARGS__)
+  if (_internal.is_verbose) fprintf(stdout, __VA_ARGS__)
 
 void error_quit(int error_code) {
 #if defined(_WIN32)
@@ -393,6 +389,18 @@ char* make_uri(const char* in_path) {
   }
 
   return uri;
+}
+
+int cc_path_exists(const char* path) {
+  struct stat info;
+
+    if (stat(path, &info) != 0) {
+        // Cannot access path
+        return 0;
+    } else {
+        // Path exists
+        return 1;
+    }
 }
 
 /* Remove filename from path, and return the folder
