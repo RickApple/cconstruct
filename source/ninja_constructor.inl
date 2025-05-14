@@ -32,6 +32,37 @@ char const* linker_path                 = "link";
   #define DIR_SEP "/"
 #endif
 
+struct {
+  const char* shell_command;
+  const char* compile_in_out;
+  const char* define_string;
+  const char* include_dep;
+  const char* link_folder_dep;
+  const char* link_dep;
+  const char* warning_as_error;
+  const char* warning_strings[5];
+} compiler_info = {
+#if defined(_WIN32)
+    "cmd /c ",
+    "/nologo /c $in /Fo:$out",
+    "/D \"%s\"",
+    "%s /I\"%s\"",
+    "%s /LIBPATH:\"%.*s\"",
+    "%s \"%s\"",
+    "/WX",
+    {"/W4", "/W3", "/W2", "/Wall", "/W0"}
+#else
+    "",
+    "-c $in -o $out",
+    "-D%s",
+    "%s -I\"%s\"",
+    "%s -L%.*s",
+    "%s -l%s",
+    "-Werror",
+    {"-Wall -Wextra", "-Wall", "-Wall", "-Weverything", "-w"}
+#endif
+};
+
 void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
                              const char* in_output_folder, const char* build_to_base_path) {
   (void)in_output_folder;
@@ -78,9 +109,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   const char* resolved_output_folder = cc_str_substitute(
       p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
-#if defined(_WIN32)
   cc_path_fix_separators((char*)resolved_output_folder);
-#endif
 
   const char** preprocessor_defines = NULL;
 #if defined(_WIN32)
@@ -121,9 +150,6 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     if ((p->configs[ipc] != NULL) &&
         (strcmp(p->configs[ipc]->label, _internal.active_config) != 0))
       continue;
-#if 0
-        if ((p->architectures[ipc] != arch) && (p->architectures[ipc] != NULL)) continue;
-#endif
 
     // Choose the highest specific C++ version.
     cpp_version = (flags->cpp_version > cpp_version) ? flags->cpp_version : cpp_version;
@@ -161,14 +187,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       const char* lib_folder        = make_uri(cc_path_folder_only(relative_lib_path));
       const char* resolved_lib_folder = cc_str_substitute(
           lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
-
-#if defined(_WIN32)
       cc_path_fix_separators((char*)resolved_lib_folder);
+
       link_additional_dependencies =
-          cc_printf("%s \"%s\"", link_additional_dependencies, lib_name);
-#else
-      link_additional_dependencies = cc_printf("%s -l%s", link_additional_dependencies, lib_name);
-#endif
+          cc_printf(compiler_info.link_dep, link_additional_dependencies, lib_name);
+
       // Check if this path is already in there
       bool did_find = false;
       for (size_t ilf = 0; ilf < array_count(link_additional_directories); ilf++) {
@@ -201,14 +224,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       // RATODO: why put later ones before earlier ones?
       const char* combined_include_folders = "";
       for (size_t i = 0; i < array_count(additional_include_folders); i++) {
-#if defined(_WIN32)
         cc_path_fix_separators((char*)additional_include_folders[i]);
-        combined_include_folders =
-            cc_printf("%s /I\"%s\"", combined_include_folders, additional_include_folders[i]);
-#else
-        combined_include_folders =
-            cc_printf("%s -I\"%s\"", combined_include_folders, additional_include_folders[i]);
-#endif
+        combined_include_folders = cc_printf(compiler_info.include_dep, combined_include_folders,
+                                             additional_include_folders[i]);
       }
       includes_command = combined_include_folders;
     }
@@ -236,23 +254,14 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       if (link_additional_directories[i][fl - 1] == '\\') {
         fl -= 1;
       }
-#if defined(_WIN32)
-      combined_link_folders = cc_printf("%s /LIBPATH:\"%.*s\"", combined_link_folders, fl,
+      combined_link_folders = cc_printf(compiler_info.link_folder_dep, combined_link_folders, fl,
                                         link_additional_directories[i]);
-#else
-      combined_link_folders =
-          cc_printf("%s -L%.*s", combined_link_folders, fl, link_additional_directories[i]);
-#endif
     }
     cc_path_fix_separators((char*)additional_include_folders);
   }
 
   {
-#if defined(_WIN32)
-    const char* warning_strings[] = {"/W4", "/W3", "/W2", "/Wall", "/W0"};
-#else
-    const char* warning_strings[] = {"-Wall -Wextra", "-Wall", "-Wall", "-Weverything", "-w"};
-#endif
+    const char** warning_strings = compiler_info.warning_strings;
     assert(EStateWarningLevelHigh == 0);
     assert(EStateWarningLevelAll == 3);
     assert(EStateWarningLevelNone == 4);
@@ -261,11 +270,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   }
 
   if (!shouldDisableWarningsAsError) {
-#if defined(_WIN32)
-    additional_compiler_flags = cc_printf("%s /WX", additional_compiler_flags);
-#else
-    additional_compiler_flags = cc_printf("%s -Werror", additional_compiler_flags);
-#endif
+    additional_compiler_flags =
+        cc_printf("%s %s", additional_compiler_flags, compiler_info.warning_as_error);
   }
 
   const bool have_post_build_action = (p->postBuildAction != 0);
@@ -306,10 +312,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     const char* relative_in_file_path = cc_path_make_relative(in_output_folder, file->path);
     const char* relative_out_file_path =
         cc_path_make_relative(in_output_folder, file->output_file);
-#if defined(_WIN32)
     cc_path_fix_separators((char*)relative_in_file_path);
     cc_path_fix_separators((char*)relative_out_file_path);
-#endif
+
     const char* input_output_substitution_keys[]   = {"input", "output"};
     const char* input_output_substitution_values[] = {relative_in_file_path,
                                                       relative_out_file_path};
@@ -324,13 +329,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     const char* out_file_path = cc_str_substitute(relative_out_file_path, substitution_keys,
                                                   substitution_values, countof(substitution_keys));
 
-    fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
-#if defined(_WIN32)
-    fprintf(ninja_file, "  command = cmd /c %s\n", custom_command);
-#else
-    fprintf(ninja_file, "  command = %s\n", custom_command);
-#endif
-    fprintf(ninja_file, "\nbuild %s: post_build_rule_%s_%i %s" DIR_SEP "%s%s%s %s\n",
+    fprintf(ninja_file, "\n\nrule post_build_rule_%s_%i", p->name, fi);
+    fprintf(ninja_file, "\n  command = %s%s", compiler_info.shell_command, custom_command);
+    fprintf(ninja_file, "\n\nbuild %s: post_build_rule_%s_%i %s" DIR_SEP "%s%s%s %s\n",
             out_file_path, p->name, fi, resolved_output_folder, project_type_prefix[p->type],
             p->name, project_type_suffix[p->type], in_file_path);
   }
@@ -387,19 +388,12 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     fprintf(ninja_file, "\nrule compile_%s", p->name);
     array_push(command_elements, compiler_path);
     for (unsigned int di = 0; di < array_count(preprocessor_defines); ++di) {
-#if defined(_WIN32)
-      array_push(command_elements, cc_printf("/D \"%s\"", preprocessor_defines[di]));
-#else
-      array_push(command_elements, cc_printf("-D%s", preprocessor_defines[di]));
-#endif
+      array_push(command_elements,
+                 cc_printf(compiler_info.define_string, preprocessor_defines[di]));
     }
     array_push(command_elements, includes_command);
     array_push(command_elements, additional_compiler_flags);
-#if defined(_WIN32)
-    array_push(command_elements, "/nologo /c $in /Fo:$out");
-#else
-    array_push(command_elements, "-c $in -o $out");
-#endif
+    array_push(command_elements, compiler_info.compile_in_out);
 
     fprintf(ninja_file, "\n  command = " WRAPPER "%s", command_elements[0]);
     for (unsigned int ci = 1; ci < array_count(command_elements); ++ci) {
