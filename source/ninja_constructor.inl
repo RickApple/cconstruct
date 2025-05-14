@@ -4,9 +4,6 @@
   #define LIB_PREFIX ""
 char const* const project_type_prefix[] = {"", "", "", ""};
 char const* const project_type_suffix[] = {".exe", ".exe", ".lib", ".dll"};
-char const* compiler_path               = "cl.exe";
-char const* lib_linker_path             = "lib.exe";
-char const* linker_path                 = "link.exe";
 
   #define WRAPPER "cmd /c wrapper.bat "
   #define DIR_SEP "\\"
@@ -14,27 +11,25 @@ char const* linker_path                 = "link.exe";
   #define OBJ_EXT ".o"
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
 char const* const project_type_suffix[] = {"", "", ".a", ".dylib"};
-char const* compiler_path               = "clang";
 char const* cpp_compiler_path           = "clang++";
-char const* lib_linker_path             = "ar";
-char const* linker_path                 = "link.exe";
   #define WRAPPER ""
   #define DIR_SEP "/"
 #else
   #define OBJ_EXT ".o"
 char const* const project_type_prefix[] = {"", "", "lib", "lib"};
 char const* const project_type_suffix[] = {"", "", ".a", ".so"};
-char const* compiler_path               = "clang";
 char const* cpp_compiler_path           = "clang++";
-char const* lib_linker_path             = "ar";
-char const* linker_path                 = "link";
   #define WRAPPER ""
   #define DIR_SEP "/"
 #endif
 
 struct {
   const char* shell_command;
+  char const* compiler_path;
+  char const* lib_linker_path;
+  char const* linker_path;
   const char* compile_in_out;
+  const char* link_in_out;
   const char* define_string;
   const char* include_dep;
   const char* link_folder_dep;
@@ -44,7 +39,11 @@ struct {
 } compiler_info = {
 #if defined(_WIN32)
     "cmd /c ",
+    "cl.exe",
+    "lib.exe",
+    "link.exe",
     "/nologo /c $in /Fo:$out",
+    "$in /nologo /OUT:$out",
     "/D \"%s\"",
     "%s /I\"%s\"",
     "%s /LIBPATH:\"%.*s\"",
@@ -53,7 +52,11 @@ struct {
     {"/W4", "/W3", "/W2", "/Wall", "/W0"}
 #else
     "",
+    "clang",
+    "ar",
+    "link.exe",
     "-c $in -o $out",
+    "",
     "-D%s",
     "%s -I\"%s\"",
     "%s -L%.*s",
@@ -344,9 +347,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     project_deps                = cc_printf("%s %s", project_deps, dp->name);
   }
 
-#if defined(_WIN32)
   for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
     const cc_project_impl_t* dp = p->dependantOn[i];
+#if defined(_WIN32)
     switch (dp->type) {
       case CCProjectTypeStaticLibrary:
       case CCProjectTypeDynamicLibrary:
@@ -359,11 +362,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
                       project_type_prefix[dp->type], dp->name, project_type_suffix[dp->type]);
         break;
     }
-  }
 #else
-  for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
-    const cc_project_impl_t* dp = p->dependantOn[i];
-
     // Need to do the same here as for external_libs
     if (dp->type == CCProjectTypeDynamicLibrary) {
   #if defined(__APPLE__)
@@ -378,15 +377,15 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
           cc_printf("%s %s" DIR_SEP "%s%s%s", additional_link_flags, resolved_output_folder,
                     project_type_prefix[dp->type], dp->name, project_type_suffix[dp->type]);
     }
-  }
 #endif
+  }
 
   fprintf(ninja_file, "\n##################\n# Project %s\n", p->name);
 
   const char** command_elements = NULL;
   {  // General rule to compile source files to object files
     fprintf(ninja_file, "\nrule compile_%s", p->name);
-    array_push(command_elements, compiler_path);
+    array_push(command_elements, compiler_info.compiler_path);
     for (unsigned int di = 0; di < array_count(preprocessor_defines); ++di) {
       array_push(command_elements,
                  cc_printf(compiler_info.define_string, preprocessor_defines[di]));
@@ -408,40 +407,41 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   fprintf(ninja_file, "\nrule link_%s", p->name);
 #if defined(_WIN32)
   if (p->type == CCProjectTypeStaticLibrary) {
-    array_push(command_elements, lib_linker_path);
+    array_push(command_elements, compiler_info.lib_linker_path);
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
     array_push(command_elements, link_additional_dependencies);
-    array_push(command_elements, "$in /nologo /OUT:$out");
+    array_push(command_elements, compiler_info.link_in_out);
     desc = cc_printf("Linking static library %s", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
-    array_push(command_elements, linker_path);
+    array_push(command_elements, compiler_info.linker_path);
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
     array_push(command_elements, link_additional_dependencies);
     array_push(command_elements, "$in /DLL /nologo /OUT:$dyn_lib /IMPLIB:$imp_lib");
     desc = cc_printf("Linking dynamic library %s", p->name);
   } else {
-    array_push(command_elements, linker_path);
+    array_push(command_elements, compiler_info.linker_path);
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
     array_push(command_elements, link_additional_dependencies);
     if (_internal.active_arch == EArchitectureX64) {
       array_push(command_elements, "/MACHINE:X64");
     }
-    array_push(command_elements, "$in /nologo /OUT:$out");
+    array_push(command_elements, compiler_info.link_in_out);
     desc = cc_printf("Linking binary %s", p->name);
   }
 #else
   if (p->type == CCProjectTypeStaticLibrary) {
-    array_push(command_elements, lib_linker_path);
+    array_push(command_elements, compiler_info.lib_linker_path);
     array_push(command_elements, "rcs $out $in");
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
     array_push(command_elements, link_additional_dependencies);
     desc = cc_printf("Linking static library %s", p->name);
   } else if (p->type == CCProjectTypeDynamicLibrary) {
-    array_push(command_elements, cpp_version > 0 ? cpp_compiler_path : compiler_path);
+    array_push(command_elements,
+               cpp_version > 0 ? cpp_compiler_path : compiler_info.compiler_path);
     array_push(command_elements, "$in -o $dyn_lib");
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
@@ -453,7 +453,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   #endif
     desc = cc_printf("Linking dynamic library %s", p->name);
   } else {
-    array_push(command_elements, cpp_version > 0 ? cpp_compiler_path : compiler_path);
+    array_push(command_elements,
+               cpp_version > 0 ? cpp_compiler_path : compiler_info.compiler_path);
     array_push(command_elements, "$in -o $out");
     array_push(command_elements, additional_link_flags);
     array_push(command_elements, combined_link_folders);
@@ -533,43 +534,11 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
           project_type_suffix[p->type]);
 }
 
-char* escape_backslashes(const char* input) {
-  if (!input) return NULL;
-
-  size_t len     = strlen(input);
-  size_t new_len = 0;
-
-  // First pass: count how much space is needed
-  for (size_t i = 0; i < len; ++i) {
-    if (input[i] == '\\') {
-      ++new_len;
-    }
-  }
-
-  char* output = (char*)cc_printf("%.*i", new_len + 1, 0);
-  if (!output) return NULL;
-
-  size_t j = 0;
-  for (size_t i = 0; i < len; ++i) {
-    if (input[i] == '\\') {
-      output[j++] = '\\';
-      output[j++] = '\\';
-    } else {
-      output[j++] = input[i];
-    }
-  }
-  output[j] = '\0';
-
-  return output;
-}
-
 #ifdef __cplusplus
 extern "C"
 #endif
     const char**
     get_env();
-
-#if defined(_WIN32)
 
 void ninja_createWrapper(const char* workspace_folder, const char** env_vars) {
   FILE* wrapper = fopen(cc_printf("%s\\wrapper.bat", workspace_folder), "w");
@@ -589,7 +558,6 @@ void ninja_createWrapper(const char* workspace_folder, const char** env_vars) {
   fclose(wrapper);
   LOG_VERBOSE("Generated wrapper.bat\n");
 }
-#endif
 
 void ninja_generateInFolder() {
   const char* in_workspace_path = _internal.workspace_path;
@@ -616,9 +584,9 @@ void ninja_generateInFolder() {
     } else {
       if (exit_code == 0) {
         const char* bin_folder = cc_path_folder_only(stdout_data);
-        compiler_path          = cc_printf("%scl.exe", bin_folder);
-        lib_linker_path        = cc_printf("%slib.exe", bin_folder);
-        linker_path            = cc_printf("%slink.exe", bin_folder);
+        compiler_info.compiler_path          = cc_printf("%scl.exe", bin_folder);
+        compiler_info.lib_linker_path        = cc_printf("%slib.exe", bin_folder);
+        compiler_info.linker_path            = cc_printf("%slink.exe", bin_folder);
       } else {
         // Succesfully ran the command, but there was an error, likely an issue compiling the
         // config file
@@ -635,9 +603,9 @@ void ninja_generateInFolder() {
   }
 #endif
 
-  /*LOG_VERBOSE("Compiler: '%s'\n", compiler_path);
-  LOG_VERBOSE("Linker: '%s'\n", linker_path);
-  LOG_VERBOSE("Lib-linker: '%s'\n", lib_linker_path);*/
+  /*LOG_VERBOSE("Compiler: '%s'\n", compiler_info.compiler_path);
+  LOG_VERBOSE("Linker: '%s'\n", compiler_info.linker_path);
+  LOG_VERBOSE("Lib-linker: '%s'\n", compiler_info.lib_linker_path);*/
 
   {  // Check for explicit arch
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
@@ -730,7 +698,7 @@ void ninja_generateInFolder() {
             "\n  command = " WRAPPER
             "%s /FC /c "
             "/Fo:$out /nologo $in\n",
-            compiler_path);
+            compiler_info.compiler_path);
     fprintf(ninja_file, "\nbuild embedded_config" OBJ_EXT
                         ": build_cconstruct_embedded_config embedded_config.c\n");
 #endif
@@ -743,7 +711,7 @@ void ninja_generateInFolder() {
             " /Fe:%s "
             " /showIncludes /nologo %s $in"
             " /link embedded_config" OBJ_EXT,
-            compiler_path, cconstruct_path_rel,
+            compiler_info.compiler_path, cconstruct_path_rel,
   #if __cplusplus
             "/TP"
   #else
@@ -764,17 +732,18 @@ void ninja_generateInFolder() {
     fprintf(ninja_file, "\n  depfile = $out.d");
     fprintf(ninja_file, "\n  deps = gcc");
 #endif
-    fprintf(ninja_file, "\n  description = Building CConstruct ...\n");
+    fprintf(ninja_file, "\n  description = Building CConstruct ...");
 
+    fprintf(ninja_file,
+            "\n\nbuild ." DIR_SEP
+            "%s: build_cconstruct %s"
 #if defined(_WIN32)
-    fprintf(ninja_file, "\nbuild ." DIR_SEP "%s: build_cconstruct %s | embedded_config.obj\n",
-            cconstruct_path_rel, config_path_rel);
-#else
-    fprintf(ninja_file, "\nbuild ." DIR_SEP "%s: build_cconstruct %s\n", cconstruct_path_rel,
-            config_path_rel);
+            " | embedded_config.obj"
 #endif
+            ,
+            cconstruct_path_rel, config_path_rel);
 
-    fprintf(ninja_file, "\nrule RERUN_CCONSTRUCT\n");
+    fprintf(ninja_file, "\n\nrule RERUN_CCONSTRUCT\n");
     fprintf(ninja_file,
             "  command = ." DIR_SEP "%s --generator=ninja --generate-projects --config=%s\n",
             cconstruct_path_rel, _internal.active_config);

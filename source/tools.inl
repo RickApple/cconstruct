@@ -467,6 +467,36 @@ char* cc_path_make_relative(const char* in_base_folder, const char* in_change_pa
   return output;
 }
 
+char* cc_str_escape_backslashes(const char* input) {
+  if (!input) return NULL;
+
+  size_t len     = strlen(input);
+  size_t new_len = 0;
+
+  // First pass: count how much space is needed
+  for (size_t i = 0; i < len; ++i) {
+    if (input[i] == '\\') {
+      ++new_len;
+    }
+  }
+
+  char* output = (char*)cc_printf("%.*i", new_len + 1, 0);
+  if (!output) return NULL;
+
+  size_t j = 0;
+  for (size_t i = 0; i < len; ++i) {
+    if (input[i] == '\\') {
+      output[j++] = '\\';
+      output[j++] = '\\';
+    } else {
+      output[j++] = input[i];
+    }
+  }
+  output[j] = '\0';
+
+  return output;
+}
+
 int is_whitespace(const char c) { return (c == ' ') || (c == '\r') || (c == '\n') || (c == '\t'); }
 const char* cc_str_remove_whitespace(const char* in) {
   static char project_name_nospaces[1024];

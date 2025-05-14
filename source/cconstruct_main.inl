@@ -318,7 +318,7 @@ void impl_createEmbedded(const char* workspace_folder, const char** env_vars) {
   while (*env_vars != NULL) {
     const char* env_var = env_vars[0];
     const char* env_val = env_vars[1];
-    fprintf(c_environment, "    \"%s\", \"%s\",\n", env_var, escape_backslashes(env_val));
+    fprintf(c_environment, "    \"%s\", \"%s\",\n", env_var, cc_str_escape_backslashes(env_val));
     env_vars += 2;
   }
 
