@@ -36,11 +36,11 @@ typedef struct cc_group_impl_t {
 } cc_group_impl_t;
 
 typedef struct cc_state_impl_t {
-  const char** defines;         /* stretch array */
-  const char** include_folders; /* stretch array */
-  const char** compile_options; /* stretch array */
-  const char** link_options;    /* stretch array */
-  const char** external_libs;   /* stretch array */
+  char** defines;         /* stretch array */
+  char** include_folders; /* stretch array */
+  char** compile_options; /* stretch array */
+  char** link_options;    /* stretch array */
+  char** external_libs;   /* stretch array */
 
   /* By default warnings are turned up to the highest level below _all_ */
   EStateWarningLevel warningLevel;

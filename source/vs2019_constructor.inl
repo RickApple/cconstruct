@@ -165,12 +165,12 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const struct cc_file_t_* file = p->file_data[fi];
 
-    itemgroup                      = data_tree_api.create_object(&dt, project, "ItemGroup");
-    const char* f                  = file->path;
-    const size_t gi                = file->parent_group_idx;
-    const char* group_name         = NULL;
-    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
-    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
+    itemgroup                = data_tree_api.create_object(&dt, project, "ItemGroup");
+    const char* f            = file->path;
+    const size_t gi          = file->parent_group_idx;
+    const char* group_name   = NULL;
+    char* relative_file_path = cc_path_make_relative(in_output_folder, f);
+    cc_path_fix_separators(relative_file_path);
     group_name = unique_group_names[gi];
 
     unsigned int g = 0;
@@ -190,11 +190,11 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
 
-    const char* f                  = file->path;
-    const size_t gi                = file->parent_group_idx;
-    const char* group_name         = NULL;
-    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
-    vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
+    const char* f            = file->path;
+    const size_t gi          = file->parent_group_idx;
+    const char* group_name   = NULL;
+    char* relative_file_path = cc_path_make_relative(in_output_folder, f);
+    cc_path_fix_separators(relative_file_path);
     group_name = unique_group_names[gi];
 
     itemgroup       = data_tree_api.create_object(&dt, project, "ItemGroup");
@@ -451,10 +451,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
   for (unsigned ci = 0; ci < array_count(cc_data_.configurations); ++ci) {
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
-      const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      const char* resolved_output_folder = cc_str_substitute(
+      const char* platform_label   = vs_projectArch2String_(cc_data_.architectures[pi]->type);
+      char* resolved_output_folder = cc_str_substitute(
           p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
-      vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
+      cc_path_fix_separators(resolved_output_folder);
 
       unsigned int pg = data_tree_api.create_object(&dt, project, "PropertyGroup");
       data_tree_api.set_object_parameter(&dt, pg, "Label", "UserMacros");
@@ -555,8 +555,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       }
       const char* additional_compiler_flags    = "%(AdditionalOptions)";
       const char* additional_link_flags        = "%(AdditionalOptions)";
-      const char** additional_include_folders  = NULL;
-      const char** link_additional_directories = NULL;
+      char** additional_include_folders        = NULL;
+      char** link_additional_directories       = NULL;
       const char* link_additional_dependencies = "";
 
       EStateWarningLevel combined_warning_level = EStateWarningLevelDefault;
@@ -617,12 +617,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
           const char* relative_lib_path =
               cc_path_make_relative(in_output_folder, lib_path_from_base);
-          const char* lib_name            = cc_path_filename_only(relative_lib_path);
-          const char* lib_folder          = make_uri(cc_path_folder_only(relative_lib_path));
-          const char* resolved_lib_folder = cc_str_substitute(
+          const char* lib_name      = cc_path_filename_only(relative_lib_path);
+          const char* lib_folder    = make_uri(cc_path_folder_only(relative_lib_path));
+          char* resolved_lib_folder = cc_str_substitute(
               lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
-          vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
+          cc_path_fix_separators(resolved_lib_folder);
           link_additional_dependencies =
               cc_printf("%s;%s", link_additional_dependencies, lib_name);
           // Check if this path is already in there
@@ -676,12 +676,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       if (array_count(additional_include_folders) != 0) {
         // Put later folders before earlier ones
-        const char* combined_include_folders = additional_include_folders[0];
+        char* combined_include_folders = additional_include_folders[0];
         for (size_t i = 1; i < array_count(additional_include_folders); i++) {
           combined_include_folders =
               cc_printf("%s;%s", additional_include_folders[i], combined_include_folders);
         }
-        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
+        cc_path_fix_separators(combined_include_folders);
         data_tree_api.set_object_value(
             &dt,
             data_tree_api.get_or_create_object(&dt, compile_obj, "AdditionalIncludeDirectories"),
@@ -699,12 +699,12 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
       if (array_count(link_additional_directories) != 0) {
         // Put later folders in front of earlier folders
-        const char* combined_link_folders = link_additional_directories[0];
+        char* combined_link_folders = link_additional_directories[0];
         for (size_t i = 1; i < array_count(link_additional_directories); i++) {
           combined_link_folders =
               cc_printf("%s;%s", link_additional_directories[i], combined_link_folders);
         }
-        vs_replaceForwardSlashWithBackwardSlashInPlace((char*)additional_include_folders);
+        cc_path_fix_separators(combined_link_folders);
         data_tree_api.set_object_value(
             &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalLibraryDirectories"),
             combined_link_folders);

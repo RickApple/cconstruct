@@ -260,7 +260,7 @@ void* array_reserve(void* a, unsigned element_size, unsigned new_capacity) {
   #pragma clang diagnostic push
   #pragma clang diagnostic ignored "-Wformat-nonliteral"
 #endif
-const char* cc_printf(const char* format, ...) {
+char* cc_printf(const char* format, ...) {
   unsigned length = (unsigned)strlen(format);
 
   // Guess length of output format
@@ -289,11 +289,11 @@ const char* cc_printf(const char* format, ...) {
   #pragma clang diagnostic pop
 #endif
 
-const char* cc_str_substitute(const char* in_original, const char** keys, const char** values,
-                              unsigned num_keys) {
+char* cc_str_substitute(const char* in_original, const char** keys, const char** values,
+                        unsigned num_keys) {
   char key_search[128] = {0};
 
-  const char* in = in_original;
+  char* in = (char*)in_original;
   for (unsigned i = 0; i < num_keys; ++i) {
     char* out_string = {0};
     out_string       = (char*)array_reserve(out_string, sizeof(*out_string), 128);
@@ -319,7 +319,7 @@ const char* cc_str_substitute(const char* in_original, const char** keys, const 
   return in;
 }
 
-const char** string_array_clone(const char** in) {
+char** string_array_clone(char** in) {
   char** out                   = {0};
   const array_header_t* header = array_header(in);
   if (header && header->count_ > 0) {
@@ -329,7 +329,7 @@ const char** string_array_clone(const char** in) {
     out                                        = (char**)(out_header + 1);
     memcpy(out, in, sizeof(const char*) * header->count_);
   }
-  return (const char**)out;
+  return (char**)out;
 }
 
 /* Strip path information returning only the filename (with extension) */
@@ -461,7 +461,7 @@ char* cc_path_make_relative(const char* in_base_folder, const char* in_change_pa
       parent_folders[3 * i + 2] = '/';
     }
     parent_folders[3 * num_folders] = 0;
-    output                          = (char*)cc_printf("%s%s", parent_folders, change_path);
+    output                          = cc_printf("%s%s", parent_folders, change_path);
   }
 
   return output;
@@ -560,4 +560,18 @@ const char* cc_projectArch2String_(EArchitecture arch) {
     default:
       return "";
   }
+}
+
+void cc_path_fix_separators(char* in_out_path) {
+#if defined(_WIN32)
+  if (in_out_path == 0) return;
+
+  while (*in_out_path) {
+    if (*in_out_path == '/') {
+      *in_out_path = '\\';
+    }
+
+    in_out_path++;
+  }
+#endif
 }

@@ -16,6 +16,15 @@ Warnings are set to a high level by default, and treated as errors by default. S
 
 Currently there is no way to prevent CConstruct from setting the warnings it wants to, but you could disable those warnings again with regular compiler flags, as they are applied after the chosen warning level is applied.
 
+| CConstruct | MSVS | Clang |
+| --- | --- | --- |
+| `EStateWarningLevelHigh` | /W4 | -Wall -Wextra |
+| `EStateWarningLevelMedium` | /W3 | -Wall |
+| `EStateWarningLevelLow` | /W2 | -Wall |
+| `EStateWarningLevelAll` | /Wall | -Weverything |
+| `EStateWarningLevelNone` | /W0 | -w |
+
+
 ## TODO
 - Using VS2022 gives errors most of the time when building the replacement cconstruct_internal.exe. Not sure why.
 - For custom commands it would make things more readable if ${input_file} and ${output_file} etc were supported [MacOS]
