@@ -1,0 +1,8 @@
+services:
+  test_ci:
+    image: teeks99/clang-ubuntu:latest
+    container_name: ubuntu_dev
+    working_dir: /usr/app
+    volumes:
+      - .:/usr/app/
+    entrypoint: /bin/bash -c "apt-get update && apt-get install -y ninja-build clang && tail -f /dev/null"

@@ -7,7 +7,7 @@
       "type": "shell",
       "label": "Build",
       "windows": {
-        "command": "${workspaceFolder}/test/run_tests.bat",
+        "command": "${workspaceFolder}/test/run_tests_ninja.bat",
         "args": [],
         "options": {
           "cwd": "${workspaceFolder}/test"
@@ -34,7 +34,34 @@
       ],
       "group": {
         "kind": "build",
-        "isDefault": true
+        "isDefault": false
+      }
+    },    
+    {
+      "label": "Docker build",
+      "type": "shell",
+      "command": "docker exec -it ubuntu_dev bash -c \"cd test && ./run_tests_ninja.sh\"",
+      "options": {
+          "cwd": "${workspaceFolder}"
+      },
+      "group": {
+          "kind": "build",
+          "isDefault": false
+      },
+      "presentation": {
+          "clear": true
+      }
+    },
+    {
+      "label": "Build All",
+      "dependsOn": [
+          "Docker build",
+          "Build"
+      ],
+      "problemMatcher": [],
+      "group": {
+          "kind": "build",
+          "isDefault": true
       }
     }
   ]
