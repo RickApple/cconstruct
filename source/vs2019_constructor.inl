@@ -989,6 +989,14 @@ void vs2019_generateInFolder() {
     _internal.cc.workspace.addConfiguration(configuration_debug);
     _internal.cc.workspace.addConfiguration(configuration_release);
   }
+  if (array_count(cc_data_.architectures) == 0) {
+    cc_architecture_t a = _internal.cc.architecture.create(_internal.active_arch);
+    _internal.cc.workspace.addArchitecture(a);
+  }
+  if (array_count(cc_data_.platforms) == 0) {
+    cc_platform_t p = _internal.cc.platform.create(EPlatformDesktop);
+    _internal.cc.workspace.addPlatform(p);
+  }
 
   for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
     // Adjust all the files to be relative to the build output folder

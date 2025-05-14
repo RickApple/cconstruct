@@ -5,11 +5,6 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setLabel("library_dependency");
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
-  cc.workspace.addArchitecture(arch);
-  cc.workspace.addPlatform(platform);
-
   cc_project_t ls = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);
   {
     const char* c_files[] = {"src/library/library.c"};

@@ -1167,8 +1167,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       add_build_setting(&dt, nodeBuildSettings, "CONFIGURATION_BUILD_DIR", safe_output_folder);
 
       add_build_setting(&dt, nodeBuildSettings, "ONLY_ACTIVE_ARCH", "YES");
-      assert(array_count(cc_data_.platforms) == 1);
-      switch (cc_data_.platforms[0]->type) {
+      int active_platform = EPlatformDesktop;
+      if (array_count(cc_data_.platforms) == 1) {
+        active_platform = cc_data_.platforms[0]->type;
+      }
+      switch (active_platform) {
         case EPlatformDesktop:
           add_build_setting(&dt, nodeBuildSettings, "MACOSX_DEPLOYMENT_TARGET", "10.14");
           add_build_setting(&dt, nodeBuildSettings, "SDKROOT", "macosx");
@@ -1387,6 +1390,14 @@ void xcode_generateInFolder() {
     cc_configuration_t configuration_release = _internal.cc.configuration.create("Release");
     _internal.cc.workspace.addConfiguration(configuration_debug);
     _internal.cc.workspace.addConfiguration(configuration_release);
+  }
+  if (array_count(cc_data_.architectures) == 0) {
+    cc_architecture_t a = _internal.cc.architecture.create(_internal.active_arch);
+    _internal.cc.workspace.addArchitecture(a);
+  }
+  if (array_count(cc_data_.platforms) == 0) {
+    cc_platform_t p = _internal.cc.platform.create(EPlatformDesktop);
+    _internal.cc.workspace.addPlatform(p);
   }
 
   printf("Generating XCode workspace and projects in '%s'...\n", output_folder);

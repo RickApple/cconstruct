@@ -3,11 +3,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
-  cc.workspace.addArchitecture(arch);
-  cc.workspace.addPlatform(platform);
-
   cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
   cc_configuration_t configuration_release = cc.configuration.create("Release");
   cc.workspace.addConfiguration(configuration_debug);
@@ -19,13 +14,13 @@ int main(int argc, const char** argv) {
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc.state.addPreprocessorDefine(flags, "TEST_VALUE=5");
-  cc.project.setFlags(p, flags, arch, configuration_debug);
+  cc.project.setFlags(p, flags, NULL, configuration_debug);
   // Modifying flags after it has been set on a project does not affect the project anymore
   cc.state.addPreprocessorDefine(flags, "TEST_VALUE=6");
 
   cc.state.reset(flags);
   cc.state.addPreprocessorDefine(flags, "TEST_VALUE=4");
-  cc.project.setFlags(p, flags, arch, configuration_release);
+  cc.project.setFlags(p, flags, NULL, configuration_release);
 
   cc.generateInFolder("build");
 

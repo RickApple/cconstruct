@@ -5,11 +5,6 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setLabel("macos_framework");
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
-  cc.workspace.addArchitecture(arch);
-  cc.workspace.addPlatform(platform);
-
   cc_project_t b = cc.project.create("my_binary", CCProjectTypeConsoleApplication, NULL);
   {
     const char* files[] = {"src/main.m"};

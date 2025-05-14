@@ -5,11 +5,6 @@ int main(int argc, const char** argv) {
 
   cc.workspace.setLabel("project_structure");
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
-  cc.workspace.addArchitecture(arch);
-  cc.workspace.addPlatform(platform);
-
   const cc_group_t group_binaries        = cc.group.create("Binaries", NULL);
   const cc_group_t group_binaries_nested = cc.group.create("Nested", group_binaries);
   const cc_group_t group_libraries       = cc.group.create("Libraries", NULL);

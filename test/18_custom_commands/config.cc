@@ -8,11 +8,6 @@ struct C_struct {
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc_architecture_t arch = cc.architecture.create(EArchitectureX64);
-  cc_platform_t platform = cc.platform.create(EPlatformDesktop);
-  cc.workspace.addArchitecture(arch);
-  cc.workspace.addPlatform(platform);
-
   cc_project_t p = cc.project.create("custom_commands", CCProjectTypeConsoleApplication, NULL);
 
   cc_group_t g        = cc.group.create("Source", NULL);

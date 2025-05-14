@@ -12,13 +12,11 @@ for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Stu
 )
 
 
-
-@rem Set a single environment for the rest of the tests
+@rem Set a single environment for the tests
 @SETLOCAL
-@rem -arch=x86 for 32-bit
-@rem -arch=amd64 for 64-bit
-call "%VSPATH%\Common7\Tools\VsDevCmd.bat"
+call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 @echo on
+
 
 pushd 01_hello_world
 @if exist build rd /S /Q build

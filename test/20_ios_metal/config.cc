@@ -3,10 +3,8 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc_architecture_t arch       = cc.architecture.create(EArchitectureX64);
   cc_architecture_t platform   = cc.platform.create(EPlatformPhone);
   cc.workspace.addPlatform(platform);
-  cc.workspace.addArchitecture(arch);
 
   cc_project_t p = cc.project.create("TestGame", CCProjectTypeWindowedApplication, NULL);
 
