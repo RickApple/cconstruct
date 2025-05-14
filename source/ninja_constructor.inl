@@ -659,8 +659,9 @@ void ninja_createWrapper(const char* workspace_folder, const char** env_vars) {
 }
 #endif
 
-void ninja_generateInFolder(const char* in_workspace_path) {
-  _internal.workspace_path = in_workspace_path;
+void ninja_generateInFolder() {
+  const char* in_workspace_path = _internal.workspace_path;
+  
 // Find compiler location
 #if 0
   const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();

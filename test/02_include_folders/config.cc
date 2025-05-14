@@ -22,7 +22,7 @@ int main(int argc, const char** argv) {
   cc.state.addIncludeFolder(flags, "src/include");
   cc.project.setFlags(p, flags, NULL, NULL);
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

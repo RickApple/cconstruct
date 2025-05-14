@@ -1372,12 +1372,14 @@ void xCodeCreateWorkspaceFile(FILE* f) {
   fprintf(f, "</Workspace>");
 }
 
-void xcode_generateInFolder(const char* in_project_output_path) {
-  in_project_output_path = make_uri(in_project_output_path);
-  if (in_project_output_path[strlen(in_project_output_path) - 1] != '/')
-    in_project_output_path = cc_printf("%s/", in_project_output_path);
+void xcode_generateInFolder() {
+  const char* in_workspace_path = _internal.workspace_path;
 
-  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_project_output_path));
+  in_workspace_path = make_uri(in_workspace_path);
+  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
+
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
   char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
 
@@ -1400,7 +1402,7 @@ void xcode_generateInFolder(const char* in_project_output_path) {
     }
     exit(bresult);
   }
-  
+
   (void)chdir(output_folder);
 
   // Before doing anything, generate a UUID for each projects output file
@@ -1423,7 +1425,7 @@ void xcode_generateInFolder(const char* in_project_output_path) {
     FILE* f = fopen(project_file_path, "wb");
 
     if (f) {
-      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, in_project_output_path,
+      xCodeCreateProjectFile(f, p, projectFileReferenceUUIDs, in_workspace_path,
                              build_to_base_path);
       fclose(f);
     }

@@ -99,7 +99,7 @@ typedef struct cconstruct_t {
     cc_group_t (*create)(const char* in_group_name, const cc_group_t in_parent_group);
   } group;
 
-  const struct {
+  struct {
     cc_state_t (*create)();
     void (*reset)(cc_state_t in_out_state);
 
@@ -117,7 +117,7 @@ typedef struct cconstruct_t {
     void (*disableWarningsAsErrors)(cc_state_t in_out_state);
   } state;
 
-  const struct {
+  struct {
     cc_project_t (*create)(const char* in_project_name, EProjectType in_project_type,
                            const cc_group_t in_parent_group);
 
@@ -164,7 +164,7 @@ typedef struct cconstruct_t {
     void (*setOutputFolder)(cc_project_t in_out_project, const char* in_output_folder);
   } project;
 
-  const struct {
+  struct {
     /* Label of the workspace, used for filename of the workspace.
      */
     void (*setLabel)(const char* label);
@@ -174,18 +174,19 @@ typedef struct cconstruct_t {
     void (*addConfiguration)(const cc_configuration_t in_configuration);
     void (*addArchitecture)(const cc_architecture_t in_architecture);
     void (*addPlatform)(const cc_platform_t in_platform);
-
   } workspace;
-
-  const struct {
+  
+  struct {
     //! Default generator on this platform. Can use `--generator=<arg>` to pick a different one.
-    void (*standard)(const char* workspace_folder);
-
+    void (*active)();
+    
     //! Explicit generators.
-    void (*ninja)(const char* workspace_folder);
-    void (*visual_studio)(const char* workspace_folder);
-    void (*xcode)(const char* workspace_folder);
+    void (*ninja)();
+    void (*visual_studio)();
+    void (*xcode)();
   } generator;
+
+  void (*generateInFolder)(const char* workspace_folder);
 } cconstruct_t;
 
 /* Call this once at the start of your main config file. You can usually call it with __FILE__, and

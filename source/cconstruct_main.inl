@@ -63,6 +63,8 @@ struct {
   EArchitecture active_arch;
   bool show_includes;
   const char* workspace_path;
+
+  cconstruct_t cc;
 } _internal = {false, false, false, 0, NULL, NULL, "Debug", 
 #ifdef _M_IX86
   "x86", EArchitectureX86,
@@ -71,7 +73,7 @@ struct {
 #else
   "x64", EArchitectureX64,
 #endif
-   false, NULL};
+   false, NULL, {0}};
 
 // Constructors
 #include "process.inl"
@@ -193,7 +195,7 @@ void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
 
   cc.workspace.setLabel("cconstruct");
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 }
 
 static void cc_print_statistics_(void) {
@@ -203,7 +205,7 @@ static void cc_print_statistics_(void) {
   }
 }
 
-typedef void (*generator_func_t)(const char* workspace_folder);
+typedef void (*generator_func_t)();
 
 generator_func_t parse_args(int argc, const char* const* argv) {
   generator_func_t cc_default_generator =
@@ -280,6 +282,12 @@ generator_func_t parse_args(int argc, const char* const* argv) {
   return cc_default_generator;
 }
 
+void cc_generateInFolder(const char* const workspace_folder) {
+  _internal.workspace_path = workspace_folder;
+
+  _internal.cc.generator.active();
+}
+
 cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const char* const* argv) {
   _internal.config_file_path = in_absolute_config_file_path;
   _internal.argc             = argc;
@@ -318,7 +326,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   }
   cc_data_.is_inited = true;
 
-  void (*cc_default_generator)(const char* workspace_folder) = parse_args(argc, argv);
+  generator_func_t default_generator = parse_args(argc, argv);
 
   /*#if defined(_WIN32)
     int result = make_folder(output_folder);
@@ -384,9 +392,14 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
           &cc_project_addPostBuildAction,
           &cc_project_setOutputFolder,
       },
-      {&setWorkspaceLabel, &addConfiguration, &addArchitecture, &addPlatform},
       {
-          cc_default_generator,
+          &setWorkspaceLabel,
+          &addConfiguration,
+          &addArchitecture,
+          &addPlatform,
+      },
+      {
+          default_generator,
           ninja_generateInFolder,
 #if defined(_WIN32)
           vs2019_generateInFolder,
@@ -398,11 +411,15 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
 #else
           NULL,
 #endif
-      }};
+      },
+      &cc_generateInFolder,
+  };
 
   if (_internal.generate_cc_project) {
     generate_cc_project(out, in_absolute_config_file_path);
     exit(0);
   }
+
+  _internal.cc = out;
   return out;
 }

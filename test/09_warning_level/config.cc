@@ -31,7 +31,7 @@ int main(int argc, const char** argv) {
   cc.project.setFlags(p, flags, arch, configuration_release);
 
   // TODO: show case the different warning levels with different settings for different files
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

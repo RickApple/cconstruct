@@ -32,7 +32,7 @@ int main(int argc, const char** argv) {
 #endif
   cc.project.setFlags(p, flags, NULL, NULL);
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

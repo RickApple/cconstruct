@@ -41,7 +41,7 @@ int main(int argc, const char** argv) {
   cc_state_t flags = cc.state.create();
   cc.state.disableWarningsAsErrors(flags);
   cc.project.setFlags(p, flags, NULL, NULL);
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 #endif
 
   return 0;

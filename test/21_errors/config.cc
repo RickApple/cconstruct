@@ -18,5 +18,5 @@ int main(int argc, const char** argv) {
 
   GENERATE_ERROR
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 }

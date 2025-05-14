@@ -972,7 +972,9 @@ void vs2019_createSolutionFile(const char** project_ids) {
   printf("Constructed VS2019 workspace at '%s'\n", workspace_file_path);
 }
 
-void vs2019_generateInFolder(const char* in_workspace_path) {
+void vs2019_generateInFolder() {
+  const char* in_workspace_path = _internal.workspace_path;
+  
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
     in_workspace_path = cc_printf("%s/", in_workspace_path);

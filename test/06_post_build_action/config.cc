@@ -17,7 +17,7 @@ int main(int argc, const char** argv) {
   cc.project.addPostBuildAction(
       p, "./bin/test");  // Note that this command will fail, as required by the test runner
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

@@ -24,7 +24,7 @@ int main(int argc, const char** argv) {
   const char* readme[] = {"readme.md"};
   cc.project.addFiles(p, 1, readme, NULL);
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

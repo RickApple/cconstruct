@@ -39,7 +39,7 @@ int main(int argc, const char** argv) {
     cc.project.addInputProject(b, ld);
   }
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

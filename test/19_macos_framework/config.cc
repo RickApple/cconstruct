@@ -24,7 +24,7 @@ int main(int argc, const char** argv) {
   }
 
 #if defined(__APPLE__)
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 #endif
 
   return 0;

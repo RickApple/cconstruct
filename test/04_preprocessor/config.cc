@@ -27,7 +27,7 @@ int main(int argc, const char** argv) {
   cc.state.addPreprocessorDefine(flags, "TEST_VALUE=4");
   cc.project.setFlags(p, flags, arch, configuration_release);
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }

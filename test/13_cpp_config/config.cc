@@ -20,7 +20,7 @@ int main(int argc, const char** argv) {
   std::vector<const char*> files{"src/main.c", "src/function.c", "src/function.h"};
   cc.project.addFiles(p, (unsigned int)files.size(), files.data(), NULL);
 
-  cc.generator.standard("build");
+  cc.generateInFolder("build");
 
   return 0;
 }
