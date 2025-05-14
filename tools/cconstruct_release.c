@@ -83,7 +83,7 @@ int main(int argc, const char* argv[]) {
     return 1;
   }
 
-  const char* in_file_only  = strip_path(in_file_path);
+  const char* in_file_only  = cc_path_filename_only(in_file_path);
   char in_folder_path[2048] = {0};
   memcpy(in_folder_path, in_file_path, (size_t)(in_file_only - in_file_path));
   printf("root path '%s'\n", in_folder_path);

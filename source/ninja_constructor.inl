@@ -106,7 +106,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   (void)external_frameworks;
 #endif
 
-  const char* resolved_output_folder = cc_substitute(
+  const char* resolved_output_folder = cc_str_substitute(
       p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 #if defined(_WIN32)
   ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
@@ -125,7 +125,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
       array_push(preprocessor_defines, "_LIB");
       break;
     case CCProjectTypeDynamicLibrary: {
-      array_push(preprocessor_defines, cc_printf("%s%s", str_strip_spaces(p->name), "_EXPORTS"));
+      array_push(preprocessor_defines,
+                 cc_printf("%s%s", cc_str_remove_whitespace(p->name), "_EXPORTS"));
     } break;
     default:
       LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n", p->name);
@@ -185,10 +186,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
         lib_path_from_base = cc_printf("%s%s", build_to_base_path, lib_path_from_base);
       }
 
-      const char* relative_lib_path   = make_path_relative(in_output_folder, lib_path_from_base);
-      const char* lib_name            = strip_path(relative_lib_path);
-      const char* lib_folder          = make_uri(folder_path_only(relative_lib_path));
-      const char* resolved_lib_folder = cc_substitute(
+      const char* relative_lib_path = cc_path_make_relative(in_output_folder, lib_path_from_base);
+      const char* lib_name          = cc_path_filename_only(relative_lib_path);
+      const char* lib_folder        = make_uri(cc_path_folder_only(relative_lib_path));
+      const char* resolved_lib_folder = cc_str_substitute(
           lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
 #if defined(_WIN32)
@@ -246,7 +247,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     const bool have_pre_build_action = (p->preBuildAction != 0);
     if (have_pre_build_action) {
       const char* windowsPreBuildAction = cc_printf("%s", p->preBuildAction);
-      windowsPreBuildAction             = cc_substitute(windowsPreBuildAction, substitution_keys,
+      windowsPreBuildAction             = cc_str_substitute(windowsPreBuildAction, substitution_keys,
                                                         substitution_values, countof(substitution_keys));
       ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPreBuildAction);
       unsigned int pbe = data_tree_api.create_object(&dt, idg, "PreBuildEvent");
@@ -300,8 +301,8 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   const bool have_post_build_action = (p->postBuildAction != 0);
   if (have_post_build_action) {
     const char* post_build_action = cc_printf("%s", p->postBuildAction);
-    post_build_action = cc_substitute(post_build_action, substitution_keys, substitution_values,
-                                      countof(substitution_keys));
+    post_build_action             = cc_str_substitute(post_build_action, substitution_keys,
+                                                      substitution_values, countof(substitution_keys));
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)post_build_action);
 
     fprintf(ninja_file, "rule postbuild_%i_%s\n", 0, p->name);
@@ -312,7 +313,7 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 #if 0
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f                  = p->file_data[fi]->path;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
     unsigned int obj       = 0;
@@ -332,8 +333,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
-    const char* relative_in_file_path  = make_path_relative(in_output_folder, file->path);
-    const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
+    const char* relative_in_file_path = cc_path_make_relative(in_output_folder, file->path);
+    const char* relative_out_file_path =
+        cc_path_make_relative(in_output_folder, file->output_file);
 #if defined(_WIN32)
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_in_file_path);
     ninja_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
@@ -342,15 +344,15 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
     const char* input_output_substitution_values[] = {relative_in_file_path,
                                                       relative_out_file_path};
 
-    const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
-    const char* custom_command = cc_substitute(file->command, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
-    custom_command =
-        cc_substitute(custom_command, input_output_substitution_keys,
-                      input_output_substitution_values, countof(input_output_substitution_keys));
-    const char* out_file_path = cc_substitute(relative_out_file_path, substitution_keys,
-                                              substitution_values, countof(substitution_keys));
+    const char* in_file_path   = cc_str_substitute(relative_in_file_path, substitution_keys,
+                                                   substitution_values, countof(substitution_keys));
+    const char* custom_command = cc_str_substitute(
+        file->command, substitution_keys, substitution_values, countof(substitution_keys));
+    custom_command            = cc_str_substitute(custom_command, input_output_substitution_keys,
+                                                  input_output_substitution_values,
+                                                  countof(input_output_substitution_keys));
+    const char* out_file_path = cc_str_substitute(relative_out_file_path, substitution_keys,
+                                                  substitution_values, countof(substitution_keys));
 
     fprintf(ninja_file, "\nrule post_build_rule_%s_%i\n", p->name, fi);
 #if defined(_WIN32)
@@ -496,8 +498,9 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
   }
 
   for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
-    const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
-    array_push(command_elements, cc_printf("-framework %s", strip_extension(dependantName)));
+    const char* dependantName = cc_printf("%s", cc_path_filename_only(external_frameworks[i]));
+    array_push(command_elements,
+               cc_printf("-framework %s", cc_path_strip_extension(dependantName)));
   }
 #endif
 
@@ -514,10 +517,10 @@ void ninja_createProjectFile(FILE* ninja_file, const cc_project_impl_t* p,
 
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f = p->file_data[fi]->path;
-    // const char* relative_file_path = make_path_relative(in_output_folder, f);
+    // const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
     if (is_header_file(f)) {
     } else if (is_source_file(f)) {
-      const char* obj_file_path = cc_printf("%s" OBJ_EXT, strip_extension(f));
+      const char* obj_file_path = cc_printf("%s" OBJ_EXT, cc_path_strip_extension(f));
       if (strncmp(obj_file_path, "../", 3) == 0) {
         obj_file_path += 3;
       }
@@ -644,7 +647,7 @@ void ninja_generateInFolder() {
       }
     } else {
       if (exit_code == 0) {
-        const char* bin_folder = folder_path_only(stdout_data);
+        const char* bin_folder = cc_path_folder_only(stdout_data);
         compiler_path          = cc_printf("%scl.exe", bin_folder);
         lib_linker_path        = cc_printf("%slib.exe", bin_folder);
         linker_path            = cc_printf("%slink.exe", bin_folder);
@@ -685,7 +688,7 @@ void ninja_generateInFolder() {
 
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
-  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+  char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
 
   for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
     // Adjust all the files to be relative to the build output folder
@@ -746,12 +749,12 @@ void ninja_generateInFolder() {
     ninja_createProjectFile(ninja_file, p, output_folder, build_to_base_path);
   }
 
-  const char* workspace_abs =
-      make_uri(cc_printf("%s%s", folder_path_only(_internal.config_file_path), in_workspace_path));
-  const char* config_path_rel = make_path_relative(workspace_abs, _internal.config_file_path);
+  const char* workspace_abs = make_uri(
+      cc_printf("%s%s", cc_path_folder_only(_internal.config_file_path), in_workspace_path));
+  const char* config_path_rel = cc_path_make_relative(workspace_abs, _internal.config_file_path);
 
-  const char* path_cconstruct_abs = cc_path_executable();
-  const char* cconstruct_path_rel = make_path_relative(workspace_abs, path_cconstruct_abs);
+  const char* path_cconstruct_abs = cc_path_executable_path();
+  const char* cconstruct_path_rel = cc_path_make_relative(workspace_abs, path_cconstruct_abs);
 
   fprintf(ninja_file, "\n##################\n# CConstruct rebuild\n");
   {  // Add dependency on config file

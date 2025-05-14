@@ -392,11 +392,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       if (is_source_file(filename) || is_buildable_resource_file(filename)) {
         unsigned int nodeFile = dt_api->create_object(&dt, PBXBuildFileSection, fileUUID[fi]);
         dt_api->set_object_comment(&dt, nodeFile,
-                                   cc_printf("%s in Sources", strip_path(filename)));
+                                   cc_printf("%s in Sources", cc_path_filename_only(filename)));
         dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
         unsigned int fr = dt_api->create_object(&dt, nodeFile, "fileRef");
         dt_api->set_object_value(&dt, fr, fileReferenceUUID[fi]);
-        dt_api->set_object_comment(&dt, fr, strip_path(filename));
+        dt_api->set_object_comment(&dt, fr, cc_path_filename_only(filename));
       }
     }
     for (unsigned i = 0; i < array_count(p->dependantOn); ++i) {
@@ -435,7 +435,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
       const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      const char* dependantName = cc_printf("%s", cc_path_filename_only(external_frameworks[i]));
       unsigned int nodeFile     = dt_api->create_object(&dt, PBXBuildFileSection, buildID);
       dt_api->set_object_comment(&dt, nodeFile, cc_printf("%s in Frameworks", dependantName));
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"), "PBXBuildFile");
@@ -451,14 +451,14 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       const char* fileType = xcodeFileTypeFromExtension(file_extension(filename));
       unsigned int nodeFile =
           dt_api->create_object(&dt, PBXFileReferenceSection, fileReferenceUUID[fi]);
-      dt_api->set_object_comment(&dt, nodeFile, strip_path(filename));
+      dt_api->set_object_comment(&dt, nodeFile, cc_path_filename_only(filename));
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "isa"),
                                "PBXFileReference");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "fileEncoding"), "4");
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "lastKnownFileType"),
                                fileType);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "name"),
-                               strip_path(filename));
+                               cc_path_filename_only(filename));
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "path"),
                                file_ref_paths[fi]);
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeFile, "sourceTree"),
@@ -516,7 +516,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
     for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* id            = dependencyExternalLibraryFileReferenceUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      const char* dependantName = cc_printf("%s", cc_path_filename_only(external_frameworks[i]));
       const char* fileType      = xcodeFileTypeFromExtension(file_extension(dependantName));
       unsigned int nodeFile     = dt_api->create_object(&dt, PBXFileReferenceSection, id);
       dt_api->set_object_value(&dt, nodeFile, id);
@@ -557,7 +557,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         for (unsigned i = 0; i < array_count(p->file_data); ++i) {
           if (p->file_data[i]->parent_group_idx == 0) {
             dt_api_add_child_value_and_comment(&dt, nodeChildren, fileReferenceUUID[i],
-                                               strip_path(p->file_data[i]->path));
+                                               cc_path_filename_only(p->file_data[i]->path));
           }
         }
       }
@@ -578,7 +578,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
           const cc_group_impl_t* file_group = &cc_data_.groups[p->file_data[fi]->parent_group_idx];
           if (file_group == g) {
             dt_api_add_child_value_and_comment(&dt, nodeChildren, fileReferenceUUID[fi],
-                                               strip_path(filename));
+                                               cc_path_filename_only(filename));
           }
         }
         for (unsigned gi = 0; gi < num_unique_groups; ++gi) {
@@ -610,15 +610,15 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
         const char* buildID       = dependencyFileReferenceUUID[i];
         const char* dependentName = NULL;
         if (p->dependantOn[i]->type == CCProjectTypeStaticLibrary) {
-          dependentName = cc_printf("lib%s.a", strip_path(p->dependantOn[i]->name));
+          dependentName = cc_printf("lib%s.a", cc_path_filename_only(p->dependantOn[i]->name));
         } else if (p->dependantOn[i]->type == CCProjectTypeDynamicLibrary) {
-          dependentName = cc_printf("lib%s.dylib", strip_path(p->dependantOn[i]->name));
+          dependentName = cc_printf("lib%s.dylib", cc_path_filename_only(p->dependantOn[i]->name));
         }
         dt_api_add_child_value_and_comment(&dt, nodeChildren, buildID, dependentName);
       }
       for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
         const char* buildID       = dependencyExternalLibraryFileReferenceUUID[i];
-        const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+        const char* dependantName = cc_printf("%s", cc_path_filename_only(external_frameworks[i]));
         dt_api_add_child_value_and_comment(&dt, nodeChildren, buildID, dependantName);
       }
       dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeGroup, "name"), "Frameworks");
@@ -718,7 +718,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     }
     for (unsigned i = 0; i < array_count(external_frameworks); ++i) {
       const char* buildID       = dependencyExternalLibraryBuildUUID[i];
-      const char* dependantName = cc_printf("%s", strip_path(external_frameworks[i]));
+      const char* dependantName = cc_printf("%s", cc_path_filename_only(external_frameworks[i]));
       dt_api_add_child_value_and_comment(&dt, nodeFiles, buildID,
                                          cc_printf("%s in Frameworks", dependantName));
     }
@@ -781,7 +781,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
       for (unsigned fi = 0; fi < files_count; ++fi) {
         const char* filename = p->file_data[fi]->path;
         if (is_buildable_resource_file(filename)) {
-          dt_api_add_child_value_and_comment(&dt, nodeFiles, fileUUID[fi], strip_path(filename));
+          dt_api_add_child_value_and_comment(&dt, nodeFiles, fileUUID[fi],
+                                             cc_path_filename_only(filename));
         }
       }
     }
@@ -795,11 +796,11 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     const char* input_output_substitution_keys[]   = {"input", "output"};
     const char* input_output_substitution_values[] = {file->path, file->output_file};
 
-    const char* custom_command = cc_substitute(file->command, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
-    custom_command =
-        cc_substitute(custom_command, input_output_substitution_keys,
-                      input_output_substitution_values, countof(input_output_substitution_keys));
+    const char* custom_command = cc_str_substitute(
+        file->command, substitution_keys, substitution_values, countof(substitution_keys));
+    custom_command = cc_str_substitute(custom_command, input_output_substitution_keys,
+                                       input_output_substitution_values,
+                                       countof(input_output_substitution_keys));
 
     const char* id      = xCodeUUID2String(xCodeGenerateUUID());
     const char* comment = "ShellScript - CustomCommand";
@@ -863,8 +864,9 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     for (unsigned fi = 0; fi < files_count; ++fi) {
       const char* filename = p->file_data[fi]->path;
       if (is_source_file(filename)) {
-        dt_api_add_child_value_and_comment(&dt, nodeFiles, fileUUID[fi],
-                                           cc_printf("%s in Sources", strip_path(filename)));
+        dt_api_add_child_value_and_comment(
+            &dt, nodeFiles, fileUUID[fi],
+            cc_printf("%s in Sources", cc_path_filename_only(filename)));
       }
     }
   }
@@ -961,8 +963,8 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellPath"),
                              "/bin/sh");
     const char* postBuildAction = cc_printf("%s", p->postBuildAction);
-    postBuildAction = cc_substitute(postBuildAction, substitution_keys, substitution_values,
-                                    countof(substitution_keys));
+    postBuildAction = cc_str_substitute(postBuildAction, substitution_keys, substitution_values,
+                                        countof(substitution_keys));
 
     dt_api->set_object_value(&dt, dt_api->create_object(&dt, nodeShellScript, "shellScript"),
                              cc_printf("\"%s\"", postBuildAction));
@@ -1004,7 +1006,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
   // Find Info.plist
   const char* info_plist_path = NULL;
   for (unsigned i = 0; i < files_count; i++) {
-    const char* filename = strip_path(p->file_data[i]->path);
+    const char* filename = cc_path_filename_only(p->file_data[i]->path);
     if (strcmp(filename, "Info.plist") == 0) {
       info_plist_path = file_ref_paths[i];
     }
@@ -1066,7 +1068,7 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
 
       assert(array_count(cc_data_.architectures) == 1);
       assert(cc_data_.architectures[0]->type == EArchitectureX64);
-      const char* resolved_output_folder = cc_substitute(
+      const char* resolved_output_folder = cc_str_substitute(
           p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
 
       const char* safe_output_folder = cc_printf("\"%s\"", resolved_output_folder);
@@ -1263,10 +1265,10 @@ void xCodeCreateProjectFile(FILE* f, const cc_project_impl_t* in_project,
             for (unsigned di = 0; di < array_count(flags->external_libs); di++) {
               const char* lib_path_from_base = flags->external_libs[di];
               const char* relative_lib_path =
-                  make_path_relative(build_to_base_path, lib_path_from_base);
-              const char* lib_name            = strip_path(relative_lib_path);
-              const char* lib_folder          = make_uri(folder_path_only(lib_path_from_base));
-              const char* resolved_lib_folder = cc_substitute(
+                  cc_path_make_relative(build_to_base_path, lib_path_from_base);
+              const char* lib_name            = cc_path_filename_only(relative_lib_path);
+              const char* lib_folder          = make_uri(cc_path_folder_only(lib_path_from_base));
+              const char* resolved_lib_folder = cc_str_substitute(
                   lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
               link_additional_dependencies =
@@ -1377,7 +1379,7 @@ void xcode_generateInFolder() {
 
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
-  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+  char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
 
   printf("Generating XCode workspace and projects in '%s'...\n", output_folder);
 

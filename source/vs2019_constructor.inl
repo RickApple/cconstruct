@@ -169,7 +169,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     const char* f                  = file->path;
     const size_t gi                = file->parent_group_idx;
     const char* group_name         = NULL;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     group_name = unique_group_names[gi];
 
@@ -193,7 +193,7 @@ void vs2019_createFilters(const cc_project_impl_t* in_project, const char* in_ou
     const char* f                  = file->path;
     const size_t gi                = file->parent_group_idx;
     const char* group_name         = NULL;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     group_name = unique_group_names[gi];
 
@@ -452,7 +452,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     const char* c = cc_data_.configurations[ci]->label;
     for (unsigned pi = 0; pi < array_count(cc_data_.architectures); ++pi) {
       const char* platform_label = vs_projectArch2String_(cc_data_.architectures[pi]->type);
-      const char* resolved_output_folder = cc_substitute(
+      const char* resolved_output_folder = cc_str_substitute(
           p->outputFolder, substitution_keys, substitution_values, countof(substitution_keys));
       vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_output_folder);
 
@@ -546,8 +546,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
           preprocessor_defines = cc_printf("%s;%s", "_LIB", preprocessor_defines);
           break;
         case CCProjectTypeDynamicLibrary: {
-          preprocessor_defines =
-              cc_printf("%s%s;%s", str_strip_spaces(p->name), "_EXPORTS", preprocessor_defines);
+          preprocessor_defines = cc_printf("%s%s;%s", cc_str_remove_whitespace(p->name),
+                                           "_EXPORTS", preprocessor_defines);
         } break;
         default:
           LOG_ERROR_AND_QUIT(ERR_CONFIGURATION, "Unknown project type for project '%s'\n",
@@ -615,10 +615,11 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
             lib_path_from_base = cc_printf("%s%s", build_to_base_path, lib_path_from_base);
           }
 
-          const char* relative_lib_path = make_path_relative(in_output_folder, lib_path_from_base);
-          const char* lib_name          = strip_path(relative_lib_path);
-          const char* lib_folder        = make_uri(folder_path_only(relative_lib_path));
-          const char* resolved_lib_folder = cc_substitute(
+          const char* relative_lib_path =
+              cc_path_make_relative(in_output_folder, lib_path_from_base);
+          const char* lib_name            = cc_path_filename_only(relative_lib_path);
+          const char* lib_folder          = make_uri(cc_path_folder_only(relative_lib_path));
+          const char* resolved_lib_folder = cc_str_substitute(
               lib_folder, substitution_keys, substitution_values, countof(substitution_keys));
 
           vs_replaceForwardSlashWithBackwardSlashInPlace((char*)resolved_lib_folder);
@@ -687,8 +688,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
             combined_include_folders);
       }
 
-      additional_link_flags = cc_substitute(additional_link_flags, substitution_keys,
-                                            substitution_values, countof(substitution_keys));
+      additional_link_flags = cc_str_substitute(additional_link_flags, substitution_keys,
+                                                substitution_values, countof(substitution_keys));
       data_tree_api.set_object_value(
           &dt, data_tree_api.get_or_create_object(&dt, link_obj, "AdditionalOptions"),
           additional_link_flags);
@@ -715,8 +716,8 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       const bool have_pre_build_action = (p->preBuildAction != 0);
       if (have_pre_build_action) {
         const char* windowsPreBuildAction = cc_printf("%s", p->preBuildAction);
-        windowsPreBuildAction             = cc_substitute(windowsPreBuildAction, substitution_keys,
-                                                          substitution_values, countof(substitution_keys));
+        windowsPreBuildAction = cc_str_substitute(windowsPreBuildAction, substitution_keys,
+                                                  substitution_values, countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPreBuildAction);
         unsigned int pbe = data_tree_api.create_object(&dt, idg, "PreBuildEvent");
         data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
@@ -725,8 +726,9 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
       const bool have_post_build_action = (p->postBuildAction != 0);
       if (have_post_build_action) {
         const char* windowsPostBuildAction = cc_printf("%s", p->postBuildAction);
-        windowsPostBuildAction = cc_substitute(windowsPostBuildAction, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
+        windowsPostBuildAction =
+            cc_str_substitute(windowsPostBuildAction, substitution_keys, substitution_values,
+                              countof(substitution_keys));
         vs_replaceForwardSlashWithBackwardSlashInPlace((char*)windowsPostBuildAction);
         unsigned int pbe = data_tree_api.create_object(&dt, idg, "PostBuildEvent");
         data_tree_api.set_object_value(&dt, data_tree_api.create_object(&dt, pbe, "Command"),
@@ -737,7 +739,7 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
   for (unsigned fi = 0; fi < array_count(p->file_data); ++fi) {
     const char* f                  = p->file_data[fi]->path;
-    const char* relative_file_path = make_path_relative(in_output_folder, f);
+    const char* relative_file_path = cc_path_make_relative(in_output_folder, f);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_file_path);
     unsigned int itemgroup = data_tree_api.create_object(&dt, project, "ItemGroup");
     unsigned int obj       = 0;
@@ -756,9 +758,10 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
 
   for (unsigned fi = 0; fi < array_count(p->file_data_custom_command); ++fi) {
     const struct cc_file_custom_command_t_* file = p->file_data_custom_command[fi];
-    const char* relative_in_file_path = make_path_relative(in_output_folder, file->path);
+    const char* relative_in_file_path = cc_path_make_relative(in_output_folder, file->path);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_in_file_path);
-    const char* relative_out_file_path = make_path_relative(in_output_folder, file->output_file);
+    const char* relative_out_file_path =
+        cc_path_make_relative(in_output_folder, file->output_file);
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)relative_out_file_path);
 
     /*
@@ -766,25 +769,25 @@ void vs2019_createProjectFile(const cc_project_impl_t* p, const char* project_id
     Build Tool. That's why there needs to be an absolute path here, instead of only the simpler
     relative build_to_base_path.
     */
-    const char* in_file_path_from_base = make_path_relative(
+    const char* in_file_path_from_base = cc_path_make_relative(
         cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->path)));
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)in_file_path_from_base);
-    const char* out_file_path_from_base = make_path_relative(
+    const char* out_file_path_from_base = cc_path_make_relative(
         cc_data_.base_folder, make_uri(cc_printf("%s/%s", in_output_folder, file->output_file)));
     vs_replaceForwardSlashWithBackwardSlashInPlace((char*)out_file_path_from_base);
     const char* input_output_substitution_keys[]   = {"input", "output"};
     const char* input_output_substitution_values[] = {in_file_path_from_base,
                                                       out_file_path_from_base};
 
-    const char* in_file_path   = cc_substitute(relative_in_file_path, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
-    const char* custom_command = cc_substitute(file->command, substitution_keys,
-                                               substitution_values, countof(substitution_keys));
-    custom_command =
-        cc_substitute(custom_command, input_output_substitution_keys,
-                      input_output_substitution_values, countof(input_output_substitution_keys));
-    const char* out_file_path = cc_substitute(relative_out_file_path, substitution_keys,
-                                              substitution_values, countof(substitution_keys));
+    const char* in_file_path   = cc_str_substitute(relative_in_file_path, substitution_keys,
+                                                   substitution_values, countof(substitution_keys));
+    const char* custom_command = cc_str_substitute(
+        file->command, substitution_keys, substitution_values, countof(substitution_keys));
+    custom_command            = cc_str_substitute(custom_command, input_output_substitution_keys,
+                                                  input_output_substitution_values,
+                                                  countof(input_output_substitution_keys));
+    const char* out_file_path = cc_str_substitute(relative_out_file_path, substitution_keys,
+                                                  substitution_values, countof(substitution_keys));
     unsigned int itemgroup    = data_tree_api.create_object(&dt, project, "ItemGroup");
     unsigned int cb           = data_tree_api.create_object(&dt, itemgroup, "CustomBuild");
     data_tree_api.set_object_parameter(&dt, cb, "Include", in_file_path);
@@ -974,10 +977,10 @@ void vs2019_createSolutionFile(const char** project_ids) {
 
 void vs2019_generateInFolder() {
   const char* in_workspace_path = _internal.workspace_path;
-  
+
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
-  char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+  char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
 
   for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
     // Adjust all the files to be relative to the build output folder

@@ -289,8 +289,8 @@ const char* cc_printf(const char* format, ...) {
   #pragma clang diagnostic pop
 #endif
 
-const char* cc_substitute(const char* in_original, const char** keys, const char** values,
-                          unsigned num_keys) {
+const char* cc_str_substitute(const char* in_original, const char** keys, const char** values,
+                              unsigned num_keys) {
   char key_search[128] = {0};
 
   const char* in = in_original;
@@ -333,7 +333,7 @@ const char** string_array_clone(const char** in) {
 }
 
 /* Strip path information returning only the filename (with extension) */
-const char* strip_path(const char* path) {
+const char* cc_path_filename_only(const char* path) {
   const char* last_slash = strrchr(path, '/');
   if (last_slash)
     return last_slash + 1;
@@ -342,7 +342,7 @@ const char* strip_path(const char* path) {
 }
 
 /* Strip extension from the path */
-const char* strip_extension(const char* path) {
+const char* cc_path_strip_extension(const char* path) {
   const char* last_period = strrchr(path, '.');
   if (last_period)
     return cc_printf("%.*s", last_period - path, path);
@@ -394,20 +394,20 @@ char* make_uri(const char* in_path) {
 int cc_path_exists(const char* path) {
   struct stat info;
 
-    if (stat(path, &info) != 0) {
-        // Cannot access path
-        return 0;
-    } else {
-        // Path exists
-        return 1;
-    }
+  if (stat(path, &info) != 0) {
+    // Cannot access path
+    return 0;
+  } else {
+    // Path exists
+    return 1;
+  }
 }
 
 /* Remove filename from path, and return the folder
  *
  * @return guaranteed to end in '/', and data is copied so may be modified
  */
-const char* folder_path_only(const char* in_path) {
+const char* cc_path_folder_only(const char* in_path) {
   char* uri        = make_uri(in_path);
   char* last_slash = strrchr(uri, '/');
   if (last_slash) {
@@ -422,7 +422,7 @@ const char* folder_path_only(const char* in_path) {
  *
  * @param in_base_folder is assumed to be an absolute folder path
  */
-char* make_path_relative(const char* in_base_folder, const char* in_change_path) {
+char* cc_path_make_relative(const char* in_base_folder, const char* in_change_path) {
   // Create copies of the paths so they can be modified
   char* base_folder = make_uri(in_base_folder);
   char* change_path = make_uri(in_change_path);
@@ -467,12 +467,13 @@ char* make_path_relative(const char* in_base_folder, const char* in_change_path)
   return output;
 }
 
-const char* str_strip_spaces(const char* in) {
+int is_whitespace(const char c) { return (c == ' ') || (c == '\r') || (c == '\n') || (c == '\t'); }
+const char* cc_str_remove_whitespace(const char* in) {
   static char project_name_nospaces[1024];
   char* po       = project_name_nospaces;
   const char* pi = in;
   while (*pi) {
-    if (*pi != ' ') {
+    if (!is_whitespace(*pi)) {
       *po++ = *pi;
     }
     pi++;
@@ -481,9 +482,7 @@ const char* str_strip_spaces(const char* in) {
   return project_name_nospaces;
 }
 
-int is_whitespace(const char c) { return (c == ' ') || (c == '\r') || (c == '\n') || (c == '\t'); }
-
-const char* str_trim(const char* in) {
+const char* cc_str_trim(const char* in) {
   // Trim beginning
   while (is_whitespace(*in)) {
     if (*in == 0) return "";
@@ -507,16 +506,16 @@ const char* str_trim(const char* in) {
 }
 
 #ifdef _WIN32
-const char* cc_path_executable(void) {
+const char* cc_path_executable_path(void) {
   char existing_binary_path[MAX_PATH];
   if (!GetModuleFileNameA(NULL, existing_binary_path, MAX_PATH)) {
     exit(1);
   }
 
-  return cc_printf("%s%s", folder_path_only(existing_binary_path), cconstruct_binary_name);
+  return cc_printf("%s%s", cc_path_folder_only(existing_binary_path), cconstruct_binary_name);
 }
 #elif defined(__APPLE__)
-const char* cc_path_executable(void) {
+const char* cc_path_executable_path(void) {
   char path[PATH_MAX];
 
   uint32_t size = sizeof(path);
@@ -532,10 +531,10 @@ const char* cc_path_executable(void) {
     exit(1);
   }
 
-  return cc_printf("%s%s", folder_path_only(resolved_path), cconstruct_binary_name);
+  return cc_printf("%s%s", cc_path_folder_only(resolved_path), cconstruct_binary_name);
 }
 #else
-const char* cc_path_executable(void) {
+const char* cc_path_executable_path(void) {
   char path[PATH_MAX];
 
   ssize_t count = readlink("/proc/self/exe", path, PATH_MAX - 1);
@@ -546,7 +545,7 @@ const char* cc_path_executable(void) {
 
   path[count] = '\0';  // Null-terminate the path
 
-  return cc_printf("%s%s", folder_path_only(path), cconstruct_binary_name);
+  return cc_printf("%s%s", cc_path_folder_only(path), cconstruct_binary_name);
 }
 #endif
 

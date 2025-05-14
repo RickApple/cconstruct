@@ -146,7 +146,7 @@ void addFilesFromFolderToProject(cc_project_t in_out_project, const char* folder
   assert(num_files == 0 || (in_file_names != NULL));
 
   cc_project_impl_t* project = (cc_project_impl_t*)in_out_project;
-  const char* relative_path  = make_path_relative(cc_data_.base_folder, folder);
+  const char* relative_path  = cc_path_make_relative(cc_data_.base_folder, folder);
   if (relative_path[strlen(relative_path) - 1] != '/') {
     relative_path = cc_printf("%s/", relative_path);
   }
@@ -213,7 +213,7 @@ void cc_state_reset(cc_state_t out_flags) {
 
 void cc_state_setCppVersion(cc_state_t in_state, int version) {
   cc_state_impl_t* flags = ((cc_state_impl_t*)in_state);
-  flags->cpp_version = version;
+  flags->cpp_version     = version;
 }
 
 void cc_state_addIncludeFolder(cc_state_t in_state, const char* in_include_folder) {

@@ -190,7 +190,7 @@ void generate_cc_project(cconstruct_t cc, const char* cc_config_path) {
 
   cc_project_t p = cc.project.create("cconstruct", CCProjectTypeConsoleApplication, NULL);
 
-  const char* files[] = {strip_path(make_uri(cc_config_path))};
+  const char* files[] = {cc_path_filename_only(make_uri(cc_config_path))};
   cc.project.addFiles(p, countof(files), files, NULL);
 
   cc.workspace.setLabel("cconstruct");
@@ -329,15 +329,14 @@ void impl_createEmbedded(const char* workspace_folder, const char** env_vars) {
 #endif
 
 void cc_generateInFolder(const char* in_workspace_path) {
-  
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
-  in_workspace_path = cc_printf("%s/", in_workspace_path);
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
-  // char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
-  
+  // char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
+
   _internal.workspace_path = in_workspace_path;
-  
+
   int result = make_folder(output_folder);
   if (result != 0) {
     LOG_ERROR_AND_QUIT(result, "Error %i creating output folder '%s'\n", result, output_folder);
@@ -438,7 +437,7 @@ cconstruct_t cc_init(const char* in_absolute_config_file_path, int argc, const c
   cc_group_impl_t null_group = {0};
   array_push(cc_data_.groups, null_group);
 
-  cc_data_.base_folder = folder_path_only(in_absolute_config_file_path);
+  cc_data_.base_folder = cc_path_folder_only(in_absolute_config_file_path);
 
   // Keep this as a local, so that users are forced to call cc_init to get an instance of the
   // struct.

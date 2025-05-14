@@ -57,15 +57,16 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
   char temp_path[MAX_PATH];
   GetEnvironmentVariable("temp", temp_path, MAX_PATH);
 
-  const char* path_abs_cconstruct = folder_path_only(cc_path_executable());
+  const char* path_abs_cconstruct = cc_path_folder_only(cc_path_executable_path());
   const char* path_abs_internal_cconstruct =
       cc_printf("%s%s", path_abs_cconstruct, cconstruct_internal_binary_name);
   const char* VsDevCmd_bat = cc_find_VcDevCmd_bat_();
 
   const char* embedded_config_path =
-      cc_printf("%s\\%s\\embedded_config.obj", folder_path_only(_internal.config_file_path),
+      cc_printf("%s\\%s\\embedded_config.obj", cc_path_folder_only(_internal.config_file_path),
                 _internal.workspace_path);
-  const char* embedded_config_c_path = cc_printf("%s.c", strip_extension(embedded_config_path));
+  const char* embedded_config_c_path =
+      cc_printf("%s.c", cc_path_strip_extension(embedded_config_path));
   if (cc_path_exists(embedded_config_c_path) && !cc_path_exists(embedded_config_path)) {
     const char* recompile_command = cc_printf(
         "\"%s\" > nul && pushd %s && cl.exe /c "
@@ -73,7 +74,8 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
         "/nologo "
         "/TC "
         "%s.c && popd",
-        VsDevCmd_bat, temp_path, embedded_config_path, strip_extension(embedded_config_path));
+        VsDevCmd_bat, temp_path, embedded_config_path,
+        cc_path_strip_extension(embedded_config_path));
 
     LOG_VERBOSE("Compiling new embedded_config.c with the following command:\n'%s'\n\n",
                 recompile_command);
@@ -120,7 +122,10 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
       "%s"
       "&& popd",
       VsDevCmd_bat, temp_path, path_abs_internal_cconstruct, cconstruct_config_file_path,
-      _internal.show_includes ? "/showIncludes " : "", cc_path_exists(embedded_config_path) ? cc_printf("/D USE_EMBEDDED_ENVIRONMENT=1 /link %s ", embedded_config_path):"");
+      _internal.show_includes ? "/showIncludes " : "",
+      cc_path_exists(embedded_config_path)
+          ? cc_printf("/D USE_EMBEDDED_ENVIRONMENT=1 /link %s ", embedded_config_path)
+          : "");
 
   LOG_VERBOSE("Compiling new version of CConstruct binary with the following command:\n'%s'\n\n",
               recompile_command);
@@ -268,7 +273,7 @@ void cc_recompile_binary_(const char* cconstruct_config_file_path) {
 }
 
 void cc_activateNewBuild_() {
-  const char* path = cc_path_executable();
+  const char* path = cc_path_executable_path();
 
   if (rename(cconstruct_internal_binary_name, path) != 0) {
     LOG_ERROR_AND_QUIT(ERR_COMPILING, "Error: Couldn't move binary from '%s' to '%s'\n",
