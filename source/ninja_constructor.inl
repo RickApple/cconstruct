@@ -683,10 +683,6 @@ void ninja_generateInFolder() {
     }
   }
 
-  in_workspace_path = make_uri(in_workspace_path);
-  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
-    in_workspace_path = cc_printf("%s/", in_workspace_path);
-
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
 
   char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);

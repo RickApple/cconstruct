@@ -329,14 +329,15 @@ void impl_createEmbedded(const char* workspace_folder, const char** env_vars) {
 #endif
 
 void cc_generateInFolder(const char* in_workspace_path) {
-  _internal.workspace_path = in_workspace_path;
-
+  
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
-    in_workspace_path = cc_printf("%s/", in_workspace_path);
+  in_workspace_path = cc_printf("%s/", in_workspace_path);
   char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
   // char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
-
+  
+  _internal.workspace_path = in_workspace_path;
+  
   int result = make_folder(output_folder);
   if (result != 0) {
     LOG_ERROR_AND_QUIT(result, "Error %i creating output folder '%s'\n", result, output_folder);
