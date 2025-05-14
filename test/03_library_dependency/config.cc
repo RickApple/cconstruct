@@ -3,8 +3,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc.workspace.setLabel("library_dependency");
-
   cc_project_t ls = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);
   {
     const char* c_files[] = {"src/library/library.c"};

@@ -3,8 +3,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc.workspace.setLabel("macos_framework");
-
   cc_project_t b = cc.project.create("my_binary", CCProjectTypeConsoleApplication, NULL);
   {
     const char* files[] = {"src/main.m"};

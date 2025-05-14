@@ -32,7 +32,7 @@ pushd 03_library_dependency
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/library_dependency.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
 ./build/x64/Debug/my_binary
 popd
 
@@ -41,10 +41,10 @@ pushd 03a_library_dependency_explicit
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct  --generate-projects
-xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_library -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_library -configuration Release -destination 'platform=macOS,arch=x86_64'
-xcodebuild -quiet -workspace build/library_dependency_explicit.xcworkspace -scheme my_binary -configuration Release -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_library -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_library -configuration Release -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_binary -configuration Release -destination 'platform=macOS,arch=x86_64'
 set +e
 # Debug lib returns 1
 build/x64/Debug/bin/my_binary
@@ -229,7 +229,7 @@ pushd 19_macos_framework
 rm -rf build
 $COMPILE_CCONSTRUCT_COMMAND $PWD/config.cc -o cconstruct
 ./cconstruct --generate-projects
-xcodebuild -quiet -workspace build/macos_framework.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
+xcodebuild -quiet -workspace build/workspace.xcworkspace -scheme my_binary -destination 'platform=macOS,arch=x86_64'
 ./build/x64/Debug/my_binary
 popd
 

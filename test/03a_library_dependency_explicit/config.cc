@@ -5,8 +5,6 @@
 int main(int argc, const char** argv) {
   cconstruct_t cc = cc_init(__FILE__, argc, argv);
 
-  cc.workspace.setLabel("library_dependency_explicit");
-
   cc_platform_t platform = cc.platform.create(EPlatformDesktop);
   cc.workspace.addPlatform(platform);
   cc_architecture_t arch64 = cc.architecture.create(EArchitectureX64);
