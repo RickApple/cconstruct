@@ -28,29 +28,16 @@ int main(int argc, const char** argv) {
     const char* files[] = {"src/main.c"};
     cc.project.addFiles(b, countof(files), files, NULL);
   }
+  {
+    cc_state_t s = cc.state.create();
 #if defined(_WIN32)
-  {
-    cc_state_t s = cc.state.create();
-    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Debug/lib/my_library.lib");
-    cc.project.setFlags(b, s, NULL, configuration_debug);
-  }
-  {
-    cc_state_t s = cc.state.create();
-    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Release/lib/my_library.lib");
-    cc.project.setFlags(b, s, NULL, configuration_release);
-  }
+    cc.state.linkExternalLibrary(s,
+                                 OUTPUT_FOLDER "/${platform}/${configuration}/lib/my_library.lib");
 #else
-  {
-    cc_state_t s = cc.state.create();
-    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Debug/lib/my_library");
-    cc.project.setFlags(b, s, NULL, configuration_debug);
-  }
-  {
-    cc_state_t s = cc.state.create();
-    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/Release/lib/my_library");
-    cc.project.setFlags(b, s, NULL, configuration_release);
-  }
+    cc.state.linkExternalLibrary(s, OUTPUT_FOLDER "/${platform}/${configuration}/lib/my_library");
 #endif
+    cc.project.setFlags(b, s, NULL, NULL);
+  }
 
   // Describe library
   cc_project_t l = cc.project.create("my_library", CCProjectTypeStaticLibrary, NULL);

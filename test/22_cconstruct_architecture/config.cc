@@ -11,9 +11,6 @@ int main(int argc, const char** argv) {
   cc_platform_t platform = cc.platform.create(EPlatformDesktop);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug = cc.configuration.create("Debug");
-  cc.workspace.addConfiguration(configuration_debug);
-
   cc_project_t p =
       cc.project.create("cconstruct_architecture", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};

@@ -8,11 +8,6 @@ int main(int argc, const char** argv) {
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
-  cc_configuration_t configuration_release = cc.configuration.create("Release");
-  cc.workspace.addConfiguration(configuration_debug);
-  cc.workspace.addConfiguration(configuration_release);
-
   cc_project_t p = cc.project.create("mixing_c_and_cpp", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.cpp", "src/function.c"};
 

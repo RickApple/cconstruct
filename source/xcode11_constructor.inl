@@ -1381,6 +1381,14 @@ void xcode_generateInFolder() {
 
   char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
 
+  // If there are no configs, add Debug and Release
+  if (array_count(cc_data_.configurations) == 0) {
+    cc_configuration_t configuration_debug   = _internal.cc.configuration.create("Debug");
+    cc_configuration_t configuration_release = _internal.cc.configuration.create("Release");
+    _internal.cc.workspace.addConfiguration(configuration_debug);
+    _internal.cc.workspace.addConfiguration(configuration_release);
+  }
+
   printf("Generating XCode workspace and projects in '%s'...\n", output_folder);
 
   (void)chdir(output_folder);

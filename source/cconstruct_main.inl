@@ -65,7 +65,8 @@ struct {
   const char* workspace_path;
 
   cconstruct_t cc;
-} _internal = {false, false, false, 0, NULL, NULL, "Debug", 
+} _internal = {false, false, false, 0, NULL, NULL, 
+  "Debug", 
 #ifdef _M_IX86
   "x86", EArchitectureX86,
 #elif _M_X64

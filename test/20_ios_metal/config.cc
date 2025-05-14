@@ -5,13 +5,8 @@ int main(int argc, const char** argv) {
 
   cc_architecture_t arch       = cc.architecture.create(EArchitectureX64);
   cc_architecture_t platform   = cc.platform.create(EPlatformPhone);
-  cc_configuration_t c_debug   = cc.configuration.create("Debug");
-  cc_configuration_t c_release = cc.configuration.create("Release");
-
   cc.workspace.addPlatform(platform);
   cc.workspace.addArchitecture(arch);
-  cc.workspace.addConfiguration(c_debug);
-  cc.workspace.addConfiguration(c_release);
 
   cc_project_t p = cc.project.create("TestGame", CCProjectTypeWindowedApplication, NULL);
 

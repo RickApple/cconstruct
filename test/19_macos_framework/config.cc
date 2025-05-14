@@ -10,9 +10,6 @@ int main(int argc, const char** argv) {
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug = cc.configuration.create("Debug");
-  cc.workspace.addConfiguration(configuration_debug);
-
   cc_project_t b = cc.project.create("my_binary", CCProjectTypeConsoleApplication, NULL);
   {
     const char* files[] = {"src/main.m"};

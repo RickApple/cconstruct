@@ -8,9 +8,6 @@ int main(int argc, const char** argv) {
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
-  cc.workspace.addConfiguration(configuration_debug);
-
   cc_project_t p = cc.project.create("post_build_action", CCProjectTypeConsoleApplication, NULL);
   const char* files[] = {"src/main.c"};
   cc.project.addFiles(p, countof(files), files, NULL);

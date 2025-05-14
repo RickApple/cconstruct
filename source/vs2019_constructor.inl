@@ -982,6 +982,14 @@ void vs2019_generateInFolder() {
 
   char* build_to_base_path = cc_path_make_relative(output_folder, cc_data_.base_folder);
 
+  // If there are no configs, add Debug and Release
+  if (array_count(cc_data_.configurations) == 0) {
+    cc_configuration_t configuration_debug   = _internal.cc.configuration.create("Debug");
+    cc_configuration_t configuration_release = _internal.cc.configuration.create("Release");
+    _internal.cc.workspace.addConfiguration(configuration_debug);
+    _internal.cc.workspace.addConfiguration(configuration_release);
+  }
+
   for (unsigned project_idx = 0; project_idx < array_count(cc_data_.projects); project_idx++) {
     // Adjust all the files to be relative to the build output folder
     cc_project_impl_t* project = cc_data_.projects[project_idx];

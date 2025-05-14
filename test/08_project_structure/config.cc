@@ -10,11 +10,6 @@ int main(int argc, const char** argv) {
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration_debug   = cc.configuration.create("Debug");
-  cc_configuration_t configuration_release = cc.configuration.create("Release");
-  cc.workspace.addConfiguration(configuration_debug);
-  cc.workspace.addConfiguration(configuration_release);
-
   const cc_group_t group_binaries        = cc.group.create("Binaries", NULL);
   const cc_group_t group_binaries_nested = cc.group.create("Nested", group_binaries);
   const cc_group_t group_libraries       = cc.group.create("Libraries", NULL);

@@ -290,11 +290,10 @@ void cc_project_setFlags_(cc_project_t in_out_project, const cc_state_t in_state
       string_array_clone(((const cc_state_impl_t*)in_state)->compile_options);
   stored_flags.link_options = string_array_clone(((const cc_state_impl_t*)in_state)->link_options);
 
-  array_push(((cc_project_impl_t*)in_out_project)->state, stored_flags);
-  array_push(((cc_project_impl_t*)in_out_project)->architectures,
-             (cc_architecture_impl_t*)in_architecture);
-  array_push(((cc_project_impl_t*)in_out_project)->configs,
-             (cc_configuration_impl_t*)in_configuration);
+  cc_project_impl_t* proj_impl = (cc_project_impl_t*)in_out_project;
+  array_push(proj_impl->state, stored_flags);
+  array_push(proj_impl->architectures, (cc_architecture_impl_t*)in_architecture);
+  array_push(proj_impl->configs, (cc_configuration_impl_t*)in_configuration);
 }
 
 cc_architecture_t cc_architecture_create(EArchitecture in_type) {

@@ -13,9 +13,6 @@ int main(int argc, const char** argv) {
   cc.workspace.addArchitecture(arch);
   cc.workspace.addPlatform(platform);
 
-  cc_configuration_t configuration = cc.configuration.create("Debug");
-  cc.workspace.addConfiguration(configuration);
-
   cc_project_t p = cc.project.create("custom_commands", CCProjectTypeConsoleApplication, NULL);
 
   cc_group_t g        = cc.group.create("Source", NULL);

@@ -1,6 +1,6 @@
 echo on
 @set COMPILE_DEBUG_CONSTRUCT_COMMAND=cl.exe /ZI /W4 /WX /DEBUG /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
-@set COMPILE_CONSTRUCT_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TC
+@set COMPILE_CONSTRUCT_COMMAND=%COMPILE_DEBUG_CONSTRUCT_COMMAND%
 @set COMPILE_CONSTRUCT_CPP_COMMAND=cl.exe /W4 /WX /FC /Fo%TEMP% /Fecconstruct.exe /nologo /TP
 @set CMD_CONSTRUCT_WORKSPACE=cconstruct.exe --generator=ninja --generate-projects
 @set CMD_BUILD=ninja -C build
@@ -22,7 +22,7 @@ call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat"
 
 pushd 01_hello_world
 @if exist build rd /S /Q build
-%COMPILE_CONSTRUCT_COMMAND% config.cc || exit /b
+%COMPILE_DEBUG_CONSTRUCT_COMMAND% config.cc || exit /b
 %CMD_CONSTRUCT_WORKSPACE% || exit /b
 %CMD_BUILD% || exit /b
 build\x64\Debug\hello_world.exe || exit /b
