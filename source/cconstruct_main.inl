@@ -282,8 +282,86 @@ generator_func_t parse_args(int argc, const char* const* argv) {
   return cc_default_generator;
 }
 
-void cc_generateInFolder(const char* const workspace_folder) {
-  _internal.workspace_path = workspace_folder;
+#ifdef __cplusplus
+extern "C"
+#endif
+    const char**
+    get_env();
+
+#if defined(_WIN32) && !defined(USE_EMBEDDED_ENVIRONMENT)
+const char** get_env() {
+  const char* required_env_vars[] = {"INCLUDE", "LIB", "LIBPATH", "PATH"};
+  const char** env_vars           = NULL; /* array */
+  for (int i = 0; i < countof(required_env_vars); ++i) {
+    const char* env_var = required_env_vars[i];
+    int c               = GetEnvironmentVariable(env_var, NULL, 0);
+    if (c == 0) {
+      LOG_VERBOSE("Couldn't find value for '%s'\n", env_var);
+    } else {
+      char* buf = (char*)cc_printf("%.*i", c, 0);
+      c         = GetEnvironmentVariable(env_var, buf, c);
+      array_push(env_vars, env_var);
+      array_push(env_vars, buf);
+    }
+  }
+  array_push(env_vars, NULL);
+  return env_vars;
+}
+
+void impl_createEmbedded(const char* workspace_folder, const char** env_vars) {
+  FILE* c_environment = fopen(cc_printf("%s\\embedded_config.c", workspace_folder), "w");
+
+  fprintf(c_environment, "\nconst char* * get_env() {\n");
+  fprintf(c_environment, "  static const char* env[] = {\n");
+
+  while (*env_vars != NULL) {
+    const char* env_var = env_vars[0];
+    const char* env_val = env_vars[1];
+    fprintf(c_environment, "    \"%s\", \"%s\",\n", env_var, escape_backslashes(env_val));
+    env_vars += 2;
+  }
+
+  fprintf(c_environment, "    (void*)0\n  };\n  return env;\n}\n");
+
+  fclose(c_environment);
+  LOG_VERBOSE("Generated embedded_config.c\n");
+}
+#endif
+
+void cc_generateInFolder(const char* in_workspace_path) {
+  _internal.workspace_path = in_workspace_path;
+
+  in_workspace_path = make_uri(in_workspace_path);
+  if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
+    in_workspace_path = cc_printf("%s/", in_workspace_path);
+  char* output_folder = make_uri(cc_printf("%s%s", cc_data_.base_folder, in_workspace_path));
+  // char* build_to_base_path = make_path_relative(output_folder, cc_data_.base_folder);
+
+  int result = make_folder(output_folder);
+  if (result != 0) {
+    LOG_ERROR_AND_QUIT(result, "Error %i creating output folder '%s'\n", result, output_folder);
+  }
+
+#if defined(_WIN32) && !defined(USE_EMBEDDED_ENVIRONMENT)
+  if (!cc_path_exists(cc_printf("%s\\embedded_config.c", output_folder))) {
+    impl_createEmbedded(output_folder, get_env());
+  } else {
+    LOG_VERBOSE("Not creating '%s\\embedded_config.c' because it already exists\n", output_folder);
+  }
+#endif
+
+  // If not only generating, then a new binary is built, that is run, and only then do we attempt
+  // to clean up this existing version. This binary doesn't do any construction of projects.
+  if (!_internal.only_generate) {
+    printf("Rebuilding CConstruct ...");
+    cc_recompile_binary_(_internal.config_file_path);
+    printf(" done\n");
+    int bresult = cc_runNewBuild_(_internal.argv, _internal.argc);
+    if (bresult == 0) {
+      cc_activateNewBuild_();
+    }
+    exit(bresult);
+  }
 
   _internal.cc.generator.active();
 }

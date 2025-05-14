@@ -974,7 +974,7 @@ void vs2019_createSolutionFile(const char** project_ids) {
 
 void vs2019_generateInFolder() {
   const char* in_workspace_path = _internal.workspace_path;
-  
+
   in_workspace_path = make_uri(in_workspace_path);
   if (in_workspace_path[strlen(in_workspace_path) - 1] != '/')
     in_workspace_path = cc_printf("%s/", in_workspace_path);
@@ -1015,24 +1015,6 @@ void vs2019_generateInFolder() {
 
   printf("Generating Visual Studio 2019 solution and projects in '%s'...\n", output_folder);
 
-  int result = make_folder(output_folder);
-  if (result != 0) {
-    fprintf(stderr, "Error %i creating path '%s'\n", result, output_folder);
-  }
-
-  // If not only generating, then a new binary is built, that is run, and only then do we attempt
-  // to clean up this existing version. This binary doesn't do any construction of projects.
-  if (!_internal.only_generate) {
-    printf("Rebuilding CConstruct ...");
-    cc_recompile_binary_(_internal.config_file_path);
-    printf(" done\n");
-    int bresult = cc_runNewBuild_(_internal.argv, _internal.argc);
-    if (bresult == 0) {
-      cc_activateNewBuild_();
-    }
-    exit(bresult);
-  }
-  
   (void)chdir(output_folder);
 
   const char** project_ids =
